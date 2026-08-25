@@ -53,39 +53,69 @@ Ohne Theme funktionieren die Karten, sehen aber neutraler aus.
 
 ### lavendel-room-card
 
+Zwei Betriebsarten. **Bereich** — die Karte sucht sich alles selbst:
+
 ```yaml
 type: custom:lavendel-room-card
 area: wohnzimmer
 navigation_path: /lovelace/wohnzimmer
 ```
 
-Die Karte zieht sich alle Geräte selbst aus dem Bereich — du pflegst keine Entitätslisten.
-Eine neue Lampe im Raum erscheint von allein.
+**Eigene Listen** — du bestimmst genau, was erscheint und in welcher Reihenfolge:
+
+```yaml
+type: custom:lavendel-room-card
+name: Wohnzimmer
+icon: mdi:sofa
+temperature: sensor.wohnzimmer_temperatur
+humidity: sensor.wohnzimmer_feuchte
+lights:
+  - light.decke
+  - light.stehlampe
+covers:
+  - cover.sued
+  - cover.west
+media:
+  - media_player.sonos_wohnzimmer
+climate:
+  - climate.wohnzimmer
+```
+
+Beides lässt sich mischen: Steht `area` da **und** eine Liste, gewinnt für diese
+eine Gruppe die Liste — die übrigen kommen weiter aus dem Bereich. So kannst du
+etwa nur die Lichter von Hand festlegen und Storen und Medien automatisch lassen.
+
+Einzelne Geräte dürfen einen eigenen Namen und ein eigenes Icon bekommen:
+
+```yaml
+lights:
+  - entity: light.kueche_arbeitsflaeche
+    name: Arbeitsfläche
+    icon: mdi:track-light
+  - light.kueche_decke      # kurz, wenn nichts zu ändern ist
+```
 
 | Option | Vorgabe | Wirkung |
 |---|---|---|
-| `area` | — | **Pflicht.** Bereichs-ID (nicht der angezeigte Name). Liste über Entwicklerwerkzeuge → Vorlage mit `{{ areas() }}` |
-| `name` | Bereichsname | Überschreibt die Beschriftung |
+| `area` | — | Bereichs-ID (nicht der angezeigte Name). Liste über Entwicklerwerkzeuge → Vorlage mit `{{ areas() }}` |
+| `lights` | aus dem Bereich | Welche Lampen erscheinen, in dieser Reihenfolge |
+| `covers` | aus dem Bereich | Storen. Auch `storen:` oder `rollos:` geschrieben |
+| `media` | aus dem Bereich | Medienspieler |
+| `climate` | aus dem Bereich | Thermostate |
+| `name` | Bereichsname | Überschrift der Karte |
 | `icon` | Bereichs-Icon | z. B. `mdi:sofa` |
-| `groups` | `[light, media_player, climate, cover]` | Welche Icon-Gruppen erscheinen, in dieser Reihenfolge |
-| `temperature` | automatisch | Sensor oben rechts; ohne Angabe der erste Temperatursensor des Bereichs |
-| `humidity` | automatisch | dito für die Luftfeuchte |
+| `temperature` | erster Sensor des Bereichs | Anzeige oben rechts |
+| `humidity` | erster Sensor des Bereichs | dito für die Luftfeuchte |
+| `groups` | `[light, media_player, climate, cover]` | Reihenfolge der Icon-Gruppen |
 | `navigation_path` | — | Wohin ein Tipp auf das Raum-Icon springt |
-| `entities` | — | Notausgang: feste Listen je Domain statt Bereichssuche |
+
+Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
+was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
+mit Listen bleibt deine Reihenfolge stehen.
 
 **Bedienung.** Tipp auf ein Gruppen-Icon schaltet die ganze Gruppe.
 **Halten klappt sie auf** und zeigt jedes Gerät einzeln. In der Liste: Tipp = an/aus,
 quer ziehen = Helligkeit oder Storenhöhe, Halten = Detailfenster.
-
-Mit festen Listen statt Bereich:
-
-```yaml
-type: custom:lavendel-room-card
-area: wohnzimmer
-entities:
-  light: [light.decke, light.stehlampe]
-  cover: [cover.sued, cover.west]
-```
 
 ### lavendel-slider-card
 
@@ -193,6 +223,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.3.0** — Raum-Karte: Geräte einzeln angeben mit `lights:`, `covers:`, `media:`, `climate:`
 **0.2.2** — Hovern mit der Maus verstellte Werte und fror die Karte ein
 **0.2.1** — Schutz gegen doppelt geladene Ressourcen (Umstieg auf HACS)
 **0.2.0** — Media-Karte

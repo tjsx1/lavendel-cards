@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.2.2
+ * Version 0.3.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -15,7 +15,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.2.2';
+const LAV_VERSION = '0.3.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -296,6 +296,27 @@ const GROUPS = {
   cover:        { icon: 'mdi:window-shutter', label: 'Storen',       short: 'Storen' }
 };
 
+/** Kurzschreibweisen im YAML → Domain */
+const GROUP_KEYS = {
+  light:        ['lights', 'lampen'],
+  media_player: ['media', 'media_players'],
+  climate:      ['climate'],
+  cover:        ['covers', 'storen', 'rollos']
+};
+
+/**
+ * Eine Geräteliste aus der Konfiguration einlesen. Erlaubt sind
+ *   - "light.decke"                              (nur die Entität)
+ *   - { entity: light.decke, name: …, icon: … }  (mit eigenem Namen)
+ */
+function normList(list) {
+  if (!list) return null;
+  const arr = Array.isArray(list) ? list : [list];
+  return arr
+    .map((e) => (typeof e === 'string' ? { entity: e } : Object.assign({}, e)))
+    .filter((e) => e && e.entity);
+}
+
 class LavendelRoomCard extends LavBase {
   static get CSS() {
     return `
@@ -345,35 +366,56 @@ class LavendelRoomCard extends LavBase {
   }
 
   setConfig(config) {
-    if (!config.area && !config.entities) {
-      throw new Error('Bitte "area" angeben (die Bereichs-ID aus Home Assistant).');
+    const hasList = Object.keys(GROUPS).some((d) => this.constructor._listFor(config, d));
+    if (!config.area && !hasList) {
+      throw new Error(
+        'Bitte "area" angeben (die Bereichs-ID) oder Listen wie "lights:", "covers:", "media:".'
+      );
     }
     this._open = this._open || null;
     super.setConfig(config);
   }
 
-  _groupIds(domain) {
-    const cfg = this._config;
+  /** Findet die konfigurierte Liste einer Domain, egal in welcher Schreibweise */
+  static _listFor(cfg, domain) {
+    for (const key of GROUP_KEYS[domain]) {
+      if (cfg[key]) return cfg[key];
+    }
     if (cfg.entities && cfg.entities[domain]) return cfg.entities[domain];
-    return entitiesInArea(this._hass, cfg.area, domain);
+    return null;
+  }
+
+  /**
+   * Geräte einer Gruppe. Steht eine Liste in der Konfiguration, gilt die —
+   * in genau der Reihenfolge, in der du sie geschrieben hast. Sonst wird
+   * der Bereich durchsucht und alphabetisch sortiert.
+   */
+  _groupItems(domain) {
+    const cfg = this._config;
+    const listed = normList(this.constructor._listFor(cfg, domain));
+    if (listed) return listed;
+    if (!cfg.area) return [];
+    return entitiesInArea(this._hass, cfg.area, domain).map((entity) => ({ entity }));
   }
 
   _model() {
     const hass = this._hass, cfg = this._config;
     const area = (hass.areas || {})[cfg.area];
-    if (!area && !cfg.entities) throw new Error(`Bereich "${cfg.area}" nicht gefunden.`);
+    if (cfg.area && !area) throw new Error(`Bereich "${cfg.area}" nicht gefunden.`);
 
     const wanted = cfg.groups || ['light', 'media_player', 'climate', 'cover'];
     const groups = [];
     for (const d of wanted) {
       if (!GROUPS[d]) continue;
-      const ids = this._groupIds(d);
-      if (!ids.length) continue;
-      const items = ids.map((id) => {
+      const listed = this._groupItems(d);
+      if (!listed.length) continue;
+      const items = listed.map((entry) => {
+        const id = entry.entity;
         const st = hass.states[id];
         return {
           id,
-          name: nameOf(hass, id),
+          name: entry.name || nameOf(hass, id),
+          icon: entry.icon || GROUPS[d].icon,
           on: isOn(st),
           dead: isDead(st),
           pct: pctOf(st),
@@ -401,7 +443,7 @@ class LavendelRoomCard extends LavBase {
     };
 
     return {
-      name: cfg.name || (area ? area.name : cfg.area),
+      name: cfg.name || (area ? area.name : 'Raum'),
       icon: cfg.icon || (area && area.icon) || 'mdi:home-outline',
       temp: readOut(tempId),
       hum: readOut(humId),
@@ -413,6 +455,7 @@ class LavendelRoomCard extends LavBase {
 
   _autoSensor(kind) {
     const hass = this._hass;
+    if (!this._config.area) return null;
     for (const id of entitiesInArea(hass, this._config.area, 'sensor')) {
       const st = hass.states[id];
       if (st && st.attributes.device_class === kind) return id;
@@ -468,7 +511,7 @@ class LavendelRoomCard extends LavBase {
         <div class="lrow ${it.dead ? 'dead' : ''}" data-ent="${esc(it.id)}" data-dom="${og.domain}">
           <div class="lfill" style="width:${pct}%"></div>
           ${pct > 0 ? `<div class="handle" style="left:${pct}%"></div>` : ''}
-          <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${GROUPS[og.domain].icon}"></ha-icon></div>
+          <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${esc(it.icon)}"></ha-icon></div>
           <div class="lname">${esc(it.name)}</div>
           <div class="lval">${esc(this._rowText(it, og.domain))}</div>
         </div>`;
@@ -598,10 +641,7 @@ class LavendelRoomCard extends LavBase {
   getCardSize() {
     const og = this._open;
     if (!og) return 3;
-    try {
-      const n = this._groupIds(og).length;
-      return 3 + n;
-    } catch (e) { return 4; }
+    try { return 3 + this._groupItems(og).length; } catch (e) { return 4; }
   }
 }
 
