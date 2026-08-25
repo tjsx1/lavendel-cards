@@ -193,6 +193,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.2.2** — Hovern mit der Maus verstellte Werte und fror die Karte ein
 **0.2.1** — Schutz gegen doppelt geladene Ressourcen (Umstieg auf HACS)
 **0.2.0** — Media-Karte
 **0.1.0** — Raum-Karte, Zieh-Regler, Storen-Karte, Theme

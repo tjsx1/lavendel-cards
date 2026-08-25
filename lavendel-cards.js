@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.2.1
+ * Version 0.2.2
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -15,7 +15,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.2.1';
+const LAV_VERSION = '0.2.2';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -171,6 +171,31 @@ class LavBase extends HTMLElement {
     this._tryRender();
   }
 
+  /**
+   * Sicherheitsnetz für die Zieh-Sperre. Verschluckt der Browser ein
+   * Loslassen — abgebrochene Touch-Geste, Fenster verliert den Fokus —
+   * bliebe die Karte sonst für immer eingefroren.
+   */
+  connectedCallback() {
+    if (!this._release) {
+      this._release = () => {
+        if (this._busy) { this._busy = false; this._tryRender(); }
+      };
+      window.addEventListener('pointerup', this._release);
+      window.addEventListener('pointercancel', this._release);
+      window.addEventListener('blur', this._release);
+    }
+  }
+
+  disconnectedCallback() {
+    if (this._release) {
+      window.removeEventListener('pointerup', this._release);
+      window.removeEventListener('pointercancel', this._release);
+      window.removeEventListener('blur', this._release);
+      this._release = null;
+    }
+  }
+
   set hass(hass) {
     this._hass = hass;
     this._tryRender();
@@ -204,7 +229,9 @@ class LavBase extends HTMLElement {
    */
   _press(el, opts) {
     const holdMs = 500;
-    let timer = null, held = false, dragging = false, sx = 0, sy = 0;
+    // "down" ist der wichtigste Zustand hier: Ohne ihn hält eine blosse
+    // Mausbewegung über der Karte schon für ein Ziehen her.
+    let timer = null, held = false, dragging = false, down = false, sx = 0, sy = 0;
 
     const pctFrom = (ev) => {
       const r = el.getBoundingClientRect();
@@ -213,7 +240,9 @@ class LavBase extends HTMLElement {
     };
 
     el.addEventListener('pointerdown', (ev) => {
-      held = false; dragging = false; sx = ev.clientX; sy = ev.clientY;
+      if (ev.button != null && ev.button > 0) return;   // Rechts- und Mittelklick ignorieren
+      down = true; held = false; dragging = false;
+      sx = ev.clientX; sy = ev.clientY;
       el.setPointerCapture && el.setPointerCapture(ev.pointerId);
       el.classList.add('held');
       if (opts.onHold) {
@@ -222,6 +251,7 @@ class LavBase extends HTMLElement {
     });
 
     el.addEventListener('pointermove', (ev) => {
+      if (!down) return;                                 // blosses Hovern ist kein Ziehen
       const dx = Math.abs(ev.clientX - sx), dy = Math.abs(ev.clientY - sy);
       if (!dragging && opts.onDrag && Math.max(dx, dy) > 8) {
         dragging = true; this._busy = true; clearTimeout(timer);
@@ -231,6 +261,8 @@ class LavBase extends HTMLElement {
     });
 
     const finish = (ev, cancelled) => {
+      if (!down) return;
+      down = false;
       clearTimeout(timer);
       el.classList.remove('held');
       if (dragging) {
@@ -906,7 +938,10 @@ class LavendelMediaCard extends LavBase {
     super.setConfig(config);
   }
 
-  disconnectedCallback() { this._stopTicker(); }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._stopTicker();
+  }
 
   _model() {
     const st = this._hass.states[this._config.entity];
