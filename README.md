@@ -1,6 +1,6 @@
 # Lavendel Cards
 
-Vier Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
+Fünf Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
 Verlaufs-Akzente von Türkis über Violett nach Pink, für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig.
@@ -11,6 +11,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig.
 | `lavendel-slider-card` | Vertikaler Zieh-Regler für Licht, Storen oder Lautstärke |
 | `lavendel-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
 | `lavendel-media-card` | Medienspieler mit Cover als Hintergrund, schrumpft wenn nichts läuft |
+| `lavendel-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
 
 ## Installation über HACS
 
@@ -179,6 +180,76 @@ springen, sind Vor und Zurück gedimmt.
 > Läuft nichts, schrumpft die Karte auf eine flache Kachel. Im Sections-Raster
 > deshalb keine feste Zeilenzahl setzen.
 
+### lavendel-actions-card
+
+Schnellzugriffe für Szenen, Skripte, Automationen und Helfer — in einem Rahmen,
+wahlweise nach Art getrennt.
+
+```yaml
+type: custom:lavendel-actions-card
+title: Schnellzugriff
+groups:
+  - label: Szenen
+    actions:
+      - entity: scene.kommen
+        icon: mdi:home-import-outline
+      - entity: scene.gehen
+        icon: mdi:exit-run
+      - entity: script.staubsauger
+        name: Putzen
+        icon: mdi:robot-vacuum
+  - label: Automationen
+    actions:
+      - entity: automation.nachtmodus
+        icon: mdi:weather-night
+      - entity: automation.beschattung
+        icon: mdi:blinds-horizontal
+```
+
+Ohne Gruppen genügt eine flache Liste:
+
+```yaml
+type: custom:lavendel-actions-card
+title: Schnellzugriff
+actions: [scene.kommen, scene.gehen, automation.nachtmodus]
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `actions` | — | Flache Liste. Einträge sind Entitäten oder Objekte mit `entity`, `name`, `icon` |
+| `groups` | — | Statt `actions`: Liste aus `{ label, actions }` mit Trennlinie dazwischen |
+| `title` | — | Überschrift des Rahmens; ohne Titel entfällt der Kopf |
+| `subtitle` | „x von y aktiv" | Eigener Text, oder `false` zum Ausblenden |
+| `shape` | `squares`, ab 9 Einträgen `chips` | `squares` · `chips` · `tiles` · `rail` |
+| `columns` | `4` | Spalten bei `squares` |
+| `tap_action` | — | Pro Eintrag: `trigger` löst eine Automation aus statt sie umzuschalten |
+
+**Auslöser und Schalter werden unterschieden.** Szenen, Skripte und Buttons haben
+keinen Zustand — sie leuchten beim Tippen kurz auf und zeigen einen Haken. Automationen,
+Helfer und Schalter haben einen, und der steht als kleiner Punkt oben rechts im Knopf.
+Kein Punkt heisst also: reiner Knopf, hier lässt sich nichts verstellen.
+
+| Art | Tippen | Halten |
+|---|---|---|
+| Szene | Ausführen, Haken für 1,5 s | Detailfenster |
+| Skript | Starten; läuft es, pulsiert der Knopf | Abbrechen |
+| Automation | **Scharf schalten oder deaktivieren** | Detailfenster |
+| Helfer, Schalter | Umschalten | Detailfenster |
+
+Eine deaktivierte Automation bekommt leeren Punkt, Schrägstrich und weniger Deckkraft —
+eine stumm gestellte Automation, die aussieht wie eine scharfe, ist die Sorte Fehler,
+die man erst Wochen später bemerkt.
+
+Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
+
+```yaml
+- entity: automation.giessen
+  tap_action: trigger
+```
+
+> Eine nie ausgelöste Szene steht in Home Assistant auf `unknown`. Die Karte wertet
+> das als Normalzustand, nicht als Fehler — grau wird nur, was wirklich `unavailable` ist.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -187,9 +258,8 @@ Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann Bereichs-IDs und Entit�
 
 ## Was noch fehlt
 
-Fünf weitere Bausteine sind entworfen, aber noch nicht gebaut: Klima-Ring mit
-Strichskala, Energie-Card, Szenen-Quadrate und die Statusleiste. Bis dahin decken
-die eingebauten Karten das im selben Look ab.
+Noch offen: Klima-Ring mit Strichskala, Energie-Card und die Statusleiste.
+Bis dahin decken die eingebauten Karten das im selben Look ab.
 
 ## Fehlersuche
 
@@ -223,6 +293,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.4.0** — Schnellzugriff-Karte für Szenen, Skripte und Automationen
 **0.3.0** — Raum-Karte: Geräte einzeln angeben mit `lights:`, `covers:`, `media:`, `climate:`
 **0.2.2** — Hovern mit der Maus verstellte Werte und fror die Karte ein
 **0.2.1** — Schutz gegen doppelt geladene Ressourcen (Umstieg auf HACS)

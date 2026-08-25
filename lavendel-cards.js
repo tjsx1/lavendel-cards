@@ -1,12 +1,13 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.3.0
+ * Version 0.4.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
  *   custom:lavendel-slider-card  – vertikaler Zieh-Regler (Licht, Storen, Lautstärke)
  *   custom:lavendel-cover-card   – Storen mit Höhe, Lamellen und Fahrtasten
  *   custom:lavendel-media-card   – Medienspieler mit Cover, Fortschritt und Lautstärke
+ *   custom:lavendel-actions-card – Schnellzugriffe für Szenen, Skripte, Automationen
  *
  * Installation:
  *   1. Datei nach /config/www/lavendel-cards.js kopieren
@@ -15,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.3.0';
+const LAV_VERSION = '0.4.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -1169,6 +1170,281 @@ class LavendelMediaCard extends LavBase {
   getCardSize() { return this._model && this._sig && this._sig.includes('"active":true') ? 4 : 1; }
 }
 
+/* ================================================================== *
+ * 5) SCHNELLZUGRIFFE
+ * ================================================================== */
+
+const ACT_ICON = {
+  scene: 'mdi:palette', script: 'mdi:script-text',
+  automation: 'mdi:robot', input_boolean: 'mdi:toggle-switch-outline',
+  switch: 'mdi:power-plug', light: 'mdi:lightbulb', input_button: 'mdi:gesture-tap-button',
+  button: 'mdi:gesture-tap-button'
+};
+
+/** Auslöser haben keinen Zustand, Schalter schon. Daran hängt alles. */
+const TRIGGER_DOMAINS = ['scene', 'script', 'button', 'input_button'];
+
+class LavendelActionsCard extends LavBase {
+  static get CSS() {
+    return `
+    .fhead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:13px; }
+    .ftitle{ font-size:15px; font-weight:600; }
+    .fsub{ font-size:11.5px; color:var(--ink3); }
+    .flabel{ font-size:11.5px; color:var(--ink3); margin-bottom:9px; }
+    .fsep{ height:1px; background:var(--line); margin:14px 0 12px; }
+
+    /* Quadrate */
+    .grid{ display:grid; gap:12px; }
+    .sq{ text-align:center; cursor:pointer; }
+    .sq .box{ position:relative; width:100%; aspect-ratio:1; max-width:76px; margin:0 auto 8px;
+              border-radius:20px; background:var(--surface-on); display:grid; place-items:center;
+              color:var(--ink2); box-shadow:var(--soft); --mdc-icon-size:26px;
+              transition:transform .12s ease, background .18s ease; }
+    .sq.on .box{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
+    .sq.off .box{ opacity:.55; box-shadow:none; color:var(--ink3); }
+    .sq.dead .box{ background:var(--flat); color:var(--ink3); box-shadow:none; opacity:.5; }
+    .sq.held .box{ transform:scale(.94); }
+    .sq span{ font-size:11px; color:var(--ink2); display:block; line-height:1.3; }
+    .sq.off span, .sq.dead span{ color:var(--ink3); }
+    .dot{ position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%;
+          background:var(--grad); box-shadow:0 0 0 2px var(--surface-on); }
+    .dot.hollow{ background:none; border:1.5px solid var(--ink3); box-shadow:none; }
+    .slash{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
+    .slash::after{ content:""; width:60%; height:1.5px; background:var(--ink3);
+                   transform:rotate(-45deg); }
+    @keyframes lavpulse{ 0%,100%{opacity:1} 50%{opacity:.45} }
+    .sq.run .box{ animation:lavpulse 1.1s ease-in-out infinite; }
+
+    /* Chips */
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip{ display:flex; align-items:center; gap:9px; height:40px; padding:0 14px 0 10px;
+           border-radius:14px; background:var(--surface-on); box-shadow:var(--soft);
+           font-size:13px; font-weight:500; color:var(--ink2); cursor:pointer;
+           transition:transform .12s ease; }
+    .chip .ci{ width:24px; height:24px; border-radius:8px; background:var(--flat);
+               display:grid; place-items:center; color:var(--ink3); flex:none; --mdc-icon-size:15px; }
+    .chip.on{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
+    .chip.on .ci{ background:rgba(255,255,255,.25); color:#fff; }
+    .chip.off{ opacity:.55; }
+    .chip.dead{ opacity:.5; }
+    .chip.held{ transform:scale(.96); }
+
+    /* Kacheln */
+    .tile{ background:var(--surface-on); border-radius:18px; padding:13px; box-shadow:var(--soft);
+           cursor:pointer; transition:transform .12s ease; }
+    .tile.on{ background:linear-gradient(150deg,rgba(123,107,240,.14),transparent 62%),var(--surface-on); }
+    .tile.dead{ opacity:.5; }
+    .tile.held{ transform:scale(.97); }
+    .tico{ width:34px; height:34px; border-radius:11px; background:var(--flat); display:grid;
+           place-items:center; color:var(--ink3); --mdc-icon-size:19px; }
+    .tile.on .tico{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
+    .tname{ font-size:13px; font-weight:500; margin-top:12px; }
+    .tstate{ font-size:11.5px; color:var(--ink3); }
+    .tstate.hot{ background:var(--grad); -webkit-background-clip:text; background-clip:text;
+                 color:transparent; font-weight:500; }
+
+    /* Leiste */
+    .rail{ display:flex; justify-content:space-between; background:var(--flat);
+           border-radius:16px; padding:9px 12px; }
+    .rail .r{ width:38px; height:38px; border-radius:50%; background:var(--surface-on);
+              display:grid; place-items:center; color:var(--ink2); box-shadow:var(--soft);
+              cursor:pointer; --mdc-icon-size:19px; transition:transform .12s ease; }
+    .rail .r.on{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
+    .rail .r.dead{ opacity:.5; }
+    .rail .r.held{ transform:scale(.92); }
+    `;
+  }
+
+  static getStubConfig() {
+    return { type: 'custom:lavendel-actions-card', title: 'Schnellzugriff', actions: [] };
+  }
+
+  setConfig(config) {
+    const hasFlat = config.actions && config.actions.length;
+    const hasGroups = config.groups && config.groups.length;
+    if (!hasFlat && !hasGroups) {
+      throw new Error('Bitte "actions:" oder "groups:" mit Einträgen angeben.');
+    }
+    super.setConfig(config);
+  }
+
+  _entry(entry) {
+    const hass = this._hass;
+    const cfg = typeof entry === 'string' ? { entity: entry } : entry;
+    const id = cfg.entity;
+    const st = hass.states[id];
+    const domain = id.split('.')[0];
+    const kind = TRIGGER_DOMAINS.includes(domain) ? 'trigger' : 'switch';
+    // Eine nie ausgelöste Szene steht auf "unknown" — das ist ihr Normalzustand,
+    // nicht etwa ein Fehler. Nur "unavailable" heisst wirklich nicht erreichbar.
+    const dead = !st || st.state === 'unavailable'
+      || (kind === 'switch' && st.state === 'unknown');
+    const on = !dead && st.state === 'on';
+
+    // Untertitel für die Kachelform
+    let sub = '';
+    if (dead) sub = 'Nicht erreichbar';
+    else if (domain === 'automation') sub = on ? 'Scharf' : 'Deaktiviert';
+    else if (domain === 'script') sub = on ? 'Läuft' : 'Bereit';
+    else if (domain === 'scene') {
+      const t = Date.parse(st.state);
+      sub = isNaN(t) ? 'Szene' : 'Zuletzt ' + new Date(t).toLocaleTimeString('de-CH',
+        { hour: '2-digit', minute: '2-digit' });
+    } else sub = on ? 'An' : 'Aus';
+
+    return {
+      id, domain, kind, on, dead, sub,
+      name: cfg.name || nameOf(hass, id),
+      icon: cfg.icon || (st && st.attributes.icon) || ACT_ICON[domain] || 'mdi:flash',
+      tap: cfg.tap_action || null,
+      // Punkt nur bei Dingen mit Zustand — beim Skript nur solange es läuft
+      showDot: kind === 'switch' || (domain === 'script' && on),
+      running: domain === 'script' && on
+    };
+  }
+
+  _model() {
+    const cfg = this._config;
+    const groups = cfg.groups && cfg.groups.length
+      ? cfg.groups.map((g) => ({
+          label: g.label || '',
+          items: (g.actions || []).map((e) => this._entry(e))
+        }))
+      : [{ label: '', items: (cfg.actions || []).map((e) => this._entry(e)) }];
+
+    const all = groups.reduce((n, g) => n.concat(g.items), []);
+    const switches = all.filter((i) => i.kind === 'switch');
+
+    return {
+      title: cfg.title || null,
+      subtitle: cfg.subtitle === false ? null
+        : (cfg.subtitle || (switches.length
+            ? `${switches.filter((i) => i.on).length} von ${switches.length} aktiv` : null)),
+      shape: cfg.shape || (all.length > 8 ? 'chips' : 'squares'),
+      columns: cfg.columns || 4,
+      groups,
+      flash: this._flash || null
+    };
+  }
+
+  _item(it, shape, flash) {
+    const flashing = flash === it.id;
+    const icon = flashing ? 'mdi:check' : it.icon;
+    const cls = [
+      it.dead ? 'dead' : '',
+      it.running ? 'run' : '',
+      flashing || it.running || (it.kind === 'switch' && it.on) ? 'on' : '',
+      it.kind === 'switch' && !it.on && !it.dead ? 'off' : ''
+    ].join(' ');
+
+    if (shape === 'chips') {
+      return `<div class="chip ${cls}" data-e="${esc(it.id)}">
+        <span class="ci"><ha-icon icon="${esc(icon)}"></ha-icon></span>${esc(it.name)}</div>`;
+    }
+    if (shape === 'rail') {
+      return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
+        <ha-icon icon="${esc(icon)}"></ha-icon></div>`;
+    }
+    if (shape === 'tiles') {
+      return `<div class="tile ${cls}" data-e="${esc(it.id)}">
+        <div class="tico"><ha-icon icon="${esc(icon)}"></ha-icon></div>
+        <div class="tname">${esc(it.name)}</div>
+        <div class="tstate ${it.on && !it.dead ? 'hot' : ''}">${esc(it.sub)}</div>
+      </div>`;
+    }
+    const dot = it.showDot && !it.dead
+      ? `<span class="dot ${it.on ? '' : 'hollow'}"></span>` : '';
+    const slash = it.kind === 'switch' && !it.on && !it.dead ? '<div class="slash"></div>' : '';
+    return `<div class="sq ${cls}" data-e="${esc(it.id)}">
+      <div class="box">${dot}<ha-icon icon="${esc(icon)}"></ha-icon>${slash}</div>
+      <span>${esc(it.name)}</span>
+    </div>`;
+  }
+
+  _html(m) {
+    const wrapOpen = (shape, cols) => {
+      if (shape === 'chips') return '<div class="chips">';
+      if (shape === 'rail') return '<div class="rail">';
+      if (shape === 'tiles') return `<div class="grid" style="grid-template-columns:repeat(${Math.min(cols, 2)},1fr)">`;
+      return `<div class="grid" style="grid-template-columns:repeat(${cols},1fr)">`;
+    };
+
+    const body = m.groups.map((g, i) => `
+      ${i > 0 ? '<div class="fsep"></div>' : ''}
+      ${g.label ? `<div class="flabel">${esc(g.label)}</div>` : ''}
+      ${wrapOpen(m.shape, m.columns)}
+        ${g.items.map((it) => this._item(it, m.shape, m.flash)).join('')}
+      </div>`).join('');
+
+    const head = m.title ? `
+      <div class="fhead">
+        <div>
+          <div class="ftitle">${esc(m.title)}</div>
+          ${m.subtitle ? `<div class="fsub">${esc(m.subtitle)}</div>` : ''}
+        </div>
+      </div>` : '';
+
+    return `<ha-card>${head}${body}</ha-card>`;
+  }
+
+  _bind(m) {
+    const all = m.groups.reduce((n, g) => n.concat(g.items), []);
+    this.shadowRoot.querySelectorAll('[data-e]').forEach((el) => {
+      const it = all.find((x) => x.id === el.dataset.e);
+      if (!it) return;
+      this._press(el, {
+        onTap: () => this._run(it),
+        onHold: () => {
+          if (it.domain === 'script' && it.on) this.call('script', 'turn_off', { entity_id: it.id });
+          else fireMoreInfo(this, it.id);
+        }
+      });
+    });
+  }
+
+  _run(it) {
+    if (it.dead) return;
+
+    // Ausdrückliche Vorgabe in der Konfiguration schlägt alles
+    if (it.tap === 'trigger' && it.domain === 'automation') {
+      this.call('automation', 'trigger', { entity_id: it.id, skip_condition: true });
+      this._blink(it.id);
+      return;
+    }
+    if (it.tap === 'toggle') { this.call('homeassistant', 'toggle', { entity_id: it.id }); return; }
+
+    if (it.domain === 'scene') { this.call('scene', 'turn_on', { entity_id: it.id }); this._blink(it.id); return; }
+    if (it.domain === 'script') { this.call('script', 'turn_on', { entity_id: it.id }); this._blink(it.id); return; }
+    if (it.domain === 'button' || it.domain === 'input_button') {
+      this.call(it.domain, 'press', { entity_id: it.id }); this._blink(it.id); return;
+    }
+    // Automationen, Helfer, Schalter: umschalten
+    this.call('homeassistant', 'toggle', { entity_id: it.id });
+  }
+
+  /** Kurze Bestätigung: Haken für anderthalb Sekunden */
+  _blink(id) {
+    this._flash = id;
+    this._repaint();
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => { this._flash = null; this._repaint(); }, 1500);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._flashTimer);
+  }
+
+  getCardSize() {
+    try {
+      const m = this._model();
+      const rows = m.groups.reduce((n, g) =>
+        n + Math.ceil(g.items.length / (m.shape === 'tiles' ? 2 : m.columns)), 0);
+      return 1 + rows * (m.shape === 'chips' ? 1 : 2);
+    } catch (e) { return 3; }
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * Registrierung
  * ------------------------------------------------------------------ */
@@ -1194,6 +1470,7 @@ defineCard('lavendel-room-card', LavendelRoomCard);
 defineCard('lavendel-slider-card', LavendelSliderCard);
 defineCard('lavendel-cover-card', LavendelCoverCard);
 defineCard('lavendel-media-card', LavendelMediaCard);
+defineCard('lavendel-actions-card', LavendelActionsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -1220,7 +1497,16 @@ window.customCards.push(
     name: 'Lavendel Media-Karte',
     description: 'Cover als Hintergrund, schrumpft wenn nichts läuft',
     preview: false
+  },
+  {
+    type: 'lavendel-actions-card',
+    name: 'Lavendel Schnellzugriffe',
+    description: 'Szenen, Skripte und Automationen in einem Rahmen',
+    preview: false
   }
 );
 
-export { LavendelRoomCard, LavendelSliderCard, LavendelCoverCard, LavendelMediaCard };
+export {
+  LavendelRoomCard, LavendelSliderCard, LavendelCoverCard,
+  LavendelMediaCard, LavendelActionsCard
+};
