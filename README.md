@@ -258,8 +258,13 @@ Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann Bereichs-IDs und Entit�
 
 ## Was noch fehlt
 
-Noch offen: Klima-Ring mit Strichskala, Energie-Card und die Statusleiste.
-Bis dahin decken die eingebauten Karten das im selben Look ab.
+**Die Gestaltung wird gerade umgestellt.** Die Raum-Karte trägt seit 0.5.0 das neue
+dunkle Design: Kopf mit Raum-Icon, Temperatur und Luftfeuchte als Eckdaten oben rechts,
+Raumname gross, darunter die Gerätegruppen als runde Knöpfe. Regler-, Storen-, Media- und
+Schnellzugriff-Karte folgen — sie funktionieren weiter, sehen aber noch nach der hellen
+Fassung aus.
+
+Noch nicht gebaut: Klima-Ring, Energie-Card und die Statusleiste.
 
 ## Fehlersuche
 
@@ -293,6 +298,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.5.0** — Raum-Karte im dunklen Design; Theme auf Dunkel umgestellt
 **0.4.0** — Schnellzugriff-Karte für Szenen, Skripte und Automationen
 **0.3.0** — Raum-Karte: Geräte einzeln angeben mit `lights:`, `covers:`, `media:`, `climate:`
 **0.2.2** — Hovern mit der Maus verstellte Werte und fror die Karte ein

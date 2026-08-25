@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.4.0
+ * Version 0.5.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.4.0';
+const LAV_VERSION = '0.5.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -321,43 +321,74 @@ function normList(list) {
 class LavendelRoomCard extends LavBase {
   static get CSS() {
     return `
-    .top{ display:flex; justify-content:space-between; align-items:flex-start; }
-    .meta{ font-size:12px; color:var(--ink2); text-align:right; line-height:1.45;
-           font-variant-numeric:tabular-nums; }
-    .name{ font-size:15px; font-weight:600; margin-top:12px; }
-    .sub{ font-size:12px; color:var(--ink3); }
-    .chips{ display:flex; gap:5px; margin-top:11px; }
-    .chip{ width:26px;height:26px;border-radius:9px;background:var(--flat);
-           display:grid;place-items:center;color:var(--ink3);--mdc-icon-size:14px;
-           cursor:pointer;transition:transform .12s ease; }
-    .chip.on{ background:var(--grad); color:#fff; }
-    .chip.armed{ box-shadow:0 0 0 2.5px var(--surface-on), 0 0 0 4.5px rgba(123,107,240,.55); }
-    .divide{ height:1px; background:var(--line); margin:14px 0 12px; }
-    .grp{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px; }
-    .grp span{ font-size:11.5px; color:var(--ink3); }
-    .grp b{ font-size:11.5px; font-weight:500; color:var(--primary-color,#5b4bc4); }
-    .lrow{ position:relative; overflow:hidden; border-radius:13px; background:var(--flat);
-           display:flex; align-items:center; gap:11px; padding:0 12px; height:46px;
-           margin-bottom:7px; cursor:pointer; touch-action:pan-y; }
+    ha-card{
+      padding:14px; border-radius:var(--lav-r, 16px); border:1px solid rgba(255,255,255,.07);
+      display:flex; flex-direction:column; gap:14px; overflow:hidden;
+      background:linear-gradient(135deg,
+        var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
+      box-shadow:0 10px 30px rgba(0,0,0,.40);
+    }
+    ha-card.warm{
+      background:linear-gradient(135deg,
+        var(--lav-warm-1,#0d1b2e) 0%, #0f2a3e 52%, var(--lav-warm-2,#113a52) 100%);
+    }
+
+    .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
+    .hico{ width:34px;height:34px;border-radius:50%;flex:none;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+           display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; cursor:pointer; }
+    ha-card.warm .hico{ color:var(--lav-accent-ink,#7fc6e8); }
+    .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
+    .env .t{ font-size:15px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
+    .env .h{ font-size:12px; color:#72879a; }
+    ha-card.warm .env .t{ color:var(--lav-value,#8ad2f2); }
+    ha-card.warm .env .h{ color:var(--lav-sub,#6ba8cc); }
+
+    .lab{ font-size:11.5px; font-weight:500; color:#6f8497; line-height:1.3; }
+    ha-card.warm .lab{ color:var(--lav-label,#6f9fc0); }
+    .big{ font-size:27px; font-weight:700; letter-spacing:-.03em; line-height:1.1; color:#c3ccd6;
+          cursor:pointer; }
+    ha-card.warm .big{ color:var(--lav-name,#e6f1f8); }
+    .sub{ font-size:12.5px; color:#72879a; margin-top:5px; }
+    ha-card.warm .sub{ color:var(--lav-sub,#6ba8cc); }
+
+    .ctl{ display:flex; align-items:center; gap:8px; }
+    .gbtn{ width:34px;height:34px;border-radius:50%;flex:none;
+           background:rgba(255,255,255,.085); display:grid; place-items:center;
+           color:#cfe4f2; --mdc-icon-size:17px; cursor:pointer;
+           transition:transform .12s ease, background .18s ease; }
+    .gbtn.on{ background:var(--lav-act,#7b5cf0); color:#fff;
+              box-shadow:0 4px 14px rgba(123,92,240,.45); }
+    .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 0 0 4px rgba(123,92,240,.55); }
+    .gbtn.held{ transform:scale(.9); }
+    .gbtn.nav{ margin-left:auto; background:rgba(255,255,255,.05); color:rgba(255,255,255,.34); }
+
+    .divide{ height:1px; background:rgba(255,255,255,.09); }
+    .grp{ display:flex; justify-content:space-between; align-items:baseline;
+          font-size:11px; color:#6f9fc0; }
+    .grp b{ font-weight:600; color:var(--lav-value,#9fd8f5); }
+    .rows{ display:flex; flex-direction:column; gap:7px; }
+    .lrow{ position:relative; overflow:hidden; border-radius:12px; height:46px;
+           display:flex; align-items:center; gap:11px; padding:0 12px;
+           background:rgba(255,255,255,.055); cursor:pointer; touch-action:pan-y; }
     .lfill{ position:absolute; left:0; top:0; bottom:0;
-            background:linear-gradient(90deg,rgba(78,197,232,.30),rgba(123,107,240,.26));
-            transition:width .12s linear; }
+            background:rgba(122,198,232,.20); transition:width .12s linear; }
     .lrow > *:not(.lfill){ position:relative; z-index:1; }
-    .handle{ position:absolute; top:50%; transform:translateY(-50%);
-             width:3px; height:16px; border-radius:99px; background:rgba(255,255,255,.9); z-index:2; }
-    .lico{ width:30px;height:30px;border-radius:10px;display:grid;place-items:center;flex:none;
-           background:var(--surface-on);color:var(--ink3);box-shadow:var(--soft);--mdc-icon-size:16px; }
-    .lico.grad{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .lname{ font-size:13px; font-weight:500; flex:1; min-width:0; overflow:hidden;
-            text-overflow:ellipsis; white-space:nowrap; }
-    .lval{ font-size:12.5px; color:var(--ink2); font-variant-numeric:tabular-nums; white-space:nowrap; }
-    .lrow.dead{ opacity:.5; }
-    .allout{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:11px;
-             background:var(--surface-on); border-radius:13px; height:42px; font-size:13px;
-             font-weight:500; color:var(--ink2); box-shadow:var(--soft); cursor:pointer;
-             --mdc-icon-size:16px; }
-    .griph{ width:36px;height:4px;border-radius:99px;background:var(--line);
-            margin:12px auto 0; cursor:pointer; }
+    .handle{ position:absolute; top:50%; transform:translateY(-50%); width:2.5px; height:18px;
+             border-radius:9px; background:rgba(255,255,255,.55); z-index:2; }
+    .lico{ width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+           background:rgba(255,255,255,.08); color:#9db6c8; --mdc-icon-size:15px; }
+    .lico.grad{ background:var(--lav-act,#7b5cf0); color:#fff; }
+    .lname{ flex:1; min-width:0; font-size:13px; font-weight:500; color:#cddceb;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lval{ font-size:12.5px; color:var(--lav-sub,#6ba8cc); font-variant-numeric:tabular-nums;
+           white-space:nowrap; }
+    .lrow.off .lname, .lrow.off .lval{ color:#7b8fa0; }
+    .lrow.dead{ opacity:.45; }
+    .allout{ height:42px; border-radius:12px; background:rgba(255,255,255,.055);
+             display:flex; align-items:center; justify-content:center; gap:8px;
+             font-size:12.5px; font-weight:500; color:#a8c2d4; cursor:pointer;
+             --mdc-icon-size:15px; }
     `;
   }
 
@@ -413,11 +444,18 @@ class LavendelRoomCard extends LavBase {
       const items = listed.map((entry) => {
         const id = entry.entity;
         const st = hass.states[id];
+        // Ein Thermostat ist fast immer eingeschaltet. Als "läuft gerade" zählt
+        // es nur, wenn es tatsächlich heizt oder kühlt — sonst leuchtete der
+        // Klima-Knopf rund ums Jahr.
+        const act = st && st.attributes.hvac_action;
+        const on = d === 'climate' && act
+          ? (act === 'heating' || act === 'cooling' || act === 'drying')
+          : isOn(st);
         return {
           id,
           name: entry.name || nameOf(hass, id),
           icon: entry.icon || GROUPS[d].icon,
-          on: isOn(st),
+          on,
           dead: isDead(st),
           pct: pctOf(st),
           state: st ? st.state : 'unavailable',
@@ -445,6 +483,7 @@ class LavendelRoomCard extends LavBase {
 
     return {
       name: cfg.name || (area ? area.name : 'Raum'),
+      label: cfg.label || 'Raum',
       icon: cfg.icon || (area && area.icon) || 'mdi:home-outline',
       temp: readOut(tempId),
       hum: readOut(humId),
@@ -469,9 +508,9 @@ class LavendelRoomCard extends LavBase {
     for (const g of m.groups) {
       if (!g.onCount) continue;
       if (g.domain === 'light') {
-        bits.push(`${g.onCount} ${g.onCount === 1 ? 'Licht' : 'Lichter'}`);
+        bits.push(`${g.onCount} ${g.onCount === 1 ? 'Licht an' : 'Lichter an'}`);
       } else if (g.domain === 'media_player') {
-        bits.push('Musik');
+        bits.push('Musik läuft');
       } else if (g.domain === 'climate') {
         // nur melden, wenn wirklich gerade geheizt oder gekühlt wird
         const act = g.items.find((i) => i.action === 'heating' || i.action === 'cooling');
@@ -497,8 +536,10 @@ class LavendelRoomCard extends LavBase {
 
   _html(m) {
     const anyOn = m.groups.some((g) => g.onCount > 0);
-    const chips = m.groups.map((g) => `
-      <div class="chip ${g.onCount ? 'on' : ''} ${m.open === g.domain ? 'armed' : ''}" data-grp="${g.domain}">
+
+    const buttons = m.groups.map((g) => `
+      <div class="gbtn ${g.onCount ? 'on' : ''} ${m.open === g.domain ? 'armed' : ''}"
+           data-grp="${g.domain}">
         <ha-icon icon="${GROUPS[g.domain].icon}"></ha-icon>
       </div>`).join('');
 
@@ -509,7 +550,8 @@ class LavendelRoomCard extends LavBase {
       const rows = og.items.map((it) => {
         const pct = dragable && it.pct > 0 ? it.pct : 0;
         return `
-        <div class="lrow ${it.dead ? 'dead' : ''}" data-ent="${esc(it.id)}" data-dom="${og.domain}">
+        <div class="lrow ${it.dead ? 'dead' : ''} ${!it.on && !it.dead ? 'off' : ''}"
+             data-ent="${esc(it.id)}" data-dom="${og.domain}">
           <div class="lfill" style="width:${pct}%"></div>
           ${pct > 0 ? `<div class="handle" style="left:${pct}%"></div>` : ''}
           <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${esc(it.icon)}"></ha-icon></div>
@@ -523,27 +565,33 @@ class LavendelRoomCard extends LavBase {
       <div class="divide"></div>
       <div class="grp">
         <span>${GROUPS[og.domain].label} im Raum</span>
-        <b>${og.onCount} von ${og.items.length} an</b>
+        <b>${og.onCount} von ${og.items.length} ${og.domain === 'cover' ? 'offen' : 'an'}</b>
       </div>
-      ${rows}
+      <div class="rows">${rows}</div>
       ${allOff ? `<div class="allout" id="alloff">
           <ha-icon icon="${GROUPS[og.domain].icon}"></ha-icon>
           ${og.domain === 'cover' ? 'Alle Storen zu' : 'Alle aus'}
-        </div>` : ''}
-      <div class="griph" id="collapse"></div>`;
+        </div>` : ''}`;
     }
 
     return `
-    <ha-card class="${anyOn ? 'on' : ''}">
-      <div class="top">
-        <div class="ico ${anyOn ? 'grad' : 'flat'} pressable" id="head">
-          <ha-icon icon="${esc(m.icon)}"></ha-icon>
+    <ha-card class="${anyOn ? 'warm' : ''}">
+      <div class="head">
+        <div class="hico" id="head"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="env">
+          ${m.temp ? `<div class="t">${esc(m.temp)}</div>` : ''}
+          ${m.hum ? `<div class="h">${esc(m.hum)}</div>` : ''}
         </div>
-        <div class="meta">${m.temp ? esc(m.temp) : ''}${m.temp && m.hum ? '<br>' : ''}${m.hum ? esc(m.hum) : ''}</div>
       </div>
-      <div class="name">${esc(m.name)}</div>
-      <div class="sub">${esc(this._summary(m))}</div>
-      <div class="chips">${chips}</div>
+      <div>
+        <div class="lab">${esc(m.label)}</div>
+        <div class="big" id="title">${esc(m.name)}</div>
+        <div class="sub">${esc(this._summary(m))}</div>
+      </div>
+      <div class="ctl">
+        ${buttons}
+        ${m.path ? `<div class="gbtn nav" id="nav"><ha-icon icon="mdi:tune-variant"></ha-icon></div>` : ''}
+      </div>
       ${panel}
     </ha-card>`;
   }
@@ -551,15 +599,13 @@ class LavendelRoomCard extends LavBase {
   _bind(m) {
     const root = this.shadowRoot;
 
-    const head = root.getElementById('head');
-    if (head) {
-      this._press(head, {
-        onTap: () => { if (m.path) navigate(this, m.path); },
-        onHold: () => { this._open = null; this._repaint(); }
-      });
-    }
+    const toRoom = () => { if (m.path) navigate(this, m.path); };
+    ['head', 'title', 'nav'].forEach((id) => {
+      const el = root.getElementById(id);
+      if (el) this._press(el, { onTap: toRoom, onHold: () => { this._open = null; this._repaint(); } });
+    });
 
-    root.querySelectorAll('.chip').forEach((chip) => {
+    root.querySelectorAll('.gbtn[data-grp]').forEach((chip) => {
       const domain = chip.dataset.grp;
       const grp = m.groups.find((g) => g.domain === domain);
       this._press(chip, {
@@ -602,8 +648,6 @@ class LavendelRoomCard extends LavBase {
       this._press(allOff, { onTap: () => this._allOff(grp) });
     }
 
-    const collapse = root.getElementById('collapse');
-    if (collapse) this._press(collapse, { onTap: () => { this._open = null; this._repaint(); } });
   }
 
   _toggleOne(id, domain) {
