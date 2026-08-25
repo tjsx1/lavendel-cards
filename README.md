@@ -107,16 +107,36 @@ lights:
 | `icon` | Bereichs-Icon | z. B. `mdi:sofa` |
 | `temperature` | erster Sensor des Bereichs | Anzeige oben rechts |
 | `humidity` | erster Sensor des Bereichs | dito für die Luftfeuchte |
-| `groups` | `[light, media_player, climate, cover]` | Reihenfolge der Icon-Gruppen |
+| `groups` | `[light, media_player, climate, cover]` | Reihenfolge der Gruppenknöpfe |
+| `color` | `blau` | Kartenfarbe: `blau` `gruen` `gelb` `orange` `rot` `violett` `rosa` — oder ein eigener Hexwert wie `"#00b3a4"` |
+| `label` | `Raum` | Die kleine Zeile über dem Namen |
 | `navigation_path` | — | Wohin ein Tipp auf das Raum-Icon springt |
 
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
 mit Listen bleibt deine Reihenfolge stehen.
 
-**Bedienung.** Tipp auf ein Gruppen-Icon schaltet die ganze Gruppe.
-**Halten klappt sie auf** und zeigt jedes Gerät einzeln. In der Liste: Tipp = an/aus,
+**Bedienung.** Tipp auf einen Gruppenknopf **klappt die Gruppe auf** und zeigt jedes
+Gerät einzeln. **Halten schaltet die ganze Gruppe** um. In der Liste: Tipp = an/aus,
 quer ziehen = Helligkeit oder Storenhöhe, Halten = Detailfenster.
+
+> Tippen klappt auf, weil das der häufigere Wunsch ist. Alles auf einmal umzuschalten
+> ist seltener und folgenreicher — das bekommt die absichtsvollere Geste.
+
+**Farbe.** Jede Karte darf ihre eigene bekommen; sinnvoll, wenn du Räume auf einen
+Blick auseinanderhalten willst:
+
+```yaml
+- type: custom:lavendel-room-card
+  area: wohnzimmer
+  color: gruen
+- type: custom:lavendel-room-card
+  area: kueche
+  color: orange
+```
+
+Gefärbt wird nur die aktive Karte. Ist im Raum nichts an, bleibt sie neutral grau —
+sonst sähen auch schlafende Räume aus, als liefe etwas.
 
 ### lavendel-slider-card
 
@@ -298,6 +318,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.6.0** — Tippen klappt auf, Halten schaltet; Kartenfarbe wählbar
 **0.5.0** — Raum-Karte im dunklen Design; Theme auf Dunkel umgestellt
 **0.4.0** — Schnellzugriff-Karte für Szenen, Skripte und Automationen
 **0.3.0** — Raum-Karte: Geräte einzeln angeben mit `lights:`, `covers:`, `media:`, `climate:`

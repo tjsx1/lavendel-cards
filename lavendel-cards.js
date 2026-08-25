@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.5.0
+ * Version 0.6.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.5.0';
+const LAV_VERSION = '0.6.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -297,6 +297,31 @@ const GROUPS = {
   cover:        { icon: 'mdi:window-shutter', label: 'Storen',       short: 'Storen' }
 };
 
+/** Kartenfarben. Deutsch und englisch geschrieben führen zur selben Palette. */
+const PALETTES = {
+  blau: 'blau', blue: 'blau',
+  gruen: 'gruen', grün: 'gruen', green: 'gruen',
+  gelb: 'gelb', yellow: 'gelb',
+  orange: 'orange',
+  rot: 'rot', red: 'rot',
+  violett: 'violett', violet: 'violett', purple: 'violett', lila: 'violett',
+  rosa: 'rosa', pink: 'rosa'
+};
+
+/**
+ * Eigene Farbe als Hex: daraus werden die vier Werte der Palette gerechnet.
+ * Der Verlauf bleibt dunkel genug zum Lesen, der Akzent hell genug zum Sehen.
+ */
+function paletteFromHex(hex) {
+  return [
+    `--w1:color-mix(in srgb, ${hex} 20%, #0c0e12)`,
+    `--w2:color-mix(in srgb, ${hex} 42%, #0c0e12)`,
+    `--acc:color-mix(in srgb, ${hex} 55%, #ffffff)`,
+    `--sub:color-mix(in srgb, ${hex} 62%, #9bb0c0)`,
+    `--lab:color-mix(in srgb, ${hex} 40%, #8fa3b3)`
+  ].join(';');
+}
+
 /** Kurzschreibweisen im YAML → Domain */
 const GROUP_KEYS = {
   light:        ['lights', 'lampen'],
@@ -321,67 +346,83 @@ function normList(list) {
 class LavendelRoomCard extends LavBase {
   static get CSS() {
     return `
+    /* Sieben Paletten. Jede setzt vier Werte: die beiden Ecken des Verlaufs,
+       den Ton für gemessene Werte und die Farbe des aktiven Knopfes. */
     ha-card{
+      --w1:#0d1b2e; --w2:#113a52; --acc:#8ad2f2; --sub:#6ba8cc; --lab:#6f9fc0; --btn:#7b5cf0;
       padding:14px; border-radius:var(--lav-r, 16px); border:1px solid rgba(255,255,255,.07);
       display:flex; flex-direction:column; gap:14px; overflow:hidden;
       background:linear-gradient(135deg,
         var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
       box-shadow:0 10px 30px rgba(0,0,0,.40);
     }
+    ha-card.p-gruen  { --w1:#0d2419; --w2:#12452e; --acc:#7fe0ab; --sub:#6bbf95; --lab:#6fa88c; }
+    ha-card.p-gelb   { --w1:#2b2410; --w2:#4d411a; --acc:#f0d27a; --sub:#cbb26a; --lab:#b3a074; }
+    ha-card.p-orange { --w1:#2e1c0d; --w2:#532f14; --acc:#f0ac74; --sub:#cf9166; --lab:#b8886a; }
+    ha-card.p-rot    { --w1:#2e1114; --w2:#521c22; --acc:#f2949a; --sub:#d1787f; --lab:#b87a80; }
+    /* Auf violettem und rosa Grund verschwände ein violetter Knopf — dort Cyan. */
+    ha-card.p-violett{ --w1:#1d1233; --w2:#34215c; --acc:#c3a8f5; --sub:#a48ddb; --lab:#9484c0;
+                       --btn:#4ec5e8; }
+    ha-card.p-rosa   { --w1:#2e1224; --w2:#521f3d; --acc:#f2a0cd; --sub:#d183b0; --lab:#b87fa2;
+                       --btn:#4ec5e8; }
+
     ha-card.warm{
       background:linear-gradient(135deg,
-        var(--lav-warm-1,#0d1b2e) 0%, #0f2a3e 52%, var(--lav-warm-2,#113a52) 100%);
+        var(--w1) 0%,
+        color-mix(in srgb, var(--w1) 55%, var(--w2)) 52%,
+        var(--w2) 100%);
     }
 
     .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
     .hico{ width:34px;height:34px;border-radius:50%;flex:none;
            background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
            display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; cursor:pointer; }
-    ha-card.warm .hico{ color:var(--lav-accent-ink,#7fc6e8); }
+    ha-card.warm .hico{ color:var(--acc); }
     .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
     .env .t{ font-size:15px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
     .env .h{ font-size:12px; color:#72879a; }
-    ha-card.warm .env .t{ color:var(--lav-value,#8ad2f2); }
-    ha-card.warm .env .h{ color:var(--lav-sub,#6ba8cc); }
+    ha-card.warm .env .t{ color:var(--acc); }
+    ha-card.warm .env .h{ color:var(--sub); }
 
     .lab{ font-size:11.5px; font-weight:500; color:#6f8497; line-height:1.3; }
-    ha-card.warm .lab{ color:var(--lav-label,#6f9fc0); }
+    ha-card.warm .lab{ color:var(--lab); }
     .big{ font-size:27px; font-weight:700; letter-spacing:-.03em; line-height:1.1; color:#c3ccd6;
           cursor:pointer; }
-    ha-card.warm .big{ color:var(--lav-name,#e6f1f8); }
+    ha-card.warm .big{ color:#e9f1f8; }
     .sub{ font-size:12.5px; color:#72879a; margin-top:5px; }
-    ha-card.warm .sub{ color:var(--lav-sub,#6ba8cc); }
+    ha-card.warm .sub{ color:var(--sub); }
 
     .ctl{ display:flex; align-items:center; gap:8px; }
     .gbtn{ width:34px;height:34px;border-radius:50%;flex:none;
            background:rgba(255,255,255,.085); display:grid; place-items:center;
            color:#cfe4f2; --mdc-icon-size:17px; cursor:pointer;
            transition:transform .12s ease, background .18s ease; }
-    .gbtn.on{ background:var(--lav-act,#7b5cf0); color:#fff;
-              box-shadow:0 4px 14px rgba(123,92,240,.45); }
-    .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 0 0 4px rgba(123,92,240,.55); }
+    .gbtn.on{ background:var(--btn); color:#fff;
+              box-shadow:0 4px 14px color-mix(in srgb, var(--btn) 45%, transparent); }
+    .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.9),
+                 0 0 0 4px color-mix(in srgb, var(--btn) 55%, transparent); }
     .gbtn.held{ transform:scale(.9); }
     .gbtn.nav{ margin-left:auto; background:rgba(255,255,255,.05); color:rgba(255,255,255,.34); }
 
     .divide{ height:1px; background:rgba(255,255,255,.09); }
     .grp{ display:flex; justify-content:space-between; align-items:baseline;
           font-size:11px; color:#6f9fc0; }
-    .grp b{ font-weight:600; color:var(--lav-value,#9fd8f5); }
+    .grp b{ font-weight:600; color:var(--acc); }
     .rows{ display:flex; flex-direction:column; gap:7px; }
     .lrow{ position:relative; overflow:hidden; border-radius:12px; height:46px;
            display:flex; align-items:center; gap:11px; padding:0 12px;
            background:rgba(255,255,255,.055); cursor:pointer; touch-action:pan-y; }
-    .lfill{ position:absolute; left:0; top:0; bottom:0;
-            background:rgba(122,198,232,.20); transition:width .12s linear; }
+    .lfill{ position:absolute; left:0; top:0; bottom:0; transition:width .12s linear;
+            background:color-mix(in srgb, var(--acc) 22%, transparent); }
     .lrow > *:not(.lfill){ position:relative; z-index:1; }
     .handle{ position:absolute; top:50%; transform:translateY(-50%); width:2.5px; height:18px;
              border-radius:9px; background:rgba(255,255,255,.55); z-index:2; }
     .lico{ width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
            background:rgba(255,255,255,.08); color:#9db6c8; --mdc-icon-size:15px; }
-    .lico.grad{ background:var(--lav-act,#7b5cf0); color:#fff; }
+    .lico.grad{ background:var(--btn); color:#fff; }
     .lname{ flex:1; min-width:0; font-size:13px; font-weight:500; color:#cddceb;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .lval{ font-size:12.5px; color:var(--lav-sub,#6ba8cc); font-variant-numeric:tabular-nums;
+    .lval{ font-size:12.5px; color:var(--sub); font-variant-numeric:tabular-nums;
            white-space:nowrap; }
     .lrow.off .lname, .lrow.off .lval{ color:#7b8fa0; }
     .lrow.dead{ opacity:.45; }
@@ -484,6 +525,7 @@ class LavendelRoomCard extends LavBase {
     return {
       name: cfg.name || (area ? area.name : 'Raum'),
       label: cfg.label || 'Raum',
+      color: cfg.color || null,
       icon: cfg.icon || (area && area.icon) || 'mdi:home-outline',
       temp: readOut(tempId),
       hum: readOut(humId),
@@ -574,8 +616,18 @@ class LavendelRoomCard extends LavBase {
         </div>` : ''}`;
     }
 
+    // Farbe: benannte Palette, eigener Hexwert, oder die blaue Vorgabe
+    let pal = '', style = '';
+    if (m.color && m.color.charAt(0) === '#') style = ` style="${paletteFromHex(m.color)}"`;
+    else if (m.color) {
+      const key = PALETTES[String(m.color).toLowerCase()];
+      if (!key) throw new Error(
+        `Farbe "${m.color}" gibt es nicht. Möglich: ` + [...new Set(Object.values(PALETTES))].join(', '));
+      if (key !== 'blau') pal = ' p-' + key;
+    }
+
     return `
-    <ha-card class="${anyOn ? 'warm' : ''}">
+    <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
       <div class="head">
         <div class="hico" id="head"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
         <div class="env">
@@ -609,8 +661,10 @@ class LavendelRoomCard extends LavBase {
       const domain = chip.dataset.grp;
       const grp = m.groups.find((g) => g.domain === domain);
       this._press(chip, {
-        onTap: () => this._toggleGroup(grp),
-        onHold: () => { this._open = this._open === domain ? null : domain; this._repaint(); }
+        // Tippen klappt auf — das ist der häufigere Wunsch.
+        // Schalten ist der seltenere und der folgenreichere Griff, also Halten.
+        onTap: () => { this._open = this._open === domain ? null : domain; this._repaint(); },
+        onHold: () => this._toggleGroup(grp)
       });
     });
 
