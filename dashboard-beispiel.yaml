@@ -1,0 +1,160 @@
+# Lavendel — Beispiel-Dashboard für das Handy
+#
+# Einfügen: Dashboard öffnen → ⋮ → "Raw-Konfigurationseditor"
+# und diesen Inhalt einsetzen. Vorher die Bereichs-IDs und Entitäten anpassen.
+#
+# Bereichs-IDs findest du unter
+#   Entwicklerwerkzeuge → Vorlage
+# mit:   {{ areas() }}
+
+views:
+  # =========================================================
+  # Startseite — nur Raum-Karten
+  # =========================================================
+  - title: Zuhause
+    path: start
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Zuhause
+            heading_style: title
+
+          - type: custom:lavendel-room-card
+            area: wohnzimmer
+            navigation_path: /lovelace/wohnzimmer
+            grid_options:
+              columns: 6
+
+          - type: custom:lavendel-room-card
+            area: kueche
+            navigation_path: /lovelace/kueche
+            grid_options:
+              columns: 6
+
+          - type: custom:lavendel-room-card
+            area: schlafzimmer
+            navigation_path: /lovelace/schlafzimmer
+            grid_options:
+              columns: 6
+
+          - type: custom:lavendel-room-card
+            area: bad
+            navigation_path: /lovelace/bad
+            grid_options:
+              columns: 6
+
+  # =========================================================
+  # Raumseite — Regler, Storen, Klima
+  # =========================================================
+  - title: Wohnzimmer
+    path: wohnzimmer
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Licht
+            heading_style: subtitle
+
+          # Zieh-Regler: vier passen nebeneinander (je 3 Spalten)
+          - type: custom:lavendel-slider-card
+            entity: light.wohnzimmer_decke
+            name: Decke
+            grid_options:
+              columns: 3
+              rows: 3
+
+          - type: custom:lavendel-slider-card
+            entity: light.wohnzimmer_steh
+            name: Steh
+            grid_options:
+              columns: 3
+              rows: 3
+
+          - type: custom:lavendel-slider-card
+            entity: light.wohnzimmer_led
+            name: LED
+            grid_options:
+              columns: 3
+              rows: 3
+
+          - type: custom:lavendel-slider-card
+            entity: light.wohnzimmer_lese
+            name: Lese
+            grid_options:
+              columns: 3
+              rows: 3
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Storen
+            heading_style: subtitle
+
+          - type: custom:lavendel-cover-card
+            entity: cover.wohnzimmer_sued
+            # optional: Sperre sichtbar machen, solange der Windwächter greift
+            # lock_entity: binary_sensor.windwaechter
+            # lock_label: Windwächter aktiv
+            grid_options:
+              columns: 6
+
+          - type: custom:lavendel-cover-card
+            entity: cover.wohnzimmer_west
+            grid_options:
+              columns: 6
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Musik
+            heading_style: subtitle
+
+          # Läuft nichts, schrumpft die Karte von selbst auf eine flache Kachel.
+          # Deshalb keine feste Zeilenzahl setzen.
+          - type: custom:lavendel-media-card
+            entity: media_player.sonos_wohnzimmer
+            grid_options:
+              columns: 12
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Klima
+            heading_style: subtitle
+
+          # Baustein 06 kommt später als eigene Karte —
+          # bis dahin die eingebaute Thermostat-Karte im Theme-Look
+          - type: thermostat
+            entity: climate.wohnzimmer
+            features:
+              - type: climate-hvac-modes
+                hvac_modes: [heat, cool, auto, "off"]
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Szenen
+            heading_style: subtitle
+
+          # Bordmittel: Tile-Karten im Szenen-Look
+          - type: tile
+            entity: scene.gute_nacht
+            name: Gute Nacht
+            grid_options: {columns: 3}
+          - type: tile
+            entity: scene.kuehl_entspannt
+            name: Kühl
+            grid_options: {columns: 3}
+          - type: tile
+            entity: scene.musik_hoeren
+            name: Musik
+            grid_options: {columns: 3}
+          - type: tile
+            entity: scene.party
+            name: Party
+            grid_options: {columns: 3}
