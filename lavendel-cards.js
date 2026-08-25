@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.6.0
+ * Version 0.7.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.6.0';
+const LAV_VERSION = '0.7.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -322,6 +322,34 @@ function paletteFromHex(hex) {
   ].join(';');
 }
 
+
+/* ------------------------------------------------------------------ *
+ * Sieben Paletten, von allen Karten geteilt. Jede setzt die beiden
+ * Ecken des Verlaufs, den Ton für Werte und die Farbe des aktiven Knopfes.
+ * ------------------------------------------------------------------ */
+const PAL_CSS = `
+ha-card{ --w1:#0d1b2e; --w2:#113a52; --acc:#8ad2f2; --sub:#6ba8cc; --lab:#6f9fc0; --btn:#7b5cf0; }
+ha-card.p-gruen  { --w1:#0d2419; --w2:#12452e; --acc:#7fe0ab; --sub:#6bbf95; --lab:#6fa88c; }
+ha-card.p-gelb   { --w1:#2b2410; --w2:#4d411a; --acc:#f0d27a; --sub:#cbb26a; --lab:#b3a074; }
+ha-card.p-orange { --w1:#2e1c0d; --w2:#532f14; --acc:#f0ac74; --sub:#cf9166; --lab:#b8886a; }
+ha-card.p-rot    { --w1:#2e1114; --w2:#521c22; --acc:#f2949a; --sub:#d1787f; --lab:#b87a80; }
+/* Auf violettem und rosa Grund verschwände ein violetter Knopf — dort Cyan. */
+ha-card.p-violett{ --w1:#1d1233; --w2:#34215c; --acc:#c3a8f5; --sub:#a48ddb; --lab:#9484c0;
+                   --btn:#4ec5e8; }
+ha-card.p-rosa   { --w1:#2e1224; --w2:#521f3d; --acc:#f2a0cd; --sub:#d183b0; --lab:#b87fa2;
+                   --btn:#4ec5e8; }
+`;
+
+/** Farbklasse und Inline-Stil aus der Konfiguration ableiten */
+function paletteAttrs(color) {
+  if (!color) return { cls: '', style: '' };
+  if (String(color).charAt(0) === '#') return { cls: '', style: ` style="${paletteFromHex(color)}"` };
+  const key = PALETTES[String(color).toLowerCase()];
+  if (!key) throw new Error(
+    `Farbe "${color}" gibt es nicht. Möglich: ` + [...new Set(Object.values(PALETTES))].join(', '));
+  return { cls: key === 'blau' ? '' : ' p-' + key, style: '' };
+}
+
 /** Kurzschreibweisen im YAML → Domain */
 const GROUP_KEYS = {
   light:        ['lights', 'lampen'],
@@ -345,27 +373,14 @@ function normList(list) {
 
 class LavendelRoomCard extends LavBase {
   static get CSS() {
-    return `
-    /* Sieben Paletten. Jede setzt vier Werte: die beiden Ecken des Verlaufs,
-       den Ton für gemessene Werte und die Farbe des aktiven Knopfes. */
+    return PAL_CSS + `
     ha-card{
-      --w1:#0d1b2e; --w2:#113a52; --acc:#8ad2f2; --sub:#6ba8cc; --lab:#6f9fc0; --btn:#7b5cf0;
       padding:14px; border-radius:var(--lav-r, 16px); border:1px solid rgba(255,255,255,.07);
       display:flex; flex-direction:column; gap:14px; overflow:hidden;
       background:linear-gradient(135deg,
         var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
       box-shadow:0 10px 30px rgba(0,0,0,.40);
     }
-    ha-card.p-gruen  { --w1:#0d2419; --w2:#12452e; --acc:#7fe0ab; --sub:#6bbf95; --lab:#6fa88c; }
-    ha-card.p-gelb   { --w1:#2b2410; --w2:#4d411a; --acc:#f0d27a; --sub:#cbb26a; --lab:#b3a074; }
-    ha-card.p-orange { --w1:#2e1c0d; --w2:#532f14; --acc:#f0ac74; --sub:#cf9166; --lab:#b8886a; }
-    ha-card.p-rot    { --w1:#2e1114; --w2:#521c22; --acc:#f2949a; --sub:#d1787f; --lab:#b87a80; }
-    /* Auf violettem und rosa Grund verschwände ein violetter Knopf — dort Cyan. */
-    ha-card.p-violett{ --w1:#1d1233; --w2:#34215c; --acc:#c3a8f5; --sub:#a48ddb; --lab:#9484c0;
-                       --btn:#4ec5e8; }
-    ha-card.p-rosa   { --w1:#2e1224; --w2:#521f3d; --acc:#f2a0cd; --sub:#d183b0; --lab:#b87fa2;
-                       --btn:#4ec5e8; }
-
     ha-card.warm{
       background:linear-gradient(135deg,
         var(--w1) 0%,
@@ -616,15 +631,7 @@ class LavendelRoomCard extends LavBase {
         </div>` : ''}`;
     }
 
-    // Farbe: benannte Palette, eigener Hexwert, oder die blaue Vorgabe
-    let pal = '', style = '';
-    if (m.color && m.color.charAt(0) === '#') style = ` style="${paletteFromHex(m.color)}"`;
-    else if (m.color) {
-      const key = PALETTES[String(m.color).toLowerCase()];
-      if (!key) throw new Error(
-        `Farbe "${m.color}" gibt es nicht. Möglich: ` + [...new Set(Object.values(PALETTES))].join(', '));
-      if (key !== 'blau') pal = ' p-' + key;
-    }
+    const { cls: pal, style } = paletteAttrs(m.color);
 
     return `
     <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
@@ -1013,60 +1020,82 @@ const mmss = (s) => {
 
 class LavendelMediaCard extends LavBase {
   static get CSS() {
-    return `
-    ha-card{ padding:0; position:relative; overflow:hidden; }
-    ha-card.play{ background:#111827; box-shadow:var(--soft); }
+    return PAL_CSS + `
+    ha-card{
+      position:relative; overflow:hidden; padding:0;
+      border:1px solid rgba(255,255,255,.07); border-radius:var(--lav-r,16px);
+      box-shadow:0 10px 30px rgba(0,0,0,.40);
+      background:linear-gradient(135deg,
+        var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
+    }
+    ha-card.live{ background:linear-gradient(115deg, var(--w1) 0%, var(--w2) 100%); }
 
-    .cover{ position:absolute; inset:0; background-size:cover; background-position:center;
-            transform:scale(1.06); }
-    .scrim{ position:absolute; inset:0;
-            background:linear-gradient(180deg,rgba(12,14,32,.10) 0%,rgba(12,14,32,.45) 45%,rgba(12,14,32,.86) 100%); }
-    .fallback{ position:absolute; inset:0;
-               background:linear-gradient(160deg,#2c3e6b,#1b2440 55%,#111827); }
-    .inner{ position:relative; padding:15px; min-height:172px; color:#fff;
-            display:flex; flex-direction:column; justify-content:space-between; gap:10px; }
+    /* Der Kartengrund kommt aus dem Cover: gross gezogen und weichgezeichnet.
+       Dadurch trägt jede Karte die Farbe der Musik, die gerade läuft. */
+    .bg{ position:absolute; inset:-25%; background-size:cover; background-position:center;
+         filter:blur(34px) saturate(170%); }
+    .veil{ position:absolute; inset:0; background:linear-gradient(100deg,
+           rgba(0,0,0,.16) 0%, rgba(0,0,0,.30) 42%, rgba(0,0,0,.48) 100%); }
 
-    .head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-    .badge{ width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.18);
-            display:grid;place-items:center;--mdc-icon-size:16px;flex:none; }
-    .src{ font-size:11px; color:rgba(255,255,255,.75); text-align:right; line-height:1.35;
-          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:55%; }
+    .inner{ position:relative; display:flex; gap:13px; padding:11px; }
+    .art{ width:118px; height:118px; flex:none; border-radius:12px; cursor:pointer;
+          background-size:cover; background-position:center; background-color:rgba(255,255,255,.09);
+          box-shadow:0 4px 14px rgba(0,0,0,.35);
+          display:grid; place-items:center; color:rgba(255,255,255,.45); --mdc-icon-size:34px; }
+    .info{ flex:1; min-width:0; display:flex; flex-direction:column; color:#fff; }
 
-    .ttl{ font-size:15px; font-weight:500; line-height:1.3;
-          display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-    .art{ font-size:12px; color:rgba(255,255,255,.72); overflow:hidden;
-          text-overflow:ellipsis; white-space:nowrap; }
+    .r1{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .lab{ font-size:11px; color:rgba(255,255,255,.62); line-height:1.3; }
+    .dev{ font-size:12.5px; font-weight:600; line-height:1.3;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .eq{ display:flex; align-items:flex-end; gap:2.5px; height:16px; flex:none; padding-top:2px; }
+    .eq i{ width:2.5px; height:5px; border-radius:2px; background:rgba(255,255,255,.85); }
+    ha-card.run .eq i{ animation:lavbar .9s ease-in-out infinite; }
+    ha-card.run .eq i:nth-child(2){ animation-delay:.15s; }
+    ha-card.run .eq i:nth-child(3){ animation-delay:.30s; }
+    ha-card.run .eq i:nth-child(4){ animation-delay:.45s; }
+    @keyframes lavbar{ 0%,100%{ height:4px } 50%{ height:16px } }
 
-    .prog{ position:relative; height:16px; display:flex; align-items:center;
-           cursor:pointer; touch-action:pan-y; margin-top:8px; }
-    .prog .bg{ position:absolute; left:0; right:0; height:3px; border-radius:99px;
-               background:rgba(255,255,255,.3); }
-    .prog .on{ position:absolute; left:0; height:3px; border-radius:99px; background:#fff; }
-    .prog .knob{ position:absolute; width:9px; height:9px; border-radius:50%; background:#fff;
-                 transform:translateX(-50%); box-shadow:0 1px 4px rgba(0,0,0,.45); }
-    .times{ display:flex; justify-content:space-between; font-size:10.5px;
-            color:rgba(255,255,255,.65); font-variant-numeric:tabular-nums; margin-top:2px; }
+    .r2{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+         margin:9px 0 8px; flex:1; }
+    .tx{ min-width:0; }
+    .title{ font-size:15px; font-weight:700; letter-spacing:-.01em; line-height:1.25;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .artist{ font-size:12px; color:rgba(255,255,255,.66);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pbtn{ width:44px; height:44px; border-radius:50%; flex:none; cursor:pointer;
+           display:grid; place-items:center; background:rgba(255,255,255,.22); color:#fff;
+           --mdc-icon-size:22px; transition:transform .12s ease; }
+    .pbtn.held{ transform:scale(.92); }
 
-    .ctr{ display:flex; justify-content:center; align-items:center; gap:20px; margin-top:2px; }
-    .cbtn{ width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
-           color:#fff;--mdc-icon-size:22px;cursor:pointer;transition:transform .12s ease; }
-    .cbtn.main{ border:1.5px solid rgba(255,255,255,.6); }
-    .cbtn.off{ opacity:.32; }
+    .r3{ display:flex; align-items:center; gap:9px; }
+    .tm{ font-size:10.5px; color:rgba(255,255,255,.72); flex:none;
+         font-variant-numeric:tabular-nums; }
+    .prog{ flex:1; position:relative; height:14px; display:flex; align-items:center;
+           cursor:pointer; touch-action:pan-y; }
+    .prog .tr{ position:absolute; left:0; right:0; height:3px; border-radius:9px;
+               background:rgba(255,255,255,.26); }
+    .prog .on{ position:absolute; left:0; height:3px; border-radius:9px; background:#fff; }
 
-    .vol{ display:flex; align-items:center; gap:9px; }
-    .vol .vico{ --mdc-icon-size:16px; color:rgba(255,255,255,.8); cursor:pointer; }
-    .vtrack{ flex:1; position:relative; height:16px; display:flex; align-items:center;
-             cursor:pointer; touch-action:pan-y; }
-    .vtrack .bg{ position:absolute; left:0; right:0; height:4px; border-radius:99px;
-                 background:rgba(255,255,255,.25); }
-    .vtrack .on{ position:absolute; left:0; height:4px; border-radius:99px; background:var(--grad); }
-    .vtrack .knob{ position:absolute; width:12px;height:12px;border-radius:50%;background:#fff;
-                   transform:translateX(-50%); box-shadow:0 2px 5px rgba(0,0,0,.35); }
+    .r4{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .vico{ flex:none; color:rgba(255,255,255,.8); --mdc-icon-size:15px; cursor:pointer; }
+    .vol{ flex:1; position:relative; height:16px; display:flex; align-items:center;
+          cursor:pointer; touch-action:pan-y; }
+    .vol .tr{ position:absolute; left:0; right:0; height:4px; border-radius:9px;
+              background:rgba(255,255,255,.26); }
+    .vol .on{ position:absolute; left:0; height:4px; border-radius:9px; background:#fff; }
+    .vol .kn{ position:absolute; width:13px; height:13px; border-radius:50%; background:#fff;
+              transform:translateX(-50%); box-shadow:0 2px 6px rgba(0,0,0,.45); }
+    .sk{ flex:none; color:#fff; --mdc-icon-size:17px; cursor:pointer; }
+    .sk.off{ opacity:.32; }
 
-    /* Ruhezustand: flache Kachel */
-    .idle{ display:flex; align-items:center; gap:12px; }
-    .idle .nm{ font-size:13px; font-weight:500; }
-    .idle .st{ font-size:12px; color:var(--ink3); }
+    /* Ruhezustand: flache Kachel wie bei der Raum-Karte */
+    .idle{ position:relative; display:flex; align-items:center; gap:12px; padding:13px; }
+    .iico{ width:34px; height:34px; border-radius:50%; flex:none; display:grid; place-items:center;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+           color:#8ea3b5; --mdc-icon-size:18px; }
+    .inm{ font-size:13px; font-weight:600; color:#c3ccd6; }
+    .ist{ font-size:12px; color:#72879a; }
     `;
   }
 
@@ -1093,6 +1122,8 @@ class LavendelMediaCard extends LavBase {
     return {
       id: this._config.entity,
       name: this._config.name || nameOf(this._hass, this._config.entity),
+      label: this._config.label || 'Lautsprecher',
+      color: this._config.color || null,
       state: st.state,
       active, playing,
       dead: isDead(st),
@@ -1104,10 +1135,8 @@ class LavendelMediaCard extends LavBase {
       posAt: a.media_position_updated_at || null,
       vol: a.volume_level != null ? Math.round(a.volume_level * 100) : null,
       muted: !!a.is_volume_muted,
-      src: a.source || a.app_name || null,
       can: {
-        pause: !!(f & MF.PAUSE), play: !!(f & MF.PLAY), seek: !!(f & MF.SEEK),
-        prev: !!(f & MF.PREV), next: !!(f & MF.NEXT),
+        seek: !!(f & MF.SEEK), prev: !!(f & MF.PREV), next: !!(f & MF.NEXT),
         vol: !!(f & MF.VOLUME_SET), mute: !!(f & MF.VOLUME_MUTE)
       },
       showVol: this._config.show_volume !== false
@@ -1123,16 +1152,16 @@ class LavendelMediaCard extends LavBase {
   }
 
   _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+
     if (!m.active) {
       return `
-      <ha-card>
-        <div class="inner" style="min-height:0;padding:13px;color:var(--ink)">
-          <div class="idle" id="idle">
-            <div class="ico flat"><ha-icon icon="mdi:speaker"></ha-icon></div>
-            <div>
-              <div class="nm">${esc(m.name)}</div>
-              <div class="st">${m.dead ? 'Nicht erreichbar' : 'Nichts läuft'}</div>
-            </div>
+      <ha-card class="${cls}"${style}>
+        <div class="idle" id="idle">
+          <div class="iico"><ha-icon icon="mdi:speaker"></ha-icon></div>
+          <div>
+            <div class="inm">${esc(m.name)}</div>
+            <div class="ist">${m.dead ? 'Nicht erreichbar' : 'Nichts läuft'}</div>
           </div>
         </div>
       </ha-card>`;
@@ -1140,48 +1169,54 @@ class LavendelMediaCard extends LavBase {
 
     const p = this._livePos(m);
     const pct = m.dur ? clamp((p / m.dur) * 100, 0, 100) : 0;
+    const vol = m.muted ? 0 : (m.vol || 0);
 
     return `
-    <ha-card class="play">
-      ${m.pic ? `<div class="cover" style="background-image:url('${esc(m.pic)}')"></div><div class="scrim"></div>`
-              : `<div class="fallback"></div>`}
+    <ha-card class="live ${m.playing ? 'run' : ''}${cls}"${style}>
+      ${m.pic ? `<div class="bg" style="background-image:url('${esc(m.pic)}')"></div>` : ''}
+      <div class="veil"></div>
       <div class="inner">
-        <div class="head">
-          <div class="badge"><ha-icon icon="mdi:music-note"></ha-icon></div>
-          <div class="src">${esc(m.src || m.name)}</div>
+        <div class="art" id="art" ${m.pic ? `style="background-image:url('${esc(m.pic)}')"` : ''}>
+          ${m.pic ? '' : '<ha-icon icon="mdi:music"></ha-icon>'}
         </div>
-
-        <div>
-          <div class="ttl">${esc(m.title || m.name)}</div>
-          ${m.sub ? `<div class="art">${esc(m.sub)}</div>` : ''}
-
-          ${m.dur ? `
-          <div class="prog" id="prog">
-            <div class="bg"></div>
-            <div class="on" style="width:${pct}%"></div>
-            <div class="knob" style="left:${pct}%"></div>
-          </div>
-          <div class="times"><span id="tnow">${mmss(p)}</span><span>${mmss(m.dur)}</span></div>` : ''}
-
-          <div class="ctr">
-            <div class="cbtn ${m.can.prev ? '' : 'off'}" id="prev">
-              <ha-icon icon="mdi:skip-previous"></ha-icon></div>
-            <div class="cbtn main" id="play">
-              <ha-icon icon="${m.playing ? 'mdi:pause' : 'mdi:play'}"></ha-icon></div>
-            <div class="cbtn ${m.can.next ? '' : 'off'}" id="next">
-              <ha-icon icon="mdi:skip-next"></ha-icon></div>
+        <div class="info">
+          <div class="r1">
+            <div style="min-width:0">
+              <div class="lab">${esc(m.label)}</div>
+              <div class="dev">${esc(m.name)}</div>
+            </div>
+            <div class="eq"><i></i><i></i><i></i><i></i></div>
           </div>
 
-          ${m.showVol && m.can.vol ? `
-          <div class="vol">
+          <div class="r2">
+            <div class="tx">
+              <div class="title">${esc(m.title || m.name)}</div>
+              ${m.sub ? `<div class="artist">${esc(m.sub)}</div>` : ''}
+            </div>
+            <div class="pbtn" id="play">
+              <ha-icon icon="${m.playing ? 'mdi:pause' : 'mdi:play'}"></ha-icon>
+            </div>
+          </div>
+
+          <div class="r3">
+            <span class="tm" id="tnow">${mmss(p)}</span>
+            <div class="prog" id="prog"><div class="tr"></div>
+              <div class="on" style="width:${pct}%"></div></div>
+            <span class="tm">${m.dur ? mmss(m.dur) : '--:--'}</span>
+          </div>
+
+          <div class="r4">
             <div class="vico" id="mute">
               <ha-icon icon="${m.muted ? 'mdi:volume-off' : 'mdi:volume-medium'}"></ha-icon></div>
-            <div class="vtrack" id="vol">
-              <div class="bg"></div>
-              <div class="on" style="width:${m.muted ? 0 : (m.vol || 0)}%"></div>
-              <div class="knob" style="left:${m.muted ? 0 : (m.vol || 0)}%"></div>
-            </div>
-          </div>` : ''}
+            ${m.showVol && m.can.vol ? `
+            <div class="vol" id="vol"><div class="tr"></div>
+              <div class="on" style="width:${vol}%"></div>
+              <div class="kn" style="left:${vol}%"></div></div>` : '<div style="flex:1"></div>'}
+            <div class="sk ${m.can.prev ? '' : 'off'}" id="prev">
+              <ha-icon icon="mdi:skip-previous"></ha-icon></div>
+            <div class="sk ${m.can.next ? '' : 'off'}" id="next">
+              <ha-icon icon="mdi:skip-next"></ha-icon></div>
+          </div>
         </div>
       </div>
     </ha-card>`;
@@ -1192,35 +1227,31 @@ class LavendelMediaCard extends LavBase {
     const root = this.shadowRoot;
 
     const idle = root.getElementById('idle');
-    if (idle) {
-      this._press(idle, {
-        onTap: () => fireMoreInfo(this, m.id),
-        onHold: () => fireMoreInfo(this, m.id)
-      });
-      return;
-    }
+    if (idle) { this._press(idle, { onTap: () => fireMoreInfo(this, m.id) }); return; }
 
-    // Steuertasten
     const tap = (id, fn, enabled) => {
       const el = root.getElementById(id);
       if (el) this._press(el, { onTap: () => { if (enabled !== false) fn(); } });
     };
+    tap('play', () => this.call('media_player', 'media_play_pause', { entity_id: m.id }));
     tap('prev', () => this.call('media_player', 'media_previous_track', { entity_id: m.id }), m.can.prev);
     tap('next', () => this.call('media_player', 'media_next_track', { entity_id: m.id }), m.can.next);
-    tap('play', () => this.call('media_player', 'media_play_pause', { entity_id: m.id }));
     tap('mute', () => this.call('media_player', 'volume_mute',
       { entity_id: m.id, is_volume_muted: !m.muted }), m.can.mute);
 
-    // Titelfortschritt: ziehen springt im Stück
+    const art = root.getElementById('art');
+    if (art) this._press(art, { onTap: () => fireMoreInfo(this, m.id) });
+
+    // Fortschritt: ziehen spult im Stück
     const prog = root.getElementById('prog');
     if (prog && m.dur) {
-      const on = prog.querySelector('.on'), knob = prog.querySelector('.knob');
+      const on = prog.querySelector('.on');
       const now = root.getElementById('tnow');
       this._press(prog, {
         axis: 'x',
         onTap: () => fireMoreInfo(this, m.id),
         onDrag: m.can.seek ? (v) => {
-          on.style.width = v + '%'; knob.style.left = v + '%';
+          on.style.width = v + '%';
           if (now) now.textContent = mmss((v / 100) * m.dur);
         } : null,
         onDrop: m.can.seek ? (v) => this.call('media_player', 'media_seek',
@@ -1228,21 +1259,16 @@ class LavendelMediaCard extends LavBase {
       });
     }
 
-    // Lautstärke
     const vol = root.getElementById('vol');
     if (vol) {
-      const on = vol.querySelector('.on'), knob = vol.querySelector('.knob');
+      const on = vol.querySelector('.on'), kn = vol.querySelector('.kn');
       this._press(vol, {
         axis: 'x',
-        onDrag: (v) => { on.style.width = v + '%'; knob.style.left = v + '%'; },
+        onDrag: (v) => { on.style.width = v + '%'; kn.style.left = v + '%'; },
         onDrop: (v) => this.call('media_player', 'volume_set',
           { entity_id: m.id, volume_level: v / 100 })
       });
     }
-
-    // Karte selbst: Halten öffnet das Detailfenster
-    const head = root.querySelector('.head');
-    if (head) this._press(head, { onTap: () => fireMoreInfo(this, m.id) });
 
     if (m.playing && m.dur) this._startTicker(m);
   }
@@ -1250,7 +1276,6 @@ class LavendelMediaCard extends LavBase {
   _startTicker(m) {
     const root = this.shadowRoot;
     const on = root.querySelector('.prog .on');
-    const knob = root.querySelector('.prog .knob');
     const now = root.getElementById('tnow');
     if (!on) return;
     this._tick = setInterval(() => {
@@ -1258,14 +1283,13 @@ class LavendelMediaCard extends LavBase {
       const p = this._livePos(m);
       const pct = clamp((p / m.dur) * 100, 0, 100);
       on.style.width = pct + '%';
-      if (knob) knob.style.left = pct + '%';
       if (now) now.textContent = mmss(p);
     }, 1000);
   }
 
   _stopTicker() { if (this._tick) { clearInterval(this._tick); this._tick = null; } }
 
-  getCardSize() { return this._model && this._sig && this._sig.includes('"active":true') ? 4 : 1; }
+  getCardSize() { return this._sig && this._sig.includes('"active":true') ? 3 : 1; }
 }
 
 /* ================================================================== *

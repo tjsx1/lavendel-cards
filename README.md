@@ -10,7 +10,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig.
 | `lavendel-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt |
 | `lavendel-slider-card` | Vertikaler Zieh-Regler für Licht, Storen oder Lautstärke |
 | `lavendel-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
-| `lavendel-media-card` | Medienspieler mit Cover als Hintergrund, schrumpft wenn nichts läuft |
+| `lavendel-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
 | `lavendel-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
 
 ## Installation über HACS
@@ -186,16 +186,26 @@ type: custom:lavendel-media-card
 entity: media_player.sonos_wohnzimmer
 ```
 
+Cover links, rechts Gerät, Titel, Fortschritt und Lautstärke. **Der Kartengrund
+kommt aus dem Cover selbst** — gross gezogen und weichgezeichnet. Dadurch trägt
+jede Karte die Farbe der Musik, die gerade läuft.
+
 | Option | Vorgabe | Wirkung |
 |---|---|---|
 | `entity` | — | **Pflicht.** `media_player.*` |
-| `name` | Gerätename | Beschriftung im Ruhezustand |
-| `show_art` | `true` | `false` lässt das Cover weg und nimmt den dunklen Verlauf |
-| `show_volume` | `true` | Blendet die Lautstärkezeile aus |
+| `name` | Gerätename | Steht fett in der Kopfzeile |
+| `label` | `Lautsprecher` | Die kleine Zeile darüber |
+| `color` | `blau` | Palette für den Fall, dass es **kein** Cover gibt. Gleiche Werte wie bei der Raum-Karte |
+| `show_art` | `true` | `false` lässt das Cover weg und nimmt die Palette |
+| `show_volume` | `true` | Blendet den Lautstärkeregler aus |
 
-Der Fortschritt läuft sekundengenau weiter, auch zwischen zwei Zustandsmeldungen;
-Ziehen darauf spult. Die Karte liest `supported_features` — kann der Spieler nicht
-springen, sind Vor und Zurück gedimmt.
+**Bedienung.** Tippen auf den grossen Knopf spielt oder hält an. Auf dem Fortschritt
+ziehen spult, auf dem unteren Regler ziehen setzt die Lautstärke. Tippen auf das Cover
+öffnet das Detailfenster. Die Balken oben rechts tanzen, solange etwas läuft.
+
+Die Karte liest `supported_features`: Kann der Spieler nicht springen, sind Vor und
+Zurück gedimmt; ohne Lautstärkeregelung fällt der Regler weg. Der Fortschritt läuft
+sekundengenau weiter, auch zwischen zwei Zustandsmeldungen.
 
 > Läuft nichts, schrumpft die Karte auf eine flache Kachel. Im Sections-Raster
 > deshalb keine feste Zeilenzahl setzen.
@@ -278,11 +288,9 @@ Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann Bereichs-IDs und Entit�
 
 ## Was noch fehlt
 
-**Die Gestaltung wird gerade umgestellt.** Die Raum-Karte trägt seit 0.5.0 das neue
-dunkle Design: Kopf mit Raum-Icon, Temperatur und Luftfeuchte als Eckdaten oben rechts,
-Raumname gross, darunter die Gerätegruppen als runde Knöpfe. Regler-, Storen-, Media- und
-Schnellzugriff-Karte folgen — sie funktionieren weiter, sehen aber noch nach der hellen
-Fassung aus.
+**Die Gestaltung wird gerade umgestellt.** Raum-Karte und Media-Karte tragen das neue
+dunkle Design. Regler-, Storen- und Schnellzugriff-Karte folgen — sie funktionieren
+weiter, sehen aber noch nach der hellen Fassung aus.
 
 Noch nicht gebaut: Klima-Ring, Energie-Card und die Statusleiste.
 
@@ -318,6 +326,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.7.0** — Media-Karte im neuen Design, Kartengrund aus dem Cover
 **0.6.0** — Tippen klappt auf, Halten schaltet; Kartenfarbe wählbar
 **0.5.0** — Raum-Karte im dunklen Design; Theme auf Dunkel umgestellt
 **0.4.0** — Schnellzugriff-Karte für Szenen, Skripte und Automationen
