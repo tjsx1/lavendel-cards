@@ -190,6 +190,9 @@ Cover links, rechts Gerät, Titel, Fortschritt und Lautstärke. **Der Kartengrun
 kommt aus dem Cover selbst** — gross gezogen und weichgezeichnet. Dadurch trägt
 jede Karte die Farbe der Musik, die gerade läuft.
 
+Das Cover läuft randlos bis an die Kartenkante und blendet nach rechts weich aus.
+Gibt es keins, entfällt der Platz dafür ganz und der Text nimmt die volle Breite.
+
 | Option | Vorgabe | Wirkung |
 |---|---|---|
 | `entity` | — | **Pflicht.** `media_player.*` |
@@ -326,6 +329,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.7.1** — Cover randlos mit weichem Übergang, Knöpfe und Regler nach Vorbild
 **0.7.0** — Media-Karte im neuen Design, Kartengrund aus dem Cover
 **0.6.0** — Tippen klappt auf, Halten schaltet; Kartenfarbe wählbar
 **0.5.0** — Raum-Karte im dunklen Design; Theme auf Dunkel umgestellt

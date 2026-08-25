@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.7.0
+ * Version 0.7.1
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.7.0';
+const LAV_VERSION = '0.7.1';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -1037,12 +1037,16 @@ class LavendelMediaCard extends LavBase {
     .veil{ position:absolute; inset:0; background:linear-gradient(100deg,
            rgba(0,0,0,.16) 0%, rgba(0,0,0,.30) 42%, rgba(0,0,0,.48) 100%); }
 
-    .inner{ position:relative; display:flex; gap:13px; padding:11px; }
-    .art{ width:118px; height:118px; flex:none; border-radius:12px; cursor:pointer;
-          background-size:cover; background-position:center; background-color:rgba(255,255,255,.09);
-          box-shadow:0 4px 14px rgba(0,0,0,.35);
-          display:grid; place-items:center; color:rgba(255,255,255,.45); --mdc-icon-size:34px; }
-    .info{ flex:1; min-width:0; display:flex; flex-direction:column; color:#fff; }
+    /* Das Cover läuft randlos bis an die Kartenkante und blendet nach
+       rechts weich aus — kein Rahmen, kein harter Schnitt. */
+    .art{ position:absolute; left:0; top:0; bottom:0; width:44%; cursor:pointer;
+          background-size:cover; background-position:center;
+          -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 58%,rgba(0,0,0,0) 100%);
+                  mask-image:linear-gradient(90deg,#000 0%,#000 58%,rgba(0,0,0,0) 100%); }
+    /* Ohne Cover gibt es keinen Platzhalter — der Text nimmt die ganze Breite. */
+    ha-card.nocover .info{ margin-left:0; padding-left:14px; }
+    .info{ position:relative; margin-left:44%; min-height:144px; padding:12px 13px 12px 2px;
+           display:flex; flex-direction:column; color:#fff; }
 
     .r1{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .lab{ font-size:11px; color:rgba(255,255,255,.62); line-height:1.3; }
@@ -1063,9 +1067,9 @@ class LavendelMediaCard extends LavBase {
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .artist{ font-size:12px; color:rgba(255,255,255,.66);
              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .pbtn{ width:44px; height:44px; border-radius:50%; flex:none; cursor:pointer;
-           display:grid; place-items:center; background:rgba(255,255,255,.22); color:#fff;
-           --mdc-icon-size:22px; transition:transform .12s ease; }
+    .pbtn{ width:46px; height:50px; border-radius:15px; flex:none; cursor:pointer;
+           display:grid; place-items:center; background:rgba(255,255,255,.20); color:#fff;
+           --mdc-icon-size:21px; transition:transform .12s ease; }
     .pbtn.held{ transform:scale(.92); }
 
     .r3{ display:flex; align-items:center; gap:9px; }
@@ -1073,20 +1077,20 @@ class LavendelMediaCard extends LavBase {
          font-variant-numeric:tabular-nums; }
     .prog{ flex:1; position:relative; height:14px; display:flex; align-items:center;
            cursor:pointer; touch-action:pan-y; }
-    .prog .tr{ position:absolute; left:0; right:0; height:3px; border-radius:9px;
-               background:rgba(255,255,255,.26); }
-    .prog .on{ position:absolute; left:0; height:3px; border-radius:9px; background:#fff; }
+    .prog .tr{ position:absolute; left:0; right:0; height:2px; border-radius:9px;
+               background:rgba(255,255,255,.28); }
+    .prog .on{ position:absolute; left:0; height:2px; border-radius:9px; background:#fff; }
 
     .r4{ display:flex; align-items:center; gap:10px; margin-top:8px; }
     .vico{ flex:none; color:rgba(255,255,255,.8); --mdc-icon-size:15px; cursor:pointer; }
     .vol{ flex:1; position:relative; height:16px; display:flex; align-items:center;
           cursor:pointer; touch-action:pan-y; }
-    .vol .tr{ position:absolute; left:0; right:0; height:4px; border-radius:9px;
-              background:rgba(255,255,255,.26); }
-    .vol .on{ position:absolute; left:0; height:4px; border-radius:9px; background:#fff; }
-    .vol .kn{ position:absolute; width:13px; height:13px; border-radius:50%; background:#fff;
-              transform:translateX(-50%); box-shadow:0 2px 6px rgba(0,0,0,.45); }
-    .sk{ flex:none; color:#fff; --mdc-icon-size:17px; cursor:pointer; }
+    .vol .tr{ position:absolute; left:0; right:0; height:3px; border-radius:9px;
+              background:rgba(255,255,255,.28); }
+    .vol .on{ position:absolute; left:0; height:3px; border-radius:9px; background:#fff; }
+    .vol .kn{ position:absolute; width:17px; height:17px; border-radius:50%; background:#fff;
+              transform:translateX(-50%); box-shadow:0 2px 7px rgba(0,0,0,.45); }
+    .sk{ flex:none; color:rgba(255,255,255,.92); --mdc-icon-size:19px; cursor:pointer; }
     .sk.off{ opacity:.32; }
 
     /* Ruhezustand: flache Kachel wie bei der Raum-Karte */
@@ -1172,51 +1176,47 @@ class LavendelMediaCard extends LavBase {
     const vol = m.muted ? 0 : (m.vol || 0);
 
     return `
-    <ha-card class="live ${m.playing ? 'run' : ''}${cls}"${style}>
+    <ha-card class="live ${m.playing ? 'run' : ''} ${m.pic ? '' : 'nocover'}${cls}"${style}>
       ${m.pic ? `<div class="bg" style="background-image:url('${esc(m.pic)}')"></div>` : ''}
       <div class="veil"></div>
-      <div class="inner">
-        <div class="art" id="art" ${m.pic ? `style="background-image:url('${esc(m.pic)}')"` : ''}>
-          ${m.pic ? '' : '<ha-icon icon="mdi:music"></ha-icon>'}
+      ${m.pic ? `<div class="art" id="art" style="background-image:url('${esc(m.pic)}')"></div>` : ''}
+      <div class="info">
+        <div class="r1">
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="dev">${esc(m.name)}</div>
+          </div>
+          <div class="eq"><i></i><i></i><i></i><i></i></div>
         </div>
-        <div class="info">
-          <div class="r1">
-            <div style="min-width:0">
-              <div class="lab">${esc(m.label)}</div>
-              <div class="dev">${esc(m.name)}</div>
-            </div>
-            <div class="eq"><i></i><i></i><i></i><i></i></div>
-          </div>
 
-          <div class="r2">
-            <div class="tx">
-              <div class="title">${esc(m.title || m.name)}</div>
-              ${m.sub ? `<div class="artist">${esc(m.sub)}</div>` : ''}
-            </div>
-            <div class="pbtn" id="play">
-              <ha-icon icon="${m.playing ? 'mdi:pause' : 'mdi:play'}"></ha-icon>
-            </div>
+        <div class="r2">
+          <div class="tx">
+            <div class="title">${esc(m.title || m.name)}</div>
+            ${m.sub ? `<div class="artist">${esc(m.sub)}</div>` : ''}
           </div>
+          <div class="pbtn" id="play">
+            <ha-icon icon="${m.playing ? 'mdi:pause' : 'mdi:play'}"></ha-icon>
+          </div>
+        </div>
 
-          <div class="r3">
-            <span class="tm" id="tnow">${mmss(p)}</span>
-            <div class="prog" id="prog"><div class="tr"></div>
-              <div class="on" style="width:${pct}%"></div></div>
-            <span class="tm">${m.dur ? mmss(m.dur) : '--:--'}</span>
-          </div>
+        <div class="r3">
+          <span class="tm" id="tnow">${mmss(p)}</span>
+          <div class="prog" id="prog"><div class="tr"></div>
+            <div class="on" style="width:${pct}%"></div></div>
+          <span class="tm">${m.dur ? mmss(m.dur) : '--:--'}</span>
+        </div>
 
-          <div class="r4">
-            <div class="vico" id="mute">
-              <ha-icon icon="${m.muted ? 'mdi:volume-off' : 'mdi:volume-medium'}"></ha-icon></div>
-            ${m.showVol && m.can.vol ? `
-            <div class="vol" id="vol"><div class="tr"></div>
-              <div class="on" style="width:${vol}%"></div>
-              <div class="kn" style="left:${vol}%"></div></div>` : '<div style="flex:1"></div>'}
-            <div class="sk ${m.can.prev ? '' : 'off'}" id="prev">
-              <ha-icon icon="mdi:skip-previous"></ha-icon></div>
-            <div class="sk ${m.can.next ? '' : 'off'}" id="next">
-              <ha-icon icon="mdi:skip-next"></ha-icon></div>
-          </div>
+        <div class="r4">
+          <div class="vico" id="mute">
+            <ha-icon icon="${m.muted ? 'mdi:volume-off' : 'mdi:volume-medium'}"></ha-icon></div>
+          ${m.showVol && m.can.vol ? `
+          <div class="vol" id="vol"><div class="tr"></div>
+            <div class="on" style="width:${vol}%"></div>
+            <div class="kn" style="left:${vol}%"></div></div>` : '<div style="flex:1"></div>'}
+          <div class="sk ${m.can.prev ? '' : 'off'}" id="prev">
+            <ha-icon icon="mdi:skip-previous"></ha-icon></div>
+          <div class="sk ${m.can.next ? '' : 'off'}" id="next">
+            <ha-icon icon="mdi:skip-next"></ha-icon></div>
         </div>
       </div>
     </ha-card>`;
