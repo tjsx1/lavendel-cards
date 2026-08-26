@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.9.0
+ * Version 2.10.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -1061,9 +1061,6 @@ class OnyxRoomCard extends OnyxBase {
     .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
                  0 0 0 4px color-mix(in srgb, var(--btn) 45%, transparent); }
     .gbtn.held{ transform:scale(.9); }
-    .gbtn.nav{ margin-left:auto; background:none; -webkit-backdrop-filter:none;
-               backdrop-filter:none; border-color:rgba(255,255,255,.10);
-               color:rgba(255,255,255,.30); }
 
     .divide{ height:1px; background:rgba(255,255,255,.09); }
     .grp{ display:flex; justify-content:space-between; align-items:baseline;
@@ -1136,7 +1133,7 @@ class OnyxRoomCard extends OnyxBase {
     const area = (hass.areas || {})[cfg.area];
     if (cfg.area && !area) throw new Error(t('err.area', { id: cfg.area }));
 
-    const wanted = cfg.groups || ['light', 'media_player', 'climate', 'cover'];
+    const wanted = cfg.groups || ['light', 'cover', 'media_player', 'climate'];
     const groups = [];
     for (const d of wanted) {
       if (!GROUPS[d]) continue;
@@ -1299,10 +1296,7 @@ class OnyxRoomCard extends OnyxBase {
         </div>
       </div>
       <div class="sub">${esc(this._summary(m))}</div>
-      <div class="ctl">
-        ${buttons}
-        ${m.path ? `<div class="gbtn nav" id="nav"><ha-icon icon="mdi:tune-variant"></ha-icon></div>` : ''}
-      </div>
+      <div class="ctl">${buttons}</div>
       ${panel}
     </ha-card>`;
   }
@@ -1310,11 +1304,15 @@ class OnyxRoomCard extends OnyxBase {
   _bind(m) {
     const root = this.shadowRoot;
 
-    const toRoom = () => { if (m.path) navigate(this, m.path); };
-    ['head', 'nav'].forEach((id) => {
-      const el = root.getElementById(id);
-      if (el) this._press(el, { onTap: toRoom, onHold: () => { this._open = null; this._repaint(); } });
-    });
+    // Der Weg auf die Raumseite liegt auf der Kopfzeile — ein eigener
+    // Knopf dafür war einer zu viel.
+    const head = root.getElementById('head');
+    if (head) {
+      this._press(head, {
+        onTap: () => { if (m.path) navigate(this, m.path); },
+        onHold: () => { this._open = null; this._repaint(); }
+      });
+    }
 
     root.querySelectorAll('.gbtn[data-grp]').forEach((chip) => {
       const domain = chip.dataset.grp;

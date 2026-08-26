@@ -124,10 +124,10 @@ lights:
 | `icon` | Bereichs-Icon | z. B. `mdi:sofa` |
 | `temperature` | erster Sensor des Bereichs | Anzeige oben rechts |
 | `humidity` | erster Sensor des Bereichs | dito für die Luftfeuchte |
-| `groups` | `[light, media_player, climate, cover]` | Reihenfolge der Gruppenknöpfe |
+| `groups` | `[light, cover, media_player, climate]` | Reihenfolge der Gruppenknöpfe |
 | `color` | `blau` | Kartenfarbe: `blau` `gruen` `gelb` `orange` `rot` `violett` `rosa` — oder ein eigener Hexwert wie `"#00b3a4"` |
 | `label` | `Raum` | Die kleine Zeile über dem Namen |
-| `navigation_path` | — | Wohin ein Tipp auf das Raum-Icon springt |
+| `navigation_path` | — | Wohin ein Tipp auf die Kopfzeile springt |
 
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
@@ -155,9 +155,11 @@ Blick auseinanderhalten willst:
 Gefärbt wird nur die aktive Karte. Ist im Raum nichts an, bleibt sie neutral grau —
 sonst sähen auch schlafende Räume aus, als liefe etwas.
 
-Die Gruppenknöpfe sind umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und
-zwar im hellen Ton der gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der
-Blick findet sofort, was aktiv ist.
+Die Gruppenknöpfe stehen in der Reihenfolge Licht, Storen, Musik, Klima. Sie sind
+umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und zwar im hellen Ton der
+gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der Blick findet sofort, was
+aktiv ist. Steht ein `navigation_path` in der Konfiguration, führt ein Tipp auf die
+Kopfzeile dorthin — einen eigenen Knopf dafür gibt es nicht.
 
 ### onyx-slider-card
 
@@ -763,6 +765,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.10.0** — Raum-Karte: Gruppen in der Reihenfolge Licht, Storen, Musik, Klima; der Knopf zur Raumseite entfällt
 **2.9.0** — Farbrad statt Farbfeld; Knöpfe und Zeilen glühen in der Farbe der Lampe
 **2.8.0** — Neue Kamera-Karte: Livebild, Bewegungs- und Klingelabzeichen, Türöffner, mehrere Kameras
 **2.7.0** — Freie Farbwahl im Farbfeld statt sieben fester Tupfer; `colors` entfällt
