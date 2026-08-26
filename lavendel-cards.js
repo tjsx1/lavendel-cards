@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 1.0.0
+ * Version 1.1.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -8,6 +8,7 @@
  *   custom:lavendel-cover-card   – Storen mit Höhe, Lamellen und Fahrtasten
  *   custom:lavendel-media-card   – Medienspieler mit Cover, Fortschritt und Lautstärke
  *   custom:lavendel-actions-card – Schnellzugriffe für Szenen, Skripte, Automationen
+ *   custom:lavendel-chart-card   – bis zu drei Messwerte, einer davon als Verlauf
  *
  * Installation:
  *   1. Datei nach /config/www/lavendel-cards.js kopieren
@@ -16,7 +17,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '1.0.0';
+const LAV_VERSION = '1.1.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -1586,6 +1587,306 @@ class LavendelActionsCard extends LavBase {
   }
 }
 
+/* ================================================================== *
+ * 6) DIAGRAMM-KARTE
+ * ================================================================== */
+
+const PERIODS = {
+  tag:   { label: 'Tag',   hours: 24,      stat: null,    ticks: 'time' },
+  woche: { label: 'Woche', hours: 24 * 7,  stat: 'hour',  ticks: 'day' },
+  monat: { label: 'Monat', hours: 24 * 30, stat: 'day',   ticks: 'date' },
+  jahr:  { label: 'Jahr',  hours: 24 * 365, stat: 'month', ticks: 'month' }
+};
+const PERIOD_ALIAS = {
+  tag: 'tag', day: 'tag', heute: 'tag',
+  woche: 'woche', week: 'woche',
+  monat: 'monat', month: 'monat',
+  jahr: 'jahr', year: 'jahr'
+};
+const PERIOD_ORDER = ['tag', 'woche', 'monat', 'jahr'];
+
+const nfmt = (v, digits) => {
+  if (v == null || isNaN(v)) return '–';
+  const d = digits != null ? digits : (Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2);
+  return v.toLocaleString('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+
+/** Weiche Kurve durch die Punkte — Catmull-Rom, in Bézier übersetzt */
+function smoothPath(pts) {
+  if (!pts.length) return '';
+  if (pts.length < 3) return 'M' + pts.map((p) => `${p[0]} ${p[1]}`).join(' L');
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+class LavendelChartCard extends LavBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      padding:12px; border-radius:var(--lav-r,24px); border:1px solid rgba(255,255,255,.09);
+      display:flex; flex-direction:column; gap:10px; overflow:hidden; box-shadow:none;
+      background:linear-gradient(to right bottom,
+        var(--lav-cold-1,#141419) 0%, var(--lav-cold-2,#17171d) 100%);
+    }
+    ha-card.tinted{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+
+    .head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .hleft{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .hico{ width:34px;height:34px;border-radius:50%;flex:none; display:grid;place-items:center;
+           background:color-mix(in srgb, var(--acc) 16%, transparent);
+           border:1px solid color-mix(in srgb, var(--acc) 30%, transparent);
+           color:var(--acc); --mdc-icon-size:17px; }
+    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
+    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#dbe6f0;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* Die drei Messwerte rechts sind zugleich die Auswahl für den Graphen */
+    .vals{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none; }
+    .v{ text-align:right; cursor:pointer; line-height:1.15; padding:1px 0;
+        font-variant-numeric:tabular-nums; }
+    .v .n{ font-size:13px; font-weight:600; color:#7d8fa0; }
+    .v .u{ font-size:10.5px; font-weight:500; color:#66788a; margin-left:2px; }
+    .v .cap{ font-size:9.5px; color:#5d6b7a; letter-spacing:.02em; }
+    .v.sel .n{ font-size:22px; font-weight:700; letter-spacing:-.02em; color:#ffffff; }
+    .v.sel .u{ font-size:13px; color:rgba(255,255,255,.75); }
+    .v.sel .cap{ color:var(--acc); }
+    .v.held{ opacity:.6; }
+
+    .chart{ position:relative; }
+    svg{ display:block; width:100%; height:96px; overflow:visible; }
+    .axis{ display:flex; justify-content:space-between; margin-top:4px; }
+    .axis span{ font-size:10px; color:#5d6b7a; font-variant-numeric:tabular-nums; }
+
+    .foot{ display:flex; align-items:center; justify-content:space-between; }
+    .per{ font-size:10.5px; color:#6f8497; cursor:pointer; padding:2px 8px; border-radius:9px;
+          border:1px solid rgba(255,255,255,.10);
+          background:linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.03)); }
+    .per.held{ opacity:.6; }
+    .hint{ font-size:10px; color:#4f5c69; }
+
+    .empty{ height:96px; display:grid; place-items:center; font-size:12px; color:#5d6b7a; }
+    `;
+  }
+
+  static getStubConfig() {
+    return { type: 'custom:lavendel-chart-card', title: 'Energie', entities: [] };
+  }
+
+  setConfig(config) {
+    const list = normList(config.entities);
+    if (!list || !list.length) throw new Error('Bitte "entities:" mit ein bis drei Sensoren angeben.');
+    if (list.length > 3) throw new Error('Höchstens drei Entitäten — sonst wird die Spalte zur Liste.');
+    const p = PERIOD_ALIAS[String(config.period || 'tag').toLowerCase()];
+    if (!p) throw new Error('period muss tag, woche, monat oder jahr sein.');
+    this._period = this._period || p;
+    this._sel = this._sel == null ? 0 : this._sel;
+    super.setConfig(config);
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._maybeFetch();
+    this._tryRender();
+  }
+  get hass() { return this._hass; }
+
+  _list() { return normList(this._config.entities) || []; }
+
+  _key() { return this._list().map((e) => e.entity).join('|') + '@' + this._period; }
+
+  /** Verlauf holen: kurzer Zeitraum aus der Historie, längere aus den Statistiken */
+  async _maybeFetch(force) {
+    if (!this._hass || !this._config) return;
+    const key = this._key();
+    if (!force && this._fetchedKey === key && Date.now() - (this._fetchedAt || 0) < 120000) return;
+    if (this._fetching === key) return;
+    this._fetching = key;
+
+    const def = PERIODS[this._period];
+    const end = new Date();
+    const start = new Date(end.getTime() - def.hours * 3600 * 1000);
+    const ids = this._list().map((e) => e.entity);
+
+    try {
+      let series = {};
+      if (def.stat) {
+        const res = await this._hass.callWS({
+          type: 'recorder/statistics_during_period',
+          start_time: start.toISOString(), end_time: end.toISOString(),
+          statistic_ids: ids, period: def.stat, types: ['mean', 'state']
+        });
+        for (const id of ids) {
+          series[id] = (res[id] || []).map((r) => ({
+            t: typeof r.start === 'number' ? r.start : Date.parse(r.start),
+            v: r.mean != null ? r.mean : r.state
+          })).filter((p) => p.v != null);
+        }
+      }
+      // Nichts in den Statistiken? Dann die rohe Historie versuchen.
+      if (!def.stat || ids.every((id) => !series[id] || !series[id].length)) {
+        const res = await this._hass.callWS({
+          type: 'history/history_during_period',
+          start_time: start.toISOString(), end_time: end.toISOString(),
+          entity_ids: ids, minimal_response: true, no_attributes: true
+        });
+        for (const id of ids) {
+          series[id] = (res[id] || []).map((r) => ({
+            t: (r.lu != null ? r.lu * 1000 : Date.parse(r.last_updated)),
+            v: parseFloat(r.s != null ? r.s : r.state)
+          })).filter((p) => !isNaN(p.v) && !isNaN(p.t));
+        }
+      }
+      this._series = series;
+      this._error = null;
+    } catch (err) {
+      this._error = err && err.message ? err.message : 'Verlauf nicht verfügbar';
+      this._series = {};
+    }
+    this._fetchedKey = key;
+    this._fetchedAt = Date.now();
+    this._fetching = null;
+    this._repaint();
+  }
+
+  _model() {
+    const hass = this._hass;
+    const items = this._list().map((e, i) => {
+      const st = hass.states[e.entity];
+      const raw = st ? parseFloat(st.state) : NaN;
+      const pts = (this._series && this._series[e.entity]) || [];
+      return {
+        id: e.entity, i,
+        name: e.name || nameOf(hass, e.entity),
+        unit: e.unit || (st && st.attributes.unit_of_measurement) || '',
+        value: isNaN(raw) ? null : raw,
+        dead: isDead(st),
+        n: pts.length,
+        last: pts.length ? pts[pts.length - 1].v : null
+      };
+    });
+    const sel = Math.min(this._sel, items.length - 1);
+    return {
+      title: this._config.title || null,
+      label: this._config.label || 'Verlauf',
+      icon: this._config.icon || 'mdi:chart-line',
+      color: this._config.color || null,
+      tinted: this._config.tinted === true,
+      period: this._period,
+      items, sel,
+      error: this._error || null
+    };
+  }
+
+  _tickLabels(from, to) {
+    const p = this._period;
+    const f = (d) => {
+      if (p === 'tag') return d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+      if (p === 'woche') return d.toLocaleDateString('de-CH', { weekday: 'short' });
+      if (p === 'monat') return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
+      return d.toLocaleDateString('de-CH', { month: 'short' });
+    };
+    const mid = new Date((from + to) / 2);
+    return [f(new Date(from)), f(mid), f(new Date(to))];
+  }
+
+  _chart(m) {
+    const it = m.items[m.sel];
+    const pts = (this._series && this._series[it.id]) || [];
+    if (m.error) return `<div class="empty">${esc(m.error)}</div>`;
+    if (pts.length < 2) return `<div class="empty">Kein Verlauf für diesen Zeitraum</div>`;
+
+    const W = 100, H = 40, pad = 1.5;          // in viewBox-Einheiten
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+    let lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
+    if (hi === lo) { hi = lo + 1; lo -= 1; }
+    const span = hi - lo;
+    lo -= span * 0.12; hi += span * 0.12;
+
+    const xy = pts.map((p) => [
+      ((p.t - t0) / (t1 - t0 || 1)) * W,
+      H - pad - ((p.v - lo) / (hi - lo)) * (H - pad * 2)
+    ]);
+    const line = smoothPath(xy);
+    const area = `${line} L${W} ${H} L0 ${H} Z`;
+    const ticks = this._tickLabels(t0, t1);
+    const gid = 'g' + m.sel;
+
+    return `
+    <div class="chart">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--acc)" stop-opacity=".38"/>
+            <stop offset="100%" stop-color="var(--acc)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
+              stroke-width=".4" stroke-dasharray="1 2"/>
+        <path d="${area}" fill="url(#${gid})"/>
+        <path d="${line}" fill="none" stroke="var(--acc)" stroke-width=".9"
+              vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <div class="axis">${ticks.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+    const vals = m.items.map((it) => `
+      <div class="v ${it.i === m.sel ? 'sel' : ''}" data-i="${it.i}">
+        <div><span class="n">${it.dead ? '–' : esc(nfmt(it.value))}</span><span class="u">${esc(it.unit)}</span></div>
+        <div class="cap">${esc(it.name)}</div>
+      </div>`).join('');
+
+    return `
+    <ha-card class="${m.tinted ? 'tinted' : ''}${cls}"${style}>
+      <div class="head">
+        <div class="hleft">
+          <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="nm">${esc(m.title || m.items[m.sel].name)}</div>
+          </div>
+        </div>
+        <div class="vals">${vals}</div>
+      </div>
+      ${this._chart(m)}
+      <div class="foot">
+        <div class="per" id="per">${PERIODS[m.period].label}</div>
+        <div class="hint">${m.items.length > 1 ? 'Wert antippen wechselt den Graphen' : ''}</div>
+      </div>
+    </ha-card>`;
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    root.querySelectorAll('.v[data-i]').forEach((el) => {
+      const i = Number(el.dataset.i);
+      this._press(el, {
+        onTap: () => { this._sel = i; this._repaint(); },
+        onHold: () => fireMoreInfo(this, m.items[i].id)
+      });
+    });
+    const per = root.getElementById('per');
+    if (per) this._press(per, {
+      onTap: () => {
+        const n = PERIOD_ORDER[(PERIOD_ORDER.indexOf(this._period) + 1) % PERIOD_ORDER.length];
+        this._period = n;
+        this._maybeFetch(true);
+        this._repaint();
+      }
+    });
+  }
+
+  getCardSize() { return 4; }
+}
+
 /* ------------------------------------------------------------------ *
  * Registrierung
  * ------------------------------------------------------------------ */
@@ -1612,6 +1913,7 @@ defineCard('lavendel-slider-card', LavendelSliderCard);
 defineCard('lavendel-cover-card', LavendelCoverCard);
 defineCard('lavendel-media-card', LavendelMediaCard);
 defineCard('lavendel-actions-card', LavendelActionsCard);
+defineCard('lavendel-chart-card', LavendelChartCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -1644,10 +1946,16 @@ window.customCards.push(
     name: 'Lavendel Schnellzugriffe',
     description: 'Szenen, Skripte und Automationen in einem Rahmen',
     preview: false
+  },
+  {
+    type: 'lavendel-chart-card',
+    name: 'Lavendel Diagramm-Karte',
+    description: 'Bis zu drei Messwerte, einer davon als Verlauf',
+    preview: false
   }
 );
 
 export {
   LavendelRoomCard, LavendelSliderCard, LavendelCoverCard,
-  LavendelMediaCard, LavendelActionsCard
+  LavendelMediaCard, LavendelActionsCard, LavendelChartCard
 };

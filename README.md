@@ -1,6 +1,6 @@
 # Lavendel Cards
 
-Fünf Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
+Sechs Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
 Verlaufs-Akzente von Türkis über Violett nach Pink, für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig.
@@ -12,6 +12,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig.
 | `lavendel-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
 | `lavendel-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
 | `lavendel-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
+| `lavendel-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 
 ## Installation über HACS
 
@@ -290,6 +291,50 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 > Eine nie ausgelöste Szene steht in Home Assistant auf `unknown`. Die Karte wertet
 > das als Normalzustand, nicht als Fehler — grau wird nur, was wirklich `unavailable` ist.
 
+### lavendel-chart-card
+
+Bis zu drei Messwerte rechts, darunter der Verlauf von einem davon. Antippen
+eines Werts wechselt, welcher gezeichnet wird.
+
+```yaml
+type: custom:lavendel-chart-card
+title: Energie
+label: Energie
+icon: mdi:flash
+color: orange
+period: tag          # tag · woche · monat · jahr
+entities:
+  - entity: sensor.leistung
+    name: Jetzt
+  - entity: sensor.energie_heute
+    name: Heute
+  - entity: sensor.spitze
+    name: Spitze
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entities` | — | **Pflicht.** Ein bis drei Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
+| `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch |
+| `title` | Name des gewählten Werts | Überschrift der Karte |
+| `label` | `Verlauf` | Die kleine Zeile darüber |
+| `icon` | `mdi:chart-line` | Icon im Kreis links |
+| `color` | `blau` | Farbe von Linie, Fläche und Icon |
+| `tinted` | `false` | `true` färbt auch den Kartengrund, sonst bleibt er dunkel |
+
+**Bedienung.** Tippen auf einen Wert macht ihn zum Graphen, Halten öffnet sein
+Detailfenster. Der Zeitraum unten links lässt sich antippen und wandert durch
+Tag → Woche → Monat → Jahr, ohne dass du die Konfiguration anfassen musst.
+
+**Woher die Daten kommen.** Für `tag` liest die Karte die rohe Historie, für die
+längeren Zeiträume die Langzeitstatistiken — stündlich bei der Woche, täglich bei
+Monat und Jahr, monatlich beim Jahr. Findet sie in den Statistiken nichts, fällt
+sie auf die Historie zurück.
+
+> Statistiken gibt es nur für Sensoren mit `state_class`. Fehlt die, zeigt die Karte
+> über lange Zeiträume nichts — dann hilft nur, die Entität mit `state_class:
+> measurement` zu versehen.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -336,6 +381,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.1.0** — Neue Diagramm-Karte
 **1.0.0** — Masse am Vorbild nachgemessen: Radius 24, Glasknöpfe, Coverblende
 **0.9.0** — Raumname neben das Icon, Karte kompakter
 **0.8.0** — Gruppenknöpfe umrandet statt gefüllt, grösser; aktive Farbe aus der Palette
