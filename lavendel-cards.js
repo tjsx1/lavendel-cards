@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 1.3.0
+ * Version 1.4.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -17,7 +17,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '1.3.0';
+const LAV_VERSION = '1.4.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -1751,15 +1751,100 @@ const nfmt = (v, digits) => {
 };
 
 /** Weiche Kurve durch die Punkte — Catmull-Rom, in Bézier übersetzt */
+/**
+ * Messreihe auf gleichmässige Stützstellen bringen.
+ *
+ * Die Historie liefert einen Punkt je Zustandsmeldung — mal drei in einer
+ * Minute, mal keinen in einer Stunde. Hunderte ungleich verteilte Punkte
+ * auf 300 Bildpunkten ergeben Zacken, die kein Mensch lesen kann und die
+ * auch nichts aussagen: das ist Rauschen des Sensors, nicht der Verlauf.
+ * Also fassen wir sie zu Abschnitten zusammen und mitteln je Abschnitt.
+ */
+function resample(pts, n) {
+  if (pts.length <= n) return pts;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const span = t1 - t0;
+  if (span <= 0) return pts;
+
+  const sum = new Float64Array(n), cnt = new Float64Array(n);
+  for (const p of pts) {
+    const k = Math.min(n - 1, Math.floor(((p.t - t0) / span) * n));
+    sum[k] += p.v; cnt[k]++;
+  }
+  const out = [];
+  let last = null;
+  for (let k = 0; k < n; k++) {
+    // Ein Abschnitt ohne Meldung heisst "unverändert", nicht "null".
+    const v = cnt[k] ? sum[k] / cnt[k] : last;
+    if (v == null) continue;
+    last = v;
+    out.push({ t: t0 + (span * (k + 0.5)) / n, v });
+  }
+  return out.length >= 2 ? out : pts;
+}
+
+/**
+ * Eine sanfte Glättung über die Stützstellen: jeder Punkt zieht seine
+ * beiden Nachbarn zur Hälfte mit hinein. Ein Durchgang reicht — die Linie
+ * wird ruhig, die Form bleibt. Die Enden bleiben unangetastet, damit der
+ * erste und der letzte Messwert stehen, wo sie hingehören.
+ */
+function soften(pts) {
+  if (pts.length < 5) return pts;
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    out.push({ t: pts[i].t, v: (pts[i - 1].v + 2 * pts[i].v + pts[i + 1].v) / 4 });
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+/**
+ * Monotone kubische Interpolation nach Fritsch–Carlson.
+ *
+ * Eine gewöhnliche Catmull-Rom-Spline läuft weich durch alle Punkte, aber
+ * sie schwingt zwischen ihnen über: nach einer Spitze schiesst die Kurve
+ * höher als der höchste gemessene Wert. Bei einem Diagramm ist das keine
+ * Schönheitsfrage — die Kurve zeigt dann einen Wert, den es nie gab.
+ * Diese Variante bleibt weich und hält sich trotzdem an die Messwerte.
+ */
 function smoothPath(pts) {
-  if (!pts.length) return '';
-  if (pts.length < 3) return 'M' + pts.map((p) => `${p[0]} ${p[1]}`).join(' L');
-  let d = `M${pts[0][0]} ${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  const n = pts.length;
+  if (!n) return '';
+  if (n < 3) return 'M' + pts.map((p) => `${p[0]} ${p[1]}`).join(' L');
+
+  const dx = [], sl = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1][0] - pts[i][0];
+    sl[i] = dx[i] === 0 ? 0 : (pts[i + 1][1] - pts[i][1]) / dx[i];
+  }
+
+  // Steigung je Stützstelle: das Mittel der Nachbarn, aber flach dort,
+  // wo die Reihe die Richtung wechselt — sonst entsteht der Überschwinger.
+  const m = [sl[0]];
+  for (let i = 1; i < n - 1; i++) {
+    m[i] = sl[i - 1] * sl[i] <= 0 ? 0 : (sl[i - 1] + sl[i]) / 2;
+  }
+  m[n - 1] = sl[n - 2];
+
+  for (let i = 0; i < n - 1; i++) {
+    if (sl[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / sl[i], b = m[i + 1] / sl[i];
+    const q = a * a + b * b;
+    if (q > 9) {
+      const t = 3 / Math.sqrt(q);
+      m[i] = t * a * sl[i];
+      m[i + 1] = t * b * sl[i];
+    }
+  }
+
+  const f = (v) => (Math.round(v * 100) / 100);
+  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += ` C${f(pts[i][0] + h)} ${f(pts[i][1] + m[i] * h)},`
+       + ` ${f(pts[i + 1][0] - h)} ${f(pts[i + 1][1] - m[i + 1] * h)},`
+       + ` ${f(pts[i + 1][0])} ${f(pts[i + 1][1])}`;
   }
   return d;
 }
@@ -1942,9 +2027,14 @@ class LavendelChartCard extends LavBase {
 
   _chart(m) {
     const it = m.items[m.sel];
-    const pts = (this._series && this._series[it.id]) || [];
+    const raw = (this._series && this._series[it.id]) || [];
     if (m.error) return `<div class="empty">${esc(m.error)}</div>`;
-    if (pts.length < 2) return `<div class="empty">Kein Verlauf für diesen Zeitraum</div>`;
+    if (raw.length < 2) return `<div class="empty">Kein Verlauf für diesen Zeitraum</div>`;
+    // Nur die rohe Historie wird zusammengefasst und geglättet — sie
+    // liefert Hunderte zappelnder Punkte. Langzeitstatistiken sind bereits
+    // gemittelt; die bleiben unangetastet, sonst würden aus gemessenen
+    // Monatswerten weichgezeichnete Näherungen.
+    const pts = raw.length > 48 ? soften(resample(raw, 48)) : raw;
 
     const W = 100, H = 40, pad = 1.5;          // in viewBox-Einheiten
     const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
@@ -1974,7 +2064,7 @@ class LavendelChartCard extends LavBase {
         <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
               stroke-width=".4" stroke-dasharray="1 2"/>
         <path d="${area}" fill="url(#${gid})"/>
-        <path d="${line}" fill="none" stroke="var(--acc)" stroke-width=".9"
+        <path d="${line}" fill="none" stroke="var(--acc)" stroke-width="2"
               vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
       <div class="axis">${ticks.map((t) => `<span>${esc(t)}</span>`).join('')}</div>

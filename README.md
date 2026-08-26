@@ -330,6 +330,16 @@ entities:
 Detailfenster. Der Zeitraum unten links lässt sich antippen und wandert durch
 Tag → Woche → Monat → Jahr, ohne dass du die Konfiguration anfassen musst.
 
+**Wie die Linie entsteht.** Die Kurve ist eine monotone kubische Interpolation: weich,
+aber ohne Überschwinger. Eine gewöhnliche Spline schiesst nach einer Spitze über den
+höchsten gemessenen Wert hinaus und zeigt dann einen Wert, den es nie gab — hier bleibt
+die Kurve innerhalb der Messwerte.
+
+Die rohe Historie liefert einen Punkt je Zustandsmeldung, oft mehrere hundert am Tag.
+Die werden zu 48 Stützstellen zusammengefasst und einmal geglättet, sonst wäre die Linie
+ein Zackenkamm aus Sensorrauschen. Langzeitstatistiken sind bereits gemittelt und bleiben
+unangetastet. Der Graph zeigt also den Verlauf; die genauen Zahlen stehen rechts daneben.
+
 **Woher die Daten kommen.** Für `tag` liest die Karte die rohe Historie, für die
 längeren Zeiträume die Langzeitstatistiken — stündlich bei der Woche, täglich bei
 Monat und Jahr, monatlich beim Jahr. Findet sie in den Statistiken nichts, fällt
@@ -404,6 +414,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.4.0** — Diagramm-Karte: weiche Linie ohne Überschwinger, Rauschen wird zusammengefasst
 **1.3.0** — Regler, Storen und Schnellzugriffe im dunklen Design; Farbwahl auch dort
 **1.2.0** — Visueller Editor für alle sechs Karten; brauchbare Startkonfiguration aus der Kartenauswahl
 **1.1.0** — Neue Diagramm-Karte
