@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 1.4.0
+ * Version 1.5.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -17,7 +17,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '1.4.0';
+const LAV_VERSION = '1.5.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -39,6 +39,366 @@ function ensureFont() {
   link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap';
   document.head.appendChild(link);
 }
+
+/* ------------------------------------------------------------------ *
+ * Sprache und Zahlenformat
+ *
+ * Home Assistant kennt die Sprache seines Nutzers (`hass.locale.language`)
+ * und getrennt davon, wie er Zahlen und Uhrzeiten geschrieben haben will
+ * (`hass.locale.number_format`, `hass.locale.time_format`). Beides lesen
+ * wir aus, statt Deutsch und Schweizer Zahlen fest einzubauen.
+ *
+ * Alle Karten auf einer Seite hängen am selben Home Assistant, deshalb
+ * genügt eine Einstellung je Fenster — die spart es, die Sprache durch
+ * jede einzelne Funktion durchzureichen.
+ * ------------------------------------------------------------------ */
+
+const STRINGS = {
+  de: {
+    room: 'Raum',
+    inRoom: '{g} im Raum',
+    'log.dup': '"{tag}" ist bereits registriert — diese Datei ({v}) wird ignoriert. '
+      + 'Vermutlich sind zwei Ressourcen eingetragen: die alte unter /local/ und die von '
+      + 'HACS unter /hacsfiles/. Den alten Eintrag unter Einstellungen → Dashboards → ⋮ → '
+      + 'Ressourcen entfernen.',
+    'log.editorLoad': 'Editor-Bündel liess sich nicht vorladen:',
+    'group.light': 'Lichter',
+    'group.media_player': 'Medien',
+    'group.climate': 'Klima',
+    'group.cover': 'Storen',
+    lightOn: '{n} Licht an',
+    lightsOn: '{n} Lichter an',
+    musicPlaying: 'Musik läuft',
+    heating: 'heizt',
+    cooling: 'kühlt',
+    coverOpen: '{n} Store offen',
+    coversOpen: '{n} Storen offen',
+    allOff: 'Alles aus',
+    unavailable: 'Nicht erreichbar',
+    on: 'An',
+    off: 'Aus',
+    open: 'Offen',
+    closed: 'Zu',
+    pctOpen: '{n} % offen',
+    playing: 'Läuft',
+    nOfMOpen: '{n} von {m} offen',
+    nOfMOn: '{n} von {m} an',
+    closeAllCovers: 'Alle Storen zu',
+    turnAllOff: 'Alle aus',
+
+    windLock: 'Windwächter aktiv',
+    slats: 'Lamellen',
+    slatsAngle: 'Lamellen {n}°',
+    opening: 'fährt auf',
+    closing: 'fährt zu',
+
+    speaker: 'Lautsprecher',
+    nothingPlaying: 'Nichts läuft',
+
+    armed: 'Scharf',
+    disabled: 'Deaktiviert',
+    running: 'Läuft',
+    ready: 'Bereit',
+    scene: 'Szene',
+    lastRun: 'Zuletzt {time}',
+    nActive: '{n} von {m} aktiv',
+
+    history: 'Verlauf',
+    'period.tag': 'Tag',
+    'period.woche': 'Woche',
+    'period.monat': 'Monat',
+    'period.jahr': 'Jahr',
+    noHistory: 'Kein Verlauf für diesen Zeitraum',
+    historyFailed: 'Verlauf nicht verfügbar',
+    tapToSwitch: 'Wert antippen wechselt den Graphen',
+
+    'err.entity': 'Entität {id} gibt es nicht.',
+    'err.needEntity': 'Bitte "entity" angeben.',
+    'err.needArea': 'Bitte "area" angeben (die Bereichs-ID) oder Listen wie "lights:", "covers:", "media:".',
+    'err.area': 'Bereich "{id}" nicht gefunden.',
+    'err.color': 'Farbe "{c}" gibt es nicht. Möglich: {list}',
+    'err.needActions': 'Bitte "actions:" oder "groups:" mit Einträgen angeben.',
+    'err.needEntities': 'Bitte "entities:" mit ein bis drei Sensoren angeben.',
+    'err.tooMany': 'Höchstens drei Entitäten — sonst wird die Spalte zur Liste.',
+    'err.period': 'period muss tag, woche, monat oder jahr sein.',
+
+    'card.room': 'Lavendel Raum-Karte',
+    'card.room.d': 'Raumübersicht, die pro Gerätegruppe aufklappt',
+    'card.slider': 'Lavendel Zieh-Regler',
+    'card.slider.d': 'Vertikaler Regler für Licht, Storen oder Lautstärke',
+    'card.cover': 'Lavendel Storen-Karte',
+    'card.cover.d': 'Storen mit Höhe, Lamellen und Fahrtasten',
+    'card.media': 'Lavendel Media-Karte',
+    'card.media.d': 'Cover als Hintergrund, schrumpft wenn nichts läuft',
+    'card.actions': 'Lavendel Schnellzugriffe',
+    'card.actions.d': 'Szenen, Skripte und Automationen in einem Rahmen',
+    'card.chart': 'Lavendel Diagramm-Karte',
+    'card.chart.d': 'Bis zu drei Messwerte, einer davon als Verlauf',
+
+    'ed.entity': 'Entität',
+    'ed.entities': 'Entitäten',
+    'ed.area': 'Bereich',
+    'ed.name': 'Name',
+    'ed.label': 'Beschriftung',
+    'ed.icon': 'Symbol',
+    'ed.color': 'Farbe',
+    'ed.title': 'Titel',
+    'ed.shape': 'Form',
+    'ed.columns': 'Spalten',
+    'ed.period': 'Zeitraum',
+    'ed.temperature': 'Temperatur-Sensor',
+    'ed.humidity': 'Feuchte-Sensor',
+    'ed.navigation_path': 'Ziel des Pfeils',
+    'ed.groups': 'Sichtbare Gruppen',
+    'ed.lights': 'Lampen',
+    'ed.covers': 'Storen',
+    'ed.media': 'Medienspieler',
+    'ed.climate': 'Heizung',
+    'ed.lock_entity': 'Sperre',
+    'ed.lock_label': 'Text bei Sperre',
+    'ed.show_name': 'Namen anzeigen',
+    'ed.show_art': 'Cover anzeigen',
+    'ed.show_volume': 'Lautstärke anzeigen',
+    'ed.tinted': 'Fläche einfärben',
+    'ed.grouped': 'In Gruppen aufteilen',
+    'ed.h.color': 'Sieben Paletten — oder ein eigener Hexwert wie #00b3a4',
+    'ed.h.area': 'Ohne Listen unten zeigt die Karte alle Geräte dieses Bereichs',
+    'ed.h.navigation_path': 'z. B. /lovelace/wohnzimmer',
+    'ed.h.lock_entity': 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
+    'ed.h.sensor': 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
+    'ed.h.entities': 'Ein bis drei Messwerte',
+    'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
+    'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
+      + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
+      + 'Code-Editor — der Editor hier lässt sie unangetastet.',
+    'ed.tooMany': 'Höchstens drei Messwerte — die überzähligen wurden verworfen.',
+    'ed.addAction': 'Aktion',
+    'ed.addGroup': 'Gruppe',
+    'ed.shape.squares': 'Quadrate',
+    'ed.shape.chips': 'Chips',
+    'ed.shape.tiles': 'Kacheln',
+    'ed.shape.rail': 'Leiste',
+    'ed.c.blau': 'Blau', 'ed.c.gruen': 'Grün', 'ed.c.gelb': 'Gelb',
+    'ed.c.orange': 'Orange', 'ed.c.rot': 'Rot', 'ed.c.violett': 'Violett',
+    'ed.c.rosa': 'Rosa',
+    'ed.g.light': 'Lampen', 'ed.g.cover': 'Storen',
+    'ed.g.media_player': 'Medienspieler', 'ed.g.climate': 'Heizung',
+    'ed.newGroup': 'Szenen'
+  },
+
+  en: {
+    room: 'Room',
+    inRoom: '{g} in this room',
+    'log.dup': '"{tag}" is already registered — this file ({v}) is being ignored. '
+      + 'Most likely two resources are set up: the old one under /local/ and the HACS one '
+      + 'under /hacsfiles/. Remove the old entry under Settings → Dashboards → ⋮ → Resources.',
+    'log.editorLoad': 'Could not preload the editor bundle:',
+    'group.light': 'Lights',
+    'group.media_player': 'Media',
+    'group.climate': 'Climate',
+    'group.cover': 'Blinds',
+    lightOn: '{n} light on',
+    lightsOn: '{n} lights on',
+    musicPlaying: 'Music playing',
+    heating: 'heating',
+    cooling: 'cooling',
+    coverOpen: '{n} blind open',
+    coversOpen: '{n} blinds open',
+    allOff: 'All off',
+    unavailable: 'Unavailable',
+    on: 'On',
+    off: 'Off',
+    open: 'Open',
+    closed: 'Closed',
+    pctOpen: '{n} % open',
+    playing: 'Playing',
+    nOfMOpen: '{n} of {m} open',
+    nOfMOn: '{n} of {m} on',
+    closeAllCovers: 'Close all blinds',
+    turnAllOff: 'All off',
+
+    windLock: 'Wind guard active',
+    slats: 'Slats',
+    slatsAngle: 'Slats {n}°',
+    opening: 'opening',
+    closing: 'closing',
+
+    speaker: 'Speaker',
+    nothingPlaying: 'Nothing playing',
+
+    armed: 'Armed',
+    disabled: 'Disabled',
+    running: 'Running',
+    ready: 'Ready',
+    scene: 'Scene',
+    lastRun: 'Last {time}',
+    nActive: '{n} of {m} active',
+
+    history: 'History',
+    'period.tag': 'Day',
+    'period.woche': 'Week',
+    'period.monat': 'Month',
+    'period.jahr': 'Year',
+    noHistory: 'No history for this period',
+    historyFailed: 'History unavailable',
+    tapToSwitch: 'Tap a value to switch the graph',
+
+    'err.entity': 'Entity {id} does not exist.',
+    'err.needEntity': 'Please set "entity".',
+    'err.needArea': 'Please set "area" (the area ID) or lists such as "lights:", "covers:", "media:".',
+    'err.area': 'Area "{id}" not found.',
+    'err.color': 'Unknown color "{c}". Available: {list}',
+    'err.needActions': 'Please set "actions:" or "groups:" with entries.',
+    'err.needEntities': 'Please set "entities:" with one to three sensors.',
+    'err.tooMany': 'Three entities at most — beyond that the column becomes a list.',
+    'err.period': 'period must be day, week, month or year.',
+
+    'card.room': 'Lavendel Room Card',
+    'card.room.d': 'Room overview that expands per device group',
+    'card.slider': 'Lavendel Slider',
+    'card.slider.d': 'Vertical slider for lights, blinds or volume',
+    'card.cover': 'Lavendel Blind Card',
+    'card.cover.d': 'Blinds with height, slats and travel buttons',
+    'card.media': 'Lavendel Media Card',
+    'card.media.d': 'Cover art as the background, shrinks when idle',
+    'card.actions': 'Lavendel Quick Actions',
+    'card.actions.d': 'Scenes, scripts and automations in one frame',
+    'card.chart': 'Lavendel Chart Card',
+    'card.chart.d': 'Up to three readings, one of them as a graph',
+
+    'ed.entity': 'Entity',
+    'ed.entities': 'Entities',
+    'ed.area': 'Area',
+    'ed.name': 'Name',
+    'ed.label': 'Caption',
+    'ed.icon': 'Icon',
+    'ed.color': 'Color',
+    'ed.title': 'Title',
+    'ed.shape': 'Shape',
+    'ed.columns': 'Columns',
+    'ed.period': 'Period',
+    'ed.temperature': 'Temperature sensor',
+    'ed.humidity': 'Humidity sensor',
+    'ed.navigation_path': 'Arrow target',
+    'ed.groups': 'Visible groups',
+    'ed.lights': 'Lights',
+    'ed.covers': 'Blinds',
+    'ed.media': 'Media players',
+    'ed.climate': 'Thermostats',
+    'ed.lock_entity': 'Lock',
+    'ed.lock_label': 'Text while locked',
+    'ed.show_name': 'Show name',
+    'ed.show_art': 'Show cover art',
+    'ed.show_volume': 'Show volume',
+    'ed.tinted': 'Tint the background',
+    'ed.grouped': 'Split into groups',
+    'ed.h.color': 'Seven palettes — or your own hex value such as #00b3a4',
+    'ed.h.area': 'Without the lists below the card shows every device in this area',
+    'ed.h.navigation_path': 'e.g. /lovelace/living-room',
+    'ed.h.lock_entity': 'While this entity is "on" the travel buttons are locked',
+    'ed.h.sensor': 'Leave empty and the card looks for a sensor in the area itself',
+    'ed.h.entities': 'One to three readings',
+    'ed.h.columns': 'Does not apply to tiles and rail',
+    'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
+      + 'in the area, alphabetically. Per-device names and icons are only available in '
+      + 'the code editor — this editor leaves them untouched.',
+    'ed.tooMany': 'Three readings at most — the surplus was dropped.',
+    'ed.addAction': 'Action',
+    'ed.addGroup': 'Group',
+    'ed.shape.squares': 'Squares',
+    'ed.shape.chips': 'Chips',
+    'ed.shape.tiles': 'Tiles',
+    'ed.shape.rail': 'Rail',
+    'ed.c.blau': 'Blue', 'ed.c.gruen': 'Green', 'ed.c.gelb': 'Yellow',
+    'ed.c.orange': 'Orange', 'ed.c.rot': 'Red', 'ed.c.violett': 'Violet',
+    'ed.c.rosa': 'Pink',
+    'ed.g.light': 'Lights', 'ed.g.cover': 'Blinds',
+    'ed.g.media_player': 'Media players', 'ed.g.climate': 'Thermostats',
+    'ed.newGroup': 'Scenes'
+  }
+};
+
+/** Sprache der Oberfläche; Englisch ist der Rückfall für alles Unbekannte */
+let LANG = 'en';
+/** Kürzel für Intl — Zahlen, Datum, Uhrzeit */
+let NUM_LOCALE = 'en';
+let DATE_LOCALE = 'en';
+let HOUR12 = null;
+
+/**
+ * Home Assistant trennt Anzeigesprache und Zahlenformat. Wer die
+ * Oberfläche auf Englisch stellt, aber "1.234,56" sehen will, soll das
+ * bekommen — also lesen wir beide Einstellungen einzeln aus.
+ */
+const NUMBER_LOCALE = {
+  comma_decimal: 'en-US',     // 1,234.56
+  decimal_comma: 'de-DE',     // 1.234,56
+  space_comma: 'fr-FR',       // 1 234,56
+  none: null                  // ohne Tausendertrennung
+};
+
+function applyLocale(hass) {
+  const loc = (hass && hass.locale) || {};
+  const lang = loc.language || (hass && hass.language) || 'en';
+  const short = String(lang).slice(0, 2).toLowerCase();
+  LANG = STRINGS[short] ? short : 'en';
+  DATE_LOCALE = lang;
+
+  const nf = loc.number_format;
+  NUM_LOCALE = nf && NUMBER_LOCALE[nf] !== undefined ? NUMBER_LOCALE[nf] : lang;
+
+  HOUR12 = loc.time_format === '12' ? true : loc.time_format === '24' ? false : null;
+}
+
+/** Text nachschlagen. `{n}` und Freunde werden ersetzt. */
+function t(key, vars) {
+  let s = STRINGS[LANG][key];
+  if (s == null) s = STRINGS.en[key];
+  if (s == null) return key;
+  if (vars) {
+    for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
+  }
+  return s;
+}
+
+/** Uhrzeit im Format des Nutzers */
+function fmtTime(d, opts) {
+  const o = Object.assign({ hour: '2-digit', minute: '2-digit' }, opts);
+  if (HOUR12 !== null) o.hour12 = HOUR12;
+  try { return d.toLocaleTimeString(DATE_LOCALE, o); }
+  catch (err) { return d.toLocaleTimeString(undefined, o); }
+}
+
+/** Datum im Format des Nutzers */
+function fmtDate(d, opts) {
+  try { return d.toLocaleDateString(DATE_LOCALE, opts); }
+  catch (err) { return d.toLocaleDateString(undefined, opts); }
+}
+
+/** Zahl im Format des Nutzers */
+function fmtNum(v, opts) {
+  if (NUM_LOCALE === null) {
+    return v.toLocaleString('en-US', Object.assign({ useGrouping: false }, opts));
+  }
+  try { return v.toLocaleString(NUM_LOCALE, opts); }
+  catch (err) { return v.toLocaleString(undefined, opts); }
+}
+
+/**
+ * Sprache für die Kartenauswahl. Die wird beim Laden der Datei
+ * eingetragen, lange bevor es ein `hass` gibt — deshalb hier ausnahmsweise
+ * die Browsersprache. Sie stimmt fast immer mit der von Home Assistant
+ * überein, und wenn nicht, steht in der Auswahlliste eben Englisch.
+ */
+function bootLang() {
+  const l = (typeof navigator !== 'undefined' && navigator.language) || 'en';
+  const short = String(l).slice(0, 2).toLowerCase();
+  return STRINGS[short] ? short : 'en';
+}
+
+// Bis das erste `hass` eintrifft, gilt die Browsersprache — davon leben
+// die Einträge in der Kartenauswahl und die Meldungen in der Konsole.
+LANG = bootLang();
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -200,6 +560,7 @@ class LavBase extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    applyLocale(hass);
     this._tryRender();
   }
   get hass() { return this._hass; }
@@ -303,10 +664,10 @@ class LavBase extends HTMLElement {
  * ================================================================== */
 
 const GROUPS = {
-  light:        { icon: 'mdi:lightbulb',      label: 'Lichter',      short: 'Licht' },
-  media_player: { icon: 'mdi:music-note',     label: 'Medien',       short: 'Media' },
-  climate:      { icon: 'mdi:thermostat',     label: 'Klima',        short: 'Klima' },
-  cover:        { icon: 'mdi:window-shutter', label: 'Storen',       short: 'Storen' }
+  light:        { icon: 'mdi:lightbulb' },
+  media_player: { icon: 'mdi:music-note' },
+  climate:      { icon: 'mdi:thermostat' },
+  cover:        { icon: 'mdi:window-shutter' }
 };
 
 /** Kartenfarben. Deutsch und englisch geschrieben führen zur selben Palette. */
@@ -362,7 +723,7 @@ function paletteAttrs(color) {
   if (String(color).charAt(0) === '#') return { cls: '', style: ` style="${paletteFromHex(color)}"` };
   const key = PALETTES[String(color).toLowerCase()];
   if (!key) throw new Error(
-    `Farbe "${color}" gibt es nicht. Möglich: ` + [...new Set(Object.values(PALETTES))].join(', '));
+    t('err.color', { c: color, list: [...new Set(Object.values(PALETTES))].join(', ') }));
   return { cls: key === 'blau' ? '' : ' p-' + key, style: '' };
 }
 
@@ -496,9 +857,7 @@ class LavendelRoomCard extends LavBase {
   setConfig(config) {
     const hasList = Object.keys(GROUPS).some((d) => this.constructor._listFor(config, d));
     if (!config.area && !hasList) {
-      throw new Error(
-        'Bitte "area" angeben (die Bereichs-ID) oder Listen wie "lights:", "covers:", "media:".'
-      );
+      throw new Error(t('err.needArea'));
     }
     this._open = this._open || null;
     super.setConfig(config);
@@ -529,7 +888,7 @@ class LavendelRoomCard extends LavBase {
   _model() {
     const hass = this._hass, cfg = this._config;
     const area = (hass.areas || {})[cfg.area];
-    if (cfg.area && !area) throw new Error(`Bereich "${cfg.area}" nicht gefunden.`);
+    if (cfg.area && !area) throw new Error(t('err.area', { id: cfg.area }));
 
     const wanted = cfg.groups || ['light', 'media_player', 'climate', 'cover'];
     const groups = [];
@@ -572,14 +931,15 @@ class LavendelRoomCard extends LavBase {
       const unit = st.attributes.unit_of_measurement || '';
       const num = Number(st.state);
       if (isNaN(num)) return `${st.state} ${unit}`.trim();
-      // Prozente ohne Nachkomma, Temperaturen mit einer Stelle
-      const txt = unit === '%' ? String(Math.round(num)) : num.toFixed(1).replace('.', ',');
+      // Prozente ohne Nachkomma, Temperaturen mit einer Stelle —
+      // im Zahlenformat des Nutzers, nicht mit fest eingebautem Komma
+      const txt = unit === '%' ? nfmt(num, 0) : nfmt(num, 1);
       return `${txt} ${unit}`.trim();
     };
 
     return {
-      name: cfg.name || (area ? area.name : 'Raum'),
-      label: cfg.label || 'Raum',
+      name: cfg.name || (area ? area.name : t('room')),
+      label: cfg.label || t('room'),
       color: cfg.color || null,
       icon: cfg.icon || (area && area.icon) || 'mdi:home-outline',
       temp: readOut(tempId),
@@ -605,28 +965,29 @@ class LavendelRoomCard extends LavBase {
     for (const g of m.groups) {
       if (!g.onCount) continue;
       if (g.domain === 'light') {
-        bits.push(`${g.onCount} ${g.onCount === 1 ? 'Licht an' : 'Lichter an'}`);
+        bits.push(t(g.onCount === 1 ? 'lightOn' : 'lightsOn', { n: g.onCount }));
       } else if (g.domain === 'media_player') {
-        bits.push('Musik läuft');
+        bits.push(t('musicPlaying'));
       } else if (g.domain === 'climate') {
         // nur melden, wenn wirklich gerade geheizt oder gekühlt wird
         const act = g.items.find((i) => i.action === 'heating' || i.action === 'cooling');
-        if (act) bits.push(act.action === 'cooling' ? 'kühlt' : 'heizt');
+        if (act) bits.push(t(act.action === 'cooling' ? 'cooling' : 'heating'));
       } else if (g.domain === 'cover') {
-        bits.push(`${g.onCount} ${g.onCount === 1 ? 'Store' : 'Storen'} offen`);
+        bits.push(t(g.onCount === 1 ? 'coverOpen' : 'coversOpen', { n: g.onCount }));
       }
     }
-    return bits.length ? bits.join(' · ') : 'Alles aus';
+    return bits.length ? bits.join(' · ') : t('allOff');
   }
 
   _rowText(it, domain) {
-    if (it.dead) return 'Nicht erreichbar';
-    if (domain === 'light') return it.on ? `${it.pct} %` : 'Aus';
-    if (domain === 'cover') return it.pct > 0 ? `${it.pct} % offen` : 'Zu';
-    if (domain === 'media_player') return it.on ? (it.title || 'Läuft') : 'Aus';
+    if (it.dead) return t('unavailable');
+    if (domain === 'light') return it.on ? `${it.pct} %` : t('off');
+    if (domain === 'cover') return it.pct > 0 ? t('pctOpen', { n: it.pct }) : t('closed');
+    if (domain === 'media_player') return it.on ? (it.title || t('playing')) : t('off');
     if (domain === 'climate') {
-      if (it.state === 'off') return 'Aus';
-      return `${it.temp != null ? String(it.temp).replace('.', ',') : '–'} → ${it.target != null ? String(it.target).replace('.', ',') : '–'} °C`;
+      if (it.state === 'off') return t('off');
+      const one = (v) => (v == null ? '–' : nfmt(v, v % 1 ? 1 : 0));
+      return `${one(it.temp)} → ${one(it.target)} °C`;
     }
     return it.state;
   }
@@ -661,13 +1022,14 @@ class LavendelRoomCard extends LavBase {
       panel = `
       <div class="divide"></div>
       <div class="grp">
-        <span>${GROUPS[og.domain].label} im Raum</span>
-        <b>${og.onCount} von ${og.items.length} ${og.domain === 'cover' ? 'offen' : 'an'}</b>
+        <span>${esc(t('inRoom', { g: t('group.' + og.domain) }))}</span>
+        <b>${esc(t(og.domain === 'cover' ? 'nOfMOpen' : 'nOfMOn',
+                     { n: og.onCount, m: og.items.length }))}</b>
       </div>
       <div class="rows">${rows}</div>
       ${allOff ? `<div class="allout" id="alloff">
           <ha-icon icon="${GROUPS[og.domain].icon}"></ha-icon>
-          ${og.domain === 'cover' ? 'Alle Storen zu' : 'Alle aus'}
+          ${esc(t(og.domain === 'cover' ? 'closeAllCovers' : 'turnAllOff'))}
         </div>` : ''}`;
     }
 
@@ -839,13 +1201,13 @@ class LavendelSliderCard extends LavBase {
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error('Bitte "entity" angeben.');
+    if (!config.entity) throw new Error(t('err.needEntity'));
     super.setConfig(config);
   }
 
   _model() {
     const st = this._hass.states[this._config.entity];
-    if (!st) throw new Error(`Entität ${this._config.entity} gibt es nicht.`);
+    if (!st) throw new Error(t('err.entity', { id: this._config.entity }));
     const pct = pctOf(st);
     return {
       id: this._config.entity,
@@ -999,13 +1361,13 @@ class LavendelCoverCard extends LavBase {
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error('Bitte "entity" angeben.');
+    if (!config.entity) throw new Error(t('err.needEntity'));
     super.setConfig(config);
   }
 
   _model() {
     const st = this._hass.states[this._config.entity];
-    if (!st) throw new Error(`Entität ${this._config.entity} gibt es nicht.`);
+    if (!st) throw new Error(t('err.entity', { id: this._config.entity }));
     const f = st.attributes.supported_features || 0;
     const tiltRaw = st.attributes.current_tilt_position;
     const lockId = this._config.lock_entity;
@@ -1019,11 +1381,11 @@ class LavendelCoverCard extends LavBase {
       tilt: tiltRaw == null ? null : Math.round(tiltRaw),
       canTilt: (f & 16) !== 0 || tiltRaw != null,
       moving: st.state === 'opening' || st.state === 'closing',
-      dir: st.state === 'opening' ? 'auf' : st.state === 'closing' ? 'zu' : null,
+      dir: st.state === 'opening' ? 'opening' : st.state === 'closing' ? 'closing' : null,
       dead: isDead(st),
       color: this._config.color || null,
       locked: !!(lockSt && lockSt.state === 'on'),
-      lockLabel: this._config.lock_label || 'Windwächter aktiv'
+      lockLabel: this._config.lock_label || t('windLock')
     };
   }
 
@@ -1039,9 +1401,9 @@ class LavendelCoverCard extends LavBase {
       <div class="top">
         <div class="cico"><ha-icon icon="mdi:window-shutter"></ha-icon></div>
         <div class="pos">
-          <b>${m.dead ? '–' : m.pos >= 98 ? 'Offen' : m.pos <= 2 ? 'Zu' : m.pos + ' %'}</b>
-          <span>${m.moving ? 'fährt ' + m.dir
-            : m.tilt != null ? 'Lamellen ' + Math.round(m.tilt * 0.9) + '°' : esc(m.name)}</span>
+          <b>${m.dead ? '–' : m.pos >= 98 ? esc(t('open')) : m.pos <= 2 ? esc(t('closed')) : m.pos + ' %'}</b>
+          <span>${m.moving ? esc(t(m.dir))
+            : m.tilt != null ? esc(t('slatsAngle', { n: Math.round(m.tilt * 0.9) })) : esc(m.name)}</span>
         </div>
       </div>
 
@@ -1054,7 +1416,7 @@ class LavendelCoverCard extends LavBase {
 
       ${showTilt ? `
       <div class="lam">
-        <span class="lam-lbl">Lamellen</span>
+        <span class="lam-lbl">${esc(t('slats'))}</span>
         <div class="lam-track" id="lam">
           <div class="bg"></div>
           <div class="on" style="width:${KNOB_FILL(m.tilt || 0)}"></div>
@@ -1086,7 +1448,7 @@ class LavendelCoverCard extends LavBase {
       onHold: () => fireMoreInfo(this, m.id),
       onDrag: m.locked ? null : (v) => {
         slats.style.height = (100 - v) + '%';
-        posOut.textContent = v >= 98 ? 'Offen' : v <= 2 ? 'Zu' : v + ' %';
+        posOut.textContent = v >= 98 ? t('open') : v <= 2 ? t('closed') : v + ' %';
       },
       onDrop: m.locked ? null : (v) => this.call('cover', 'set_cover_position', { entity_id: m.id, position: v })
     });
@@ -1130,8 +1492,8 @@ const MF = {
 
 const mmss = (s) => {
   if (s == null || isNaN(s) || s < 0) return '0:00';
-  const t = Math.floor(s);
-  const m = Math.floor(t / 60), r = t % 60;
+  const sec = Math.floor(s);
+  const m = Math.floor(sec / 60), r = sec % 60;
   if (m < 60) return `${m}:${String(r).padStart(2, '0')}`;
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
 };
@@ -1229,7 +1591,7 @@ class LavendelMediaCard extends LavBase {
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error('Bitte "entity" angeben.');
+    if (!config.entity) throw new Error(t('err.needEntity'));
     super.setConfig(config);
   }
 
@@ -1240,7 +1602,7 @@ class LavendelMediaCard extends LavBase {
 
   _model() {
     const st = this._hass.states[this._config.entity];
-    if (!st) throw new Error(`Entität ${this._config.entity} gibt es nicht.`);
+    if (!st) throw new Error(t('err.entity', { id: this._config.entity }));
     const a = st.attributes;
     const f = a.supported_features || 0;
     const playing = st.state === 'playing';
@@ -1249,7 +1611,7 @@ class LavendelMediaCard extends LavBase {
     return {
       id: this._config.entity,
       name: this._config.name || nameOf(this._hass, this._config.entity),
-      label: this._config.label || 'Lautsprecher',
+      label: this._config.label || t('speaker'),
       color: this._config.color || null,
       state: st.state,
       active, playing,
@@ -1288,7 +1650,7 @@ class LavendelMediaCard extends LavBase {
           <div class="iico"><ha-icon icon="mdi:speaker"></ha-icon></div>
           <div>
             <div class="inm">${esc(m.name)}</div>
-            <div class="ist">${m.dead ? 'Nicht erreichbar' : 'Nichts läuft'}</div>
+            <div class="ist">${esc(t(m.dead ? 'unavailable' : 'nothingPlaying'))}</div>
           </div>
         </div>
       </ha-card>`;
@@ -1542,7 +1904,7 @@ class LavendelActionsCard extends LavBase {
     const hasFlat = config.actions && config.actions.length;
     const hasGroups = config.groups && config.groups.length;
     if (!hasFlat && !hasGroups) {
-      throw new Error('Bitte "actions:" oder "groups:" mit Einträgen angeben.');
+      throw new Error(t('err.needActions'));
     }
     super.setConfig(config);
   }
@@ -1562,14 +1924,13 @@ class LavendelActionsCard extends LavBase {
 
     // Untertitel für die Kachelform
     let sub = '';
-    if (dead) sub = 'Nicht erreichbar';
-    else if (domain === 'automation') sub = on ? 'Scharf' : 'Deaktiviert';
-    else if (domain === 'script') sub = on ? 'Läuft' : 'Bereit';
+    if (dead) sub = t('unavailable');
+    else if (domain === 'automation') sub = t(on ? 'armed' : 'disabled');
+    else if (domain === 'script') sub = t(on ? 'running' : 'ready');
     else if (domain === 'scene') {
-      const t = Date.parse(st.state);
-      sub = isNaN(t) ? 'Szene' : 'Zuletzt ' + new Date(t).toLocaleTimeString('de-CH',
-        { hour: '2-digit', minute: '2-digit' });
-    } else sub = on ? 'An' : 'Aus';
+      const ts = Date.parse(st.state);
+      sub = isNaN(ts) ? t('scene') : t('lastRun', { time: fmtTime(new Date(ts)) });
+    } else sub = t(on ? 'on' : 'off');
 
     return {
       id, domain, kind, on, dead, sub,
@@ -1598,7 +1959,8 @@ class LavendelActionsCard extends LavBase {
       title: cfg.title || null,
       subtitle: cfg.subtitle === false ? null
         : (cfg.subtitle || (switches.length
-            ? `${switches.filter((i) => i.on).length} von ${switches.length} aktiv` : null)),
+            ? t('nActive', { n: switches.filter((i) => i.on).length, m: switches.length })
+            : null)),
       shape: cfg.shape || (all.length > 8 ? 'chips' : 'squares'),
       columns: cfg.columns || 4,
       color: cfg.color || null,
@@ -1731,10 +2093,10 @@ class LavendelActionsCard extends LavBase {
  * ================================================================== */
 
 const PERIODS = {
-  tag:   { label: 'Tag',   hours: 24,      stat: null,    ticks: 'time' },
-  woche: { label: 'Woche', hours: 24 * 7,  stat: 'hour',  ticks: 'day' },
-  monat: { label: 'Monat', hours: 24 * 30, stat: 'day',   ticks: 'date' },
-  jahr:  { label: 'Jahr',  hours: 24 * 365, stat: 'month', ticks: 'month' }
+  tag:   { hours: 24,       stat: null,    ticks: 'time' },
+  woche: { hours: 24 * 7,   stat: 'hour',  ticks: 'day' },
+  monat: { hours: 24 * 30,  stat: 'day',   ticks: 'date' },
+  jahr:  { hours: 24 * 365, stat: 'month', ticks: 'month' }
 };
 const PERIOD_ALIAS = {
   tag: 'tag', day: 'tag', heute: 'tag',
@@ -1747,7 +2109,7 @@ const PERIOD_ORDER = ['tag', 'woche', 'monat', 'jahr'];
 const nfmt = (v, digits) => {
   if (v == null || isNaN(v)) return '–';
   const d = digits != null ? digits : (Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2);
-  return v.toLocaleString('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return fmtNum(v, { minimumFractionDigits: d, maximumFractionDigits: d });
 };
 
 /** Weiche Kurve durch die Punkte — Catmull-Rom, in Bézier übersetzt */
@@ -1832,9 +2194,9 @@ function smoothPath(pts) {
     const a = m[i] / sl[i], b = m[i + 1] / sl[i];
     const q = a * a + b * b;
     if (q > 9) {
-      const t = 3 / Math.sqrt(q);
-      m[i] = t * a * sl[i];
-      m[i + 1] = t * b * sl[i];
+      const k = 3 / Math.sqrt(q);
+      m[i] = k * a * sl[i];
+      m[i + 1] = k * b * sl[i];
     }
   }
 
@@ -1903,17 +2265,17 @@ class LavendelChartCard extends LavBase {
     const first = firstEntity(hass, 'sensor', (st) =>
       st.attributes.unit_of_measurement && !isNaN(parseFloat(st.state)));
     return {
-      type: 'custom:lavendel-chart-card', title: 'Verlauf',
+      type: 'custom:lavendel-chart-card', title: t('history'),
       entities: first ? [first] : []
     };
   }
 
   setConfig(config) {
     const list = normList(config.entities);
-    if (!list || !list.length) throw new Error('Bitte "entities:" mit ein bis drei Sensoren angeben.');
-    if (list.length > 3) throw new Error('Höchstens drei Entitäten — sonst wird die Spalte zur Liste.');
+    if (!list || !list.length) throw new Error(t('err.needEntities'));
+    if (list.length > 3) throw new Error(t('err.tooMany'));
     const p = PERIOD_ALIAS[String(config.period || 'tag').toLowerCase()];
-    if (!p) throw new Error('period muss tag, woche, monat oder jahr sein.');
+    if (!p) throw new Error(t('err.period'));
     this._period = this._period || p;
     this._sel = this._sel == null ? 0 : this._sel;
     super.setConfig(config);
@@ -1921,6 +2283,7 @@ class LavendelChartCard extends LavBase {
 
   set hass(hass) {
     this._hass = hass;
+    applyLocale(hass);
     this._maybeFetch();
     this._tryRender();
   }
@@ -1975,7 +2338,7 @@ class LavendelChartCard extends LavBase {
       this._series = series;
       this._error = null;
     } catch (err) {
-      this._error = err && err.message ? err.message : 'Verlauf nicht verfügbar';
+      this._error = err && err.message ? err.message : t('historyFailed');
       this._series = {};
     }
     this._fetchedKey = key;
@@ -2003,7 +2366,7 @@ class LavendelChartCard extends LavBase {
     const sel = Math.min(this._sel, items.length - 1);
     return {
       title: this._config.title || null,
-      label: this._config.label || 'Verlauf',
+      label: this._config.label || t('history'),
       icon: this._config.icon || 'mdi:chart-line',
       color: this._config.color || null,
       tinted: this._config.tinted === true,
@@ -2016,10 +2379,10 @@ class LavendelChartCard extends LavBase {
   _tickLabels(from, to) {
     const p = this._period;
     const f = (d) => {
-      if (p === 'tag') return d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
-      if (p === 'woche') return d.toLocaleDateString('de-CH', { weekday: 'short' });
-      if (p === 'monat') return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
-      return d.toLocaleDateString('de-CH', { month: 'short' });
+      if (p === 'tag') return fmtTime(d);
+      if (p === 'woche') return fmtDate(d, { weekday: 'short' });
+      if (p === 'monat') return fmtDate(d, { day: '2-digit', month: '2-digit' });
+      return fmtDate(d, { month: 'short' });
     };
     const mid = new Date((from + to) / 2);
     return [f(new Date(from)), f(mid), f(new Date(to))];
@@ -2029,7 +2392,7 @@ class LavendelChartCard extends LavBase {
     const it = m.items[m.sel];
     const raw = (this._series && this._series[it.id]) || [];
     if (m.error) return `<div class="empty">${esc(m.error)}</div>`;
-    if (raw.length < 2) return `<div class="empty">Kein Verlauf für diesen Zeitraum</div>`;
+    if (raw.length < 2) return `<div class="empty">${esc(t('noHistory'))}</div>`;
     // Nur die rohe Historie wird zusammengefasst und geglättet — sie
     // liefert Hunderte zappelnder Punkte. Langzeitstatistiken sind bereits
     // gemittelt; die bleiben unangetastet, sonst würden aus gemessenen
@@ -2067,7 +2430,7 @@ class LavendelChartCard extends LavBase {
         <path d="${line}" fill="none" stroke="var(--acc)" stroke-width="2"
               vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
-      <div class="axis">${ticks.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
+      <div class="axis">${ticks.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
     </div>`;
   }
 
@@ -2093,8 +2456,8 @@ class LavendelChartCard extends LavBase {
       </div>
       ${this._chart(m)}
       <div class="foot">
-        <div class="per" id="per">${PERIODS[m.period].label}</div>
-        <div class="hint">${m.items.length > 1 ? 'Wert antippen wechselt den Graphen' : ''}</div>
+        <div class="per" id="per">${esc(t('period.' + m.period))}</div>
+        <div class="hint">${m.items.length > 1 ? esc(t('tapToSwitch')) : ''}</div>
       </div>
     </ha-card>`;
   }
@@ -2151,7 +2514,7 @@ function ensureFormLoaded() {
       const cls = customElements.get('hui-entities-card');
       if (cls && cls.getConfigElement) await cls.getConfigElement();
     } catch (err) {
-      console.warn('[lavendel-cards] Editor-Bündel liess sich nicht vorladen:', err);
+      console.warn('[lavendel-cards] ' + t('log.editorLoad'), err);
     }
     // Auch wenn der Umweg oben scheitert: warten, bis ha-form da ist.
     await Promise.race([
@@ -2162,44 +2525,13 @@ function ensureFormLoaded() {
   return _formReady;
 }
 
-const ED_LABELS = {
-  entity: 'Entität',
-  entities: 'Entitäten',
-  area: 'Bereich',
-  name: 'Name',
-  label: 'Beschriftung',
-  icon: 'Symbol',
-  color: 'Farbe',
-  title: 'Titel',
-  shape: 'Form',
-  columns: 'Spalten',
-  period: 'Zeitraum',
-  temperature: 'Temperatur-Sensor',
-  humidity: 'Feuchte-Sensor',
-  navigation_path: 'Ziel des Pfeils',
-  groups: 'Sichtbare Gruppen',
-  lights: 'Lampen',
-  covers: 'Storen',
-  media: 'Medienspieler',
-  climate: 'Heizung',
-  lock_entity: 'Sperre',
-  lock_label: 'Text bei Sperre',
-  show_name: 'Namen anzeigen',
-  show_art: 'Cover anzeigen',
-  show_volume: 'Lautstärke anzeigen',
-  tinted: 'Fläche einfärben',
-  grouped: 'In Gruppen aufteilen'
-};
-
-const ED_HELP = {
-  color: 'Blau, Grün, Gelb, Orange, Rot, Violett, Rosa — oder ein eigener Hexwert wie #00b3a4',
-  area: 'Ohne Listen unten zeigt die Karte alle Geräte dieses Bereichs',
-  navigation_path: 'z. B. /lovelace/wohnzimmer',
-  lock_entity: 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
-  temperature: 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
-  humidity: 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
-  entities: 'Ein bis drei Messwerte',
-  columns: 'Gilt nicht für Kacheln und Leiste'
+/* Beschriftungen und Hilfetexte kommen aus der Sprachtabelle.
+   Die Feldnamen sind zugleich die Schlüssel: `ed.<feld>` für die
+   Beschriftung, `ed.h.<feld>` für den Hilfetext darunter. */
+const ED_HELP_KEY = {
+  color: 'ed.h.color', area: 'ed.h.area', navigation_path: 'ed.h.navigation_path',
+  lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
+  entities: 'ed.h.entities', columns: 'ed.h.columns'
 };
 
 const ED_CSS = `
@@ -2225,11 +2557,6 @@ const ED_CSS = `
 `;
 
 const ED_COLORS = ['blau', 'gruen', 'gelb', 'orange', 'rot', 'violett', 'rosa'];
-const ED_COLOR_LABEL = {
-  blau: 'Blau', gruen: 'Grün', gelb: 'Gelb', orange: 'Orange',
-  rot: 'Rot', violett: 'Violett', rosa: 'Rosa'
-};
-
 /** Feld für die Kartenfarbe — die sieben Paletten plus freier Hexwert */
 function fieldColor() {
   return {
@@ -2238,7 +2565,7 @@ function fieldColor() {
       select: {
         mode: 'dropdown',
         custom_value: true,
-        options: ED_COLORS.map((v) => ({ value: v, label: ED_COLOR_LABEL[v] }))
+        options: ED_COLORS.map((v) => ({ value: v, label: t('ed.c.' + v) }))
       }
     }
   };
@@ -2332,7 +2659,7 @@ class LavEditor extends HTMLElement {
     this._render();
   }
 
-  set hass(hass) { this._hass = hass; this._render(); }
+  set hass(hass) { this._hass = hass; applyLocale(hass); this._render(); }
   get hass() { return this._hass; }
 
   connectedCallback() {
@@ -2370,8 +2697,8 @@ class LavEditor extends HTMLElement {
 
   _makeForm(onChange) {
     const f = document.createElement('ha-form');
-    f.computeLabel = (s) => ED_LABELS[s.name] || s.name;
-    f.computeHelper = (s) => ED_HELP[s.name] || '';
+    f.computeLabel = (x) => (x.name ? t('ed.' + x.name) : '');
+    f.computeHelper = (x) => (ED_HELP_KEY[x.name] ? t(ED_HELP_KEY[x.name]) : '');
     f.addEventListener('value-changed', (ev) => {
       ev.stopPropagation();
       onChange(ev.detail.value);
@@ -2499,12 +2826,7 @@ class LavendelChartEditor extends LavEditor {
           selector: {
             select: {
               mode: 'dropdown',
-              options: [
-                { value: 'tag', label: 'Tag' },
-                { value: 'woche', label: 'Woche' },
-                { value: 'monat', label: 'Monat' },
-                { value: 'jahr', label: 'Jahr' }
-              ]
+              options: PERIOD_ORDER.map((v) => ({ value: v, label: t('period.' + v) }))
             }
           }
         },
@@ -2541,9 +2863,7 @@ class LavendelChartEditor extends LavEditor {
       this._note.className = 'warn';
       root.appendChild(this._note);
     }
-    this._note.textContent = this._tooMany
-      ? 'Höchstens drei Messwerte — die überzähligen wurden verworfen.'
-      : '';
+    this._note.textContent = this._tooMany ? t('ed.tooMany') : '';
   }
 }
 
@@ -2573,12 +2893,8 @@ class LavendelRoomEditor extends LavEditor {
         selector: {
           select: {
             multiple: true,
-            options: [
-              { value: 'light', label: 'Lampen' },
-              { value: 'cover', label: 'Storen' },
-              { value: 'media_player', label: 'Medienspieler' },
-              { value: 'climate', label: 'Heizung' }
-            ]
+            options: ['light', 'cover', 'media_player', 'climate']
+              .map((v) => ({ value: v, label: t('ed.g.' + v) }))
           }
         }
       },
@@ -2634,10 +2950,7 @@ class LavendelRoomEditor extends LavEditor {
     if (this._note) return;
     this._note = document.createElement('p');
     this._note.className = 'hint';
-    this._note.textContent =
-      'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte des '
-      + 'Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
-      + 'Code-Editor — der Editor hier lässt sie unangetastet.';
+    this._note.textContent = t('ed.roomHint');
     root.appendChild(this._note);
   }
 }
@@ -2663,12 +2976,8 @@ class LavendelActionsEditor extends LavEditor {
           selector: {
             select: {
               mode: 'dropdown',
-              options: [
-                { value: 'squares', label: 'Quadrate' },
-                { value: 'chips', label: 'Chips' },
-                { value: 'tiles', label: 'Kacheln' },
-                { value: 'rail', label: 'Leiste' }
-              ]
+              options: ['squares', 'chips', 'tiles', 'rail']
+                .map((v) => ({ value: v, label: t('ed.shape.' + v) }))
             }
           }
         },
@@ -2738,7 +3047,7 @@ class LavendelActionsEditor extends LavEditor {
       if (data.grouped) {
         // Flach → eine Gruppe, die der Nutzer gleich benennen kann
         st.grouped = true;
-        st.groups = [{ label: 'Szenen', actions: st.groups[0] ? st.groups[0].actions : [] }];
+        st.groups = [{ label: t('ed.newGroup'), actions: st.groups[0] ? st.groups[0].actions : [] }];
       } else {
         // Gruppen → alles in eine Liste, nichts geht verloren
         st.grouped = false;
@@ -2862,7 +3171,7 @@ class LavendelActionsEditor extends LavEditor {
 
         const adds = document.createElement('div');
         adds.className = 'adds';
-        adds.appendChild(this._btn('mdi:plus', 'Aktion', () => {
+        adds.appendChild(this._btn('mdi:plus', t('ed.addAction'), () => {
           st.groups[gi].actions.push({ entity: '', name: '', icon: '' });
           this._listSig = null;
           this._render();
@@ -2874,7 +3183,7 @@ class LavendelActionsEditor extends LavEditor {
       if (st.grouped) {
         const adds = document.createElement('div');
         adds.className = 'adds';
-        adds.appendChild(this._btn('mdi:plus', 'Gruppe', () => {
+        adds.appendChild(this._btn('mdi:plus', t('ed.addGroup'), () => {
           st.groups.push({ label: '', actions: [] });
           this._listSig = null;
           this._render();
@@ -2886,7 +3195,7 @@ class LavendelActionsEditor extends LavEditor {
     for (const f of this._forms) {
       if (f.schema) this._fillForm(f.form, f.schema, f.data());
       else { f.form.hass = this._hass; f.form.data = f.data(); }
-      f.form.computeLabel = (s) => ED_LABELS[s.name] || s.name;
+      f.form.computeLabel = (x) => (x.name ? t('ed.' + x.name) : '');
     }
   }
 }
@@ -2934,11 +3243,7 @@ for (const [cls, tag] of EDITOR_OF) {
  */
 function defineCard(tag, cls) {
   if (customElements.get(tag)) {
-    console.warn(
-      `[lavendel-cards] "${tag}" ist bereits registriert — diese Datei (${LAV_VERSION}) wird ignoriert. ` +
-      'Vermutlich sind zwei Ressourcen eingetragen: die alte unter /local/ und die von HACS unter /hacsfiles/. ' +
-      'Den alten Eintrag unter Einstellungen → Dashboards → ⋮ → Ressourcen entfernen.'
-    );
+    console.warn(`[lavendel-cards] ${t('log.dup', { tag, v: LAV_VERSION })}`);
     return;
   }
   customElements.define(tag, cls);
@@ -2955,38 +3260,38 @@ window.customCards = window.customCards || [];
 window.customCards.push(
   {
     type: 'lavendel-room-card',
-    name: 'Lavendel Raum-Karte',
-    description: 'Raumübersicht, die pro Gerätegruppe aufklappt',
+    name: t('card.room'),
+    description: t('card.room.d'),
     preview: false
   },
   {
     type: 'lavendel-slider-card',
-    name: 'Lavendel Zieh-Regler',
-    description: 'Vertikaler Regler für Licht, Storen oder Lautstärke',
+    name: t('card.slider'),
+    description: t('card.slider.d'),
     preview: false
   },
   {
     type: 'lavendel-cover-card',
-    name: 'Lavendel Storen-Karte',
-    description: 'Storen mit Höhe, Lamellen und Fahrtasten',
+    name: t('card.cover'),
+    description: t('card.cover.d'),
     preview: false
   },
   {
     type: 'lavendel-media-card',
-    name: 'Lavendel Media-Karte',
-    description: 'Cover als Hintergrund, schrumpft wenn nichts läuft',
+    name: t('card.media'),
+    description: t('card.media.d'),
     preview: false
   },
   {
     type: 'lavendel-actions-card',
-    name: 'Lavendel Schnellzugriffe',
-    description: 'Szenen, Skripte und Automationen in einem Rahmen',
+    name: t('card.actions'),
+    description: t('card.actions.d'),
     preview: false
   },
   {
     type: 'lavendel-chart-card',
-    name: 'Lavendel Diagramm-Karte',
-    description: 'Bis zu drei Messwerte, einer davon als Verlauf',
+    name: t('card.chart'),
+    description: t('card.chart.d'),
     preview: false
   }
 );

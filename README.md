@@ -1,5 +1,9 @@
 # Lavendel Cards
 
+**English speakers:** the cards follow Home Assistant's own language setting — see
+[Sprache / Language](#sprache--language) below for what that means and how to switch.
+The reference documentation on this page is German.
+
 Sechs Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
@@ -370,6 +374,40 @@ Zwischen Formular und YAML kann jederzeit hin- und hergewechselt werden. Der Edi
 schreibt nur, was vom Standard abweicht — leere Felder und Schalter auf ihrem
 Normalwert landen nicht in der Konfiguration.
 
+## Sprache / Language
+
+Die Karten übernehmen die Spracheinstellung von Home Assistant. Steht das Profil auf
+Deutsch, schreiben sie deutsch; auf Englisch, englisch. Andere Sprachen fallen auf
+Englisch zurück. Umgestellt wird nichts in der Karte, sondern unter
+**Profil → Sprache** — beim nächsten Neuladen der Seite ist alles übersetzt,
+Kartentexte, Fehlermeldungen und der visuelle Editor.
+
+Getrennt davon gelten **Profil → Zahlenformat** und **Zeitformat**: Wer die Oberfläche
+auf Englisch stellt, aber `1.234,56` sehen will, bekommt das. Zeiten erscheinen als
+`07:12` oder `7:12 AM`, je nach Einstellung.
+
+Die **Konfiguration** ist in beiden Sprachen gültig und war es schon immer. `covers:`
+und `storen:` meinen dasselbe, ebenso `lights:`/`lampen:`, `green`/`gruen`,
+`week`/`woche`. Ein Dashboard funktioniert also unverändert, egal in welcher Sprache es
+geschrieben wurde.
+
+Eine weitere Sprache ist eine weitere Spalte in `STRINGS` am Kopf von
+`lavendel-cards.js` — 123 Schlüssel, Pull Requests willkommen.
+
+---
+
+**English.** The cards follow the Home Assistant language setting (**Profile → Language**).
+German and English are built in; any other language falls back to English. Number and
+time formatting follow **Profile → Number format** and **Time format** independently, so
+an English UI with `1.234,56` works.
+
+Configuration keys are bilingual: `covers:` equals `storen:`, `lights:` equals `lampen:`,
+`green` equals `gruen`, `week` equals `woche`. Card options are documented in German
+above, but every key has the English form shown here.
+
+Adding a language means adding one more block to `STRINGS` at the top of
+`lavendel-cards.js` — 123 keys. Pull requests welcome.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -414,6 +452,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.5.0** — Zweisprachig: Texte, Zahlen- und Zeitformat folgen den Einstellungen von Home Assistant
 **1.4.0** — Diagramm-Karte: weiche Linie ohne Überschwinger, Rauschen wird zusammengefasst
 **1.3.0** — Regler, Storen und Schnellzugriffe im dunklen Design; Farbwahl auch dort
 **1.2.0** — Visueller Editor für alle sechs Karten; brauchbare Startkonfiguration aus der Kartenauswahl
