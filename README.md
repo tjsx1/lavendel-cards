@@ -250,7 +250,7 @@ sekundengenau weiter, auch zwischen zwei Zustandsmeldungen.
 
 ### onyx-actions-card
 
-![Schnellzugriffe in zwei Gruppen](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/actions-card.png)
+![Schnellzugriffe als Quadrate und als Chips](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/actions-card.png)
 
 Schnellzugriffe für Szenen, Skripte, Automationen und Helfer — in einem Rahmen,
 wahlweise nach Art getrennt.
@@ -291,9 +291,31 @@ actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 | `title` | — | Überschrift des Rahmens; ohne Titel entfällt der Kopf |
 | `subtitle` | „x von y aktiv" | Eigener Text, oder `false` zum Ausblenden |
 | `shape` | `squares`, ab 9 Einträgen `chips` | `squares` · `chips` · `tiles` · `rail` |
+| `chip_style` | `icon` | Nur bei `chips`: `icon` · `fill` · `ring` · `detail` |
 | `columns` | `4` | Spalten bei `squares` |
-| `color` | `blau` | Farbe der aktiven Knöpfe. Gleiche Werte wie bei der Raum-Karte |
+| `color` | `blau` | Farbe der Karte. Gleiche Werte wie bei der Raum-Karte |
+| `color` (pro Eintrag) | automatisch | Eigene Farbe eines Chips, als Hexwert oder Palettenname |
 | `tap_action` | — | Pro Eintrag: `trigger` löst eine Automation aus statt sie umzuschalten |
+
+**Chips tragen ihre eigene Farbe.** Sie kommt aus der Domäne — Licht gelb, Storen
+blau, Medien violett —, bei Schloss, Alarm und Klima aus dem Zustand: ein scharfer
+Alarm ist rot, ein unscharfer grün. Szenen und Skripte haben keine eigene Farbe und
+nehmen die der Karte. Wer will, setzt sie pro Eintrag:
+
+```yaml
+- entity: script.netflix
+  icon: mdi:netflix
+  color: '#e5484d'
+- entity: script.byebye
+  icon: mdi:walk
+  color: blau
+```
+
+**Vier Bauarten, dieselbe Pille.** `icon` färbt nur das Symbol und lässt die Reihe
+ruhig, auch bei zwölf Chips nebeneinander — das ist die Vorgabe. `fill` färbt einen
+laufenden Chip vollflächig, `ring` gibt ihm stattdessen einen Rand mit leisem Schein,
+und `detail` macht ihn etwas höher und schreibt eine zweite Zeile hinein: „Läuft",
+„Zuletzt 20:10", „60 % offen".
 
 **Auslöser und Schalter werden unterschieden.** Szenen, Skripte und Buttons haben
 keinen Zustand — sie leuchten beim Tippen kurz auf und zeigen einen Haken. Automationen,
@@ -810,6 +832,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.13.0** — Chips als Pillen mit eigener Farbe je Aktion, vier Bauarten über `chip_style`
 **2.12.0** — Neue Schloss-Karte: schieben zum Entriegeln, Zustandsfarbe, Riegel-Knopf
 **2.11.0** — Raum-Karte bleibt auch im Ruhezustand in ihrer Farbe, nur gedämpft
 **2.10.0** — Raum-Karte: Gruppen in der Reihenfolge Licht, Storen, Musik, Klima; der Knopf zur Raumseite entfällt

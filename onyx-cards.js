@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.12.0
+ * Version 2.13.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -324,6 +324,12 @@ const STRINGS = {
     'ed.shape.chips': 'Chips',
     'ed.shape.tiles': 'Kacheln',
     'ed.shape.rail': 'Leiste',
+    'ed.chip_style': 'Bauart der Chips',
+    'ed.h.chip_style': 'Gilt nur für die Form „Chips"',
+    'ed.cs.icon': 'Farbe im Symbol',
+    'ed.cs.fill': 'Aktive füllen sich',
+    'ed.cs.ring': 'Aktive bekommen einen Rand',
+    'ed.cs.detail': 'Zwei Zeilen im Chip',
     'ed.c.blau': 'Blau', 'ed.c.gruen': 'Grün', 'ed.c.gelb': 'Gelb',
     'ed.c.orange': 'Orange', 'ed.c.rot': 'Rot', 'ed.c.violett': 'Violett',
     'ed.c.rosa': 'Rosa',
@@ -596,6 +602,12 @@ const STRINGS = {
     'ed.shape.chips': 'Chips',
     'ed.shape.tiles': 'Tiles',
     'ed.shape.rail': 'Rail',
+    'ed.chip_style': 'Chip style',
+    'ed.h.chip_style': 'Only applies to the "Chips" shape',
+    'ed.cs.icon': 'Color in the icon',
+    'ed.cs.fill': 'Active ones fill up',
+    'ed.cs.ring': 'Active ones get a rim',
+    'ed.cs.detail': 'Two lines per chip',
     'ed.c.blau': 'Blue', 'ed.c.gruen': 'Green', 'ed.c.gelb': 'Yellow',
     'ed.c.orange': 'Orange', 'ed.c.rot': 'Red', 'ed.c.violett': 'Violet',
     'ed.c.rosa': 'Pink',
@@ -2089,6 +2101,62 @@ const ACT_ICON = {
 /** Auslöser haben keinen Zustand, Schalter schon. Daran hängt alles. */
 const TRIGGER_DOMAINS = ['scene', 'script', 'button', 'input_button'];
 
+/**
+ * Die Farbe eines Chips. Sie kommt aus der Domäne, bei Schloss, Alarm und
+ * Klima aus dem Zustand, und wird von einem `color:` in der Aktion
+ * überschrieben. Kommt nichts heraus, gilt die Farbe der Karte.
+ */
+const ACT_TINT = {
+  light: '#f0b429', cover: '#4fb0f0', media_player: '#c3a8f5',
+  vacuum: '#9b7bf5', fan: '#7fe0ab', camera: '#8ad2f2',
+  humidifier: '#8ad2f2', valve: '#4fb0f0', water_heater: '#f0913c'
+};
+
+/** Die Palettennamen als Einzelfarbe — für `color:` an einer Aktion */
+const PAL_HEX = {
+  blau: '#2fa8f0', gruen: '#2fc48a', gelb: '#e8c34a', orange: '#f0913c',
+  rot: '#ef5f68', violett: '#9b7bf5', rosa: '#ef6bb0'
+};
+
+function actionTint(st, domain, want) {
+  if (want) {
+    const s = String(want);
+    if (s.charAt(0) === '#') return s;
+    return PAL_HEX[PALETTES[s.toLowerCase()]] || null;
+  }
+  if (!st) return null;
+  if (domain === 'alarm_control_panel') {
+    return st.state === 'disarmed' ? '#7fe0ab' : '#ef5f68';
+  }
+  if (domain === 'lock') {
+    return st.state === 'locked' ? '#7fe0ab'
+      : st.state === 'jammed' ? '#ef5f68' : '#f0913c';
+  }
+  if (domain === 'climate') {
+    const a = st.attributes.hvac_action;
+    if (a === 'cooling') return '#8ad2f2';
+    if (a === 'heating') return '#f0913c';
+    return null;
+  }
+  return ACT_TINT[domain] || null;
+}
+
+/**
+ * Ist eine Aktion "aktiv"? Für Schalter und Skripte heisst das schlicht
+ * "an". Ein Alarm ist aktiv, wenn er nicht unscharf ist, ein Schloss,
+ * wenn es nicht verriegelt ist — sonst blieben ausgerechnet die Chips
+ * grau, bei denen es darauf ankommt.
+ */
+function actionOn(st, domain) {
+  if (!st) return false;
+  if (domain === 'alarm_control_panel') return st.state !== 'disarmed';
+  if (domain === 'lock') return st.state !== 'locked';
+  return isOn(st);
+}
+
+/** Die vier Bauarten der Chips */
+const CHIP_STYLES = ['icon', 'fill', 'ring', 'detail'];
+
 class OnyxActionsCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
@@ -2136,22 +2204,44 @@ class OnyxActionsCard extends OnyxBase {
     @keyframes onyxpulse{ 0%,100%{opacity:1} 50%{opacity:.45} }
     .sq.run .box{ animation:onyxpulse 1.1s ease-in-out infinite; }
 
-    /* Chips */
-    .chips{ display:flex; flex-wrap:wrap; gap:8px; }
-    .chip{ display:flex; align-items:center; gap:9px; height:40px; padding:0 14px 0 7px;
-           border-radius:14px; font-size:13px; font-weight:500; color:#c8d8e6; cursor:pointer;
-           background:linear-gradient(rgba(255,255,255,.11), rgba(255,255,255,.035));
-           -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
-           border:1px solid rgba(255,255,255,.10);
-           transition:transform .12s ease, background .18s ease; }
-    .chip .ci{ width:26px; height:26px; border-radius:9px; display:grid; place-items:center;
-               background:rgba(255,255,255,.08); color:#8ea3b5; flex:none; --mdc-icon-size:15px; }
-    .chip.on{ background:color-mix(in srgb, var(--btn) 55%, transparent);
-              border-color:color-mix(in srgb, var(--btn) 74%, transparent); color:#fff; }
-    .chip.on .ci{ background:rgba(255,255,255,.22); color:#fff; }
-    .chip.off{ color:#8ea3b5; }
-    .chip.dead{ opacity:.45; }
+    /* Chips: runde Pillen. Jede Aktion bringt ihre eigene Farbe mit —
+       sie steckt in --t. Was daraus wird, entscheidet chip_style. */
+    .chips{ display:flex; flex-wrap:wrap; gap:9px; }
+    .chip{ display:flex; align-items:center; gap:8px; height:38px; padding:0 14px 0 8px;
+           border-radius:99px; font-size:12.5px; font-weight:600; color:#dbe6f0;
+           cursor:pointer; white-space:nowrap; min-width:0;
+           background:rgba(255,255,255,.055);
+           border:1px solid rgba(255,255,255,.09);
+           transition:transform .12s ease, background .18s ease, box-shadow .18s ease; }
+    .chip .ci{ width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+               flex:none; --mdc-icon-size:17px; color:var(--t);
+               background:color-mix(in srgb, var(--t) 20%, transparent); }
+    .chip.off{ color:#7f8f9d; }
+    .chip.off .ci{ background:rgba(255,255,255,.06); color:#61707d; }
+    .chip.dead{ opacity:.42; }
     .chip.held{ transform:scale(.96); }
+    .chip.run .ci{ animation:onyxpulse 1.1s ease-in-out infinite; }
+
+    /* fill — was läuft, färbt sich ganz */
+    .chips.fill .chip.on{ color:#fff;
+      background:color-mix(in srgb, var(--t) 42%, transparent);
+      border-color:color-mix(in srgb, var(--t) 70%, transparent); }
+    .chips.fill .chip.on .ci{ background:rgba(255,255,255,.24); color:#fff; }
+
+    /* ring — ein Rand statt einer Füllung */
+    .chips.ring .chip.on{
+      border-color:color-mix(in srgb, var(--t) 75%, transparent);
+      box-shadow:0 0 0 1px color-mix(in srgb, var(--t) 45%, transparent),
+                 0 0 18px color-mix(in srgb, var(--t) 22%, transparent); }
+
+    /* detail — zwei Zeilen im Chip */
+    .chips.detail .chip{ height:48px; padding:0 15px 0 9px; gap:10px; }
+    .chips.detail .chip .ci{ width:30px; height:30px; --mdc-icon-size:18px; }
+    .chips.detail .tx{ display:flex; flex-direction:column; line-height:1.2; min-width:0; }
+    .chips.detail .tx b{ font-size:12.5px; font-weight:600; }
+    .chips.detail .tx i{ font-size:10.5px; font-style:normal; color:#6f8497; }
+    .chips.detail .chip.on{ border-color:color-mix(in srgb, var(--t) 60%, transparent); }
+    .chips.detail .chip.on .tx i{ color:var(--t); }
 
     /* Kacheln */
     .tile{ border-radius:18px; padding:13px; cursor:pointer;
@@ -2218,7 +2308,7 @@ class OnyxActionsCard extends OnyxBase {
     // nicht etwa ein Fehler. Nur "unavailable" heisst wirklich nicht erreichbar.
     const dead = !st || st.state === 'unavailable'
       || (kind === 'switch' && st.state === 'unknown');
-    const on = !dead && st.state === 'on';
+    const on = !dead && actionOn(st, domain);
 
     // Untertitel für die Kachelform
     let sub = '';
@@ -2228,10 +2318,20 @@ class OnyxActionsCard extends OnyxBase {
     else if (domain === 'scene') {
       const ts = Date.parse(st.state);
       sub = isNaN(ts) ? t('scene') : t('lastRun', { time: fmtTime(new Date(ts)) });
+    } else if (domain === 'cover') {
+      const pct = pctOf(st);
+      sub = pct > 0 && pct < 100 ? t('pctOpen', { n: pct })
+        : t(pct >= 100 ? 'open' : 'closed');
+    } else if (domain === 'lock') {
+      sub = t('lk.' + (st.state === 'jammed' ? 'jammed'
+        : st.state === 'locked' ? 'locked' : 'unlocked'));
+    } else if (domain === 'alarm_control_panel') {
+      sub = t(on ? 'armed' : 'disabled');
     } else sub = t(on ? 'on' : 'off');
 
     return {
       id, domain, kind, on, dead, sub,
+      tint: actionTint(st, domain, cfg.color),
       name: cfg.name || nameOf(hass, id),
       icon: cfg.icon || (st && st.attributes.icon) || ACT_ICON[domain] || 'mdi:flash',
       tap: cfg.tap_action || null,
@@ -2260,6 +2360,7 @@ class OnyxActionsCard extends OnyxBase {
             ? t('nActive', { n: switches.filter((i) => i.on).length, m: switches.length })
             : null)),
       shape: cfg.shape || (all.length > 8 ? 'chips' : 'squares'),
+      chipStyle: CHIP_STYLES.includes(cfg.chip_style) ? cfg.chip_style : 'icon',
       columns: cfg.columns || 4,
       color: cfg.color || null,
       groups,
@@ -2267,7 +2368,7 @@ class OnyxActionsCard extends OnyxBase {
     };
   }
 
-  _item(it, shape, flash) {
+  _item(it, shape, flash, chipStyle) {
     const flashing = flash === it.id;
     const icon = flashing ? 'mdi:check' : it.icon;
     const cls = [
@@ -2278,8 +2379,12 @@ class OnyxActionsCard extends OnyxBase {
     ].join(' ');
 
     if (shape === 'chips') {
-      return `<div class="chip ${cls}" data-e="${esc(it.id)}">
-        <span class="ci"><ha-icon icon="${esc(icon)}"></ha-icon></span>${esc(it.name)}</div>`;
+      const body = chipStyle === 'detail'
+        ? `<span class="tx"><b>${esc(it.name)}</b><i>${esc(it.sub)}</i></span>`
+        : esc(it.name);
+      return `<div class="chip ${cls}" data-e="${esc(it.id)}"
+           style="--t:${esc(it.tint || 'var(--btn)')}">
+        <span class="ci"><ha-icon icon="${esc(icon)}"></ha-icon></span>${body}</div>`;
     }
     if (shape === 'rail') {
       return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
@@ -2303,7 +2408,7 @@ class OnyxActionsCard extends OnyxBase {
 
   _html(m) {
     const wrapOpen = (shape, cols) => {
-      if (shape === 'chips') return '<div class="chips">';
+      if (shape === 'chips') return `<div class="chips ${m.chipStyle}">`;
       if (shape === 'rail') return '<div class="rail">';
       if (shape === 'tiles') return `<div class="grid" style="grid-template-columns:repeat(${Math.min(cols, 2)},1fr)">`;
       return `<div class="grid" style="grid-template-columns:repeat(${cols},1fr)">`;
@@ -2313,7 +2418,7 @@ class OnyxActionsCard extends OnyxBase {
       ${i > 0 ? '<div class="fsep"></div>' : ''}
       ${g.label ? `<div class="flabel">${esc(g.label)}</div>` : ''}
       ${wrapOpen(m.shape, m.columns)}
-        ${g.items.map((it) => this._item(it, m.shape, m.flash)).join('')}
+        ${g.items.map((it) => this._item(it, m.shape, m.flash, m.chipStyle)).join('')}
       </div>`).join('');
 
     const head = m.title ? `
@@ -2381,7 +2486,7 @@ class OnyxActionsCard extends OnyxBase {
       const m = this._model();
       const rows = m.groups.reduce((n, g) =>
         n + Math.ceil(g.items.length / (m.shape === 'tiles' ? 2 : m.columns)), 0);
-      return 1 + rows * (m.shape === 'chips' ? 1 : 2);
+      return 1 + rows * (m.shape === 'chips' ? (m.chipStyle === 'detail' ? 2 : 1) : 2);
     } catch (e) { return 3; }
   }
 }
@@ -5269,16 +5374,21 @@ function stableJson(v) {
   return JSON.stringify(v);
 }
 
-/** Eine einzelne Aktion so knapp wie möglich schreiben */
+/**
+ * Eine einzelne Aktion so knapp wie möglich schreiben. Was im YAML steht
+ * und der Editor gar nicht anbietet — eine eigene Farbe, ein tap_action —
+ * bleibt dabei erhalten; sonst wäre es nach dem ersten Öffnen des Editors
+ * verschwunden.
+ */
 function packItem(it) {
   if (!it || !it.entity) return null;
-  if (it.name || it.icon) {
-    const o = { entity: it.entity };
-    if (it.name) o.name = it.name;
-    if (it.icon) o.icon = it.icon;
-    return o;
+  const o = {};
+  for (const key of Object.keys(it)) {
+    const v = it[key];
+    if (v === '' || v === null || v === undefined) continue;
+    o[key] = v;
   }
-  return it.entity;
+  return Object.keys(o).length === 1 ? it.entity : o;
 }
 
 /* ------------------------------------------------------------------ *
@@ -5613,6 +5723,12 @@ const ACT_DOMAINS = ['scene', 'script', 'automation', 'button', 'input_button',
   'switch', 'input_boolean'];
 
 class OnyxActionsEditor extends OnyxEditor {
+  static get DEFAULTS() { return { chip_style: 'icon' }; }
+
+  _helpKey(name) {
+    return name === 'chip_style' ? 'ed.h.chip_style' : (ED_HELP_KEY[name] || '');
+  }
+
   _schema() {
     return [
       fieldText('title'),
@@ -5629,6 +5745,16 @@ class OnyxActionsEditor extends OnyxEditor {
         },
         { name: 'columns', selector: { number: { min: 2, max: 6, mode: 'box' } } }
       ),
+      {
+        name: 'chip_style',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: ['icon', 'fill', 'ring', 'detail']
+              .map((v) => ({ value: v, label: t('ed.cs.' + v) }))
+          }
+        }
+      },
       fieldColor(),
       fieldBool('grouped')
     ];
@@ -5681,6 +5807,8 @@ class OnyxActionsEditor extends OnyxEditor {
     return {
       title: this._config.title || '',
       shape: this._config.shape || 'squares',
+      chip_style: CHIP_STYLES.includes(this._config.chip_style)
+        ? this._config.chip_style : 'icon',
       columns: this._config.columns || 4,
       color: this._config.color || '',
       grouped: st.grouped
@@ -5705,6 +5833,7 @@ class OnyxActionsEditor extends OnyxEditor {
     const cfg = Object.assign({}, this._config, {
       title: data.title,
       shape: data.shape,
+      chip_style: data.chip_style,
       columns: data.columns,
       color: data.color
     });
