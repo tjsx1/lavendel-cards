@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.6.0
+ * Version 2.7.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -67,13 +67,11 @@ const STRINGS = {
     'err.needLight': 'Die Entität muss aus der Domäne "light" kommen.',
     'card.light': 'Onyx Licht-Karte',
     'card.light.d': 'Kompakt, mit ausklappbarer Farbe und Farbtemperatur',
-    'ed.colors': 'Farbtupfer',
     'ed.show_color_temp': 'Farbtemperatur zeigen',
-    'ed.show_colors': 'Farben zeigen',
+    'ed.show_colors': 'Farbfeld zeigen',
     'ed.show_effects': 'Effekte zeigen',
     'ed.always_open': 'Immer ausgeklappt',
     'ed.h.always_open': 'Zeigt Farbtemperatur, Farben und Effekte ohne Antippen',
-    'ed.h.colors': 'Hexwerte, mit Komma getrennt — leer lassen für die Vorgabe',
     'ed.h.light': 'Was das Leuchtmittel nicht kann, blendet die Karte von selbst aus',
     'w.temp': 'Temperatur',
     'w.wind': 'Wind',
@@ -296,13 +294,11 @@ const STRINGS = {
     'err.needLight': 'The entity must come from the "light" domain.',
     'card.light': 'Onyx Light Card',
     'card.light.d': 'Compact, with color and color temperature on tap',
-    'ed.colors': 'Swatches',
     'ed.show_color_temp': 'Show color temperature',
-    'ed.show_colors': 'Show colors',
+    'ed.show_colors': 'Show color field',
     'ed.show_effects': 'Show effects',
     'ed.always_open': 'Always expanded',
     'ed.h.always_open': 'Shows color temperature, colors and effects without tapping',
-    'ed.h.colors': 'Hex values, comma separated — leave empty for the default set',
     'ed.h.light': 'Whatever the bulb cannot do, the card hides by itself',
     'w.temp': 'Temperature',
     'w.wind': 'Wind',
@@ -806,8 +802,12 @@ class OnyxBase extends HTMLElement {
 
     const pctFrom = (ev) => {
       const r = el.getBoundingClientRect();
-      if (opts.axis === 'y') return clamp(Math.round(((r.bottom - ev.clientY) / r.height) * 100), 0, 100);
-      return clamp(Math.round(((ev.clientX - r.left) / r.width) * 100), 0, 100);
+      const x = clamp(Math.round(((ev.clientX - r.left) / r.width) * 100), 0, 100);
+      const y = clamp(Math.round(((r.bottom - ev.clientY) / r.height) * 100), 0, 100);
+      // Ein Farbfeld braucht beide Achsen auf einmal; alles andere genau eine.
+      if (opts.axis === 'xy') return { x, y };
+      if (opts.axis === 'y') return y;
+      return x;
     };
 
     el.addEventListener('pointerdown', (ev) => {
@@ -842,7 +842,9 @@ class OnyxBase extends HTMLElement {
         this._repaint();
       } else if (!held && !cancelled) {
         haptic(this, 'light');
-        opts.onTap && opts.onTap();
+        // Der Ort des Tippens zählt nur beim Farbfeld; alle anderen
+        // Empfänger nehmen kein Argument entgegen.
+        opts.onTap && opts.onTap(pctFrom(ev));
       }
       dragging = false; held = false;
     };
@@ -3732,10 +3734,6 @@ class OnyxWeatherCard extends OnyxBase {
 /** Farbmodi, die eine Farbe können (im Gegensatz zu bloss Weiss) */
 const LT_COLOR_MODES = ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'];
 
-/** Vorgegebene Farbtupfer: warm bis kalt, dann vier gesättigte */
-const LT_COLORS = ['#ffb15c', '#ffd9a8', '#ffffff', '#a8d8ff',
-  '#7fe0ab', '#9b7bf5', '#ef6bb0'];
-
 /**
  * Farbtemperatur in RGB, Näherung nach Tanner Helland.
  * Gebraucht wird sie zweimal: für den Verlauf des Reglers und dafür, dass
@@ -3781,6 +3779,23 @@ function ltTint(rgb, kelvin, kMin, kMax) {
   return ltHex(warm.map((v, i) => v + (cool[i] - v) * f));
 }
 
+/**
+ * Farbton und Sättigung, wie Home Assistant sie in `hs_color` führt:
+ * Farbton in Grad, Sättigung in Prozent. Nur als Rückfall gedacht —
+ * meldet die Lampe `hs_color`, gilt das.
+ */
+function rgbToHs(rgb) {
+  const [r, g, b] = rgb.map((v) => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (mx === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return [h * 360, mx ? (d / mx) * 100 : 0];
+}
+
 function rgbToHsl(rgb) {
   const [r, g, b] = rgb.map((v) => v / 255);
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
@@ -3810,6 +3825,8 @@ function hslToRgb(h, sat, l) {
 
 /** Wo der Knopf einer Schiene steht — er soll die Rundungen nie berühren */
 const LT_KNOB = (v) => `calc(12px + (100% - 24px) * ${v} / 100)`;
+/** Wo der Ring im Farbfeld steht — er soll die Ränder nie überlaufen */
+const CF_POS = (v) => `calc(13px + (100% - 26px) * ${clamp(v, 0, 100)} / 100)`;
 
 class OnyxLightCard extends OnyxBase {
   static get CSS() {
@@ -3882,15 +3899,19 @@ class OnyxLightCard extends OnyxBase {
            border:2.5px solid #fff;
            box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
 
-    /* Farbtupfer und Effekte — abgerundete Quadrate, damit sie zum
-       Symbol oben passen; sie brechen um, wenn die Spalte schmal ist. */
-    .sws{ display:flex; gap:6px; flex-wrap:wrap; }
-    .sw{ flex:1 1 28px; min-width:28px; height:30px; border-radius:10px; cursor:pointer;
-         border:1px solid rgba(255,255,255,.18);
-         transition:transform .12s ease, box-shadow .18s ease; }
-    .sw.on{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
-                       0 0 0 4px color-mix(in srgb, var(--lite) 42%, transparent); }
-    .sw.held{ transform:scale(.9); }
+    /* Das Farbfeld: Farbton nach rechts, Sättigung nach unten. Eine
+       Bewegung setzt beides — feste Tupfer liessen alles dazwischen aus. */
+    /* Kein Rand: er läge über dem Verlauf und liesse an der Unterkante
+       einen farbigen Haarstrich stehen. */
+    .cfield{ position:relative; height:84px; border-radius:12px; overflow:hidden;
+             cursor:pointer; touch-action:none;
+             background:
+               linear-gradient(to bottom, rgba(255,255,255,0) 0%, #ffffff 96%),
+               linear-gradient(90deg, #ff0000, #ffff00, #00ff00,
+                               #00ffff, #0000ff, #ff00ff, #ff0000); }
+    .cdot{ position:absolute; transform:translate(-50%,-50%); width:22px; height:22px;
+           border-radius:50%; background:none; border:2.5px solid #fff; z-index:2;
+           box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
 
     .fx{ display:flex; gap:6px; flex-wrap:wrap; }
     .fxi{ height:30px; border-radius:10px; display:flex; align-items:center; padding:0 11px;
@@ -3938,9 +3959,6 @@ class OnyxLightCard extends OnyxBase {
     const knowsColor = !!(a.rgb_color || kelvin);
     const tint = knowsColor ? ltTint(a.rgb_color || null, kelvin, kMin, kMax) : null;
 
-    const swatches = (this._config.colors || LT_COLORS).map((c) => String(c));
-    const cur = a.rgb_color ? ltHex(a.rgb_color).toLowerCase() : null;
-
     const canTemp = this._config.show_color_temp !== false && modes.includes('color_temp');
     const canColor = this._config.show_colors !== false
       && modes.some((m) => LT_COLOR_MODES.includes(m));
@@ -3973,7 +3991,10 @@ class OnyxLightCard extends OnyxBase {
       ramp: [0, .25, .5, .75, 1]
         .map((f) => ltHex(kelvinRgb(kMin + (kMax - kMin) * f))).join(','),
       mode: a.color_mode || null,
-      swatches: swatches.map((c) => ({ c, on: cur === c.toLowerCase() })),
+      // Wo der Ring im Farbfeld steht. Ist das Licht gerade auf Weiss,
+      // steht er nirgends — dann zeigt das Feld auch keinen.
+      hs: on && a.color_mode && LT_COLOR_MODES.includes(a.color_mode)
+        ? (a.hs_color || (a.rgb_color ? rgbToHs(a.rgb_color) : null)) : null,
       fx,
       effect: a.effect || null,
       expandable, always,
@@ -4043,10 +4064,9 @@ class OnyxLightCard extends OnyxBase {
           <div class="knob" style="left:${LT_KNOB(this._kPct(m))}"></div>
         </div>` : ''}
       ${m.canColor ? `
-        <div class="sws">
-          ${m.swatches.map((s) => `
-            <div class="sw ${s.on ? 'on' : ''}" data-sw="${esc(s.c)}"
-                 style="background:${esc(s.c)}"></div>`).join('')}
+        <div class="cfield" id="cfield">
+          ${m.hs ? `<div class="cdot" style="left:${CF_POS(m.hs[0] / 3.6)};
+                     top:${CF_POS(100 - m.hs[1])}"></div>` : ''}
         </div>` : ''}
       ${m.fx.length ? `
         <div class="fx">
@@ -4135,15 +4155,28 @@ class OnyxLightCard extends OnyxBase {
       });
     }
 
-    root.querySelectorAll('[data-sw]').forEach((el) => {
-      const hex = el.dataset.sw;
-      this._press(el, {
-        onTap: guard(() => {
-          const n = hex.replace('#', '');
-          call({ rgb_color: [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16)) });
-        })
+    const cf = root.getElementById('cfield');
+    if (cf) {
+      let dot = cf.querySelector('.cdot');
+      // x ist der Farbton, y die Sättigung — oben voll, unten weiss.
+      const toHs = (p) => [Math.round(p.x * 3.6), p.y];
+      const place = (p) => {
+        if (!dot) {
+          dot = document.createElement('div');
+          dot.className = 'cdot';
+          cf.appendChild(dot);
+        }
+        dot.style.left = CF_POS(p.x);
+        dot.style.top = CF_POS(100 - p.y);
+      };
+      this._press(cf, {
+        axis: 'xy',
+        onTap: m.dead ? null : (p) => { place(p); call({ hs_color: toHs(p) }); },
+        onHold: () => fireMoreInfo(this, m.id),
+        onDrag: m.dead ? null : place,
+        onDrop: m.dead ? null : (p) => call({ hs_color: toHs(p) })
       });
-    });
+    }
 
     root.querySelectorAll('[data-fx]').forEach((el) => {
       this._press(el, { onTap: guard(() => call({ effect: el.dataset.fx })) });
@@ -5094,7 +5127,6 @@ class OnyxLightEditor extends OnyxEditor {
   }
 
   _helpKey(name) {
-    if (name === 'colors') return 'ed.h.colors';
     if (name === 'always_open') return 'ed.h.always_open';
     return ED_HELP_KEY[name] || '';
   }
@@ -5104,7 +5136,6 @@ class OnyxLightEditor extends OnyxEditor {
       fieldEntity('entity', 'light'),
       grid(fieldText('name'), fieldIcon('icon')),
       fieldColor(),
-      fieldText('colors'),
       grid(fieldBool('show_color_temp'), fieldBool('show_colors')),
       grid(fieldBool('show_effects'), fieldBool('always_open'))
     ];
@@ -5116,22 +5147,11 @@ class OnyxLightEditor extends OnyxEditor {
       name: c.name || '',
       icon: c.icon || '',
       color: c.color || '',
-      colors: (c.colors || []).join(', '),
       show_color_temp: c.show_color_temp !== false,
       show_colors: c.show_colors !== false,
       show_effects: c.show_effects !== false,
       always_open: c.always_open === true
     };
-  }
-
-  _fromForm(data) {
-    const cfg = Object.assign({}, this._config, data);
-    // Freitext in eine Liste: nur was wie ein Hexwert aussieht
-    const list = String(data.colors || '').split(',')
-      .map((x) => x.trim())
-      .filter((x) => /^#[0-9a-fA-F]{6}$/.test(x));
-    if (list.length) cfg.colors = list; else delete cfg.colors;
-    return cfg;
   }
 
   _extra(root) {

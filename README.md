@@ -22,7 +22,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
-| `onyx-light-card` | Licht als eine Zeile; Regler, Farben und Effekte klappen aus |
+| `onyx-light-card` | Licht als eine Zeile; Regler, Farbfeld und Effekte klappen aus |
 
 ## Installation über HACS
 
@@ -512,7 +512,6 @@ das Dashboard zur Reglerwand wird.
 type: custom:onyx-light-card
 entity: light.wohnzimmer_decke
 icon: mdi:ceiling-light
-colors: ['#ffb15c', '#ffd9a8', '#ffffff', '#a8d8ff']
 ```
 
 | Option | Vorgabe | Wirkung |
@@ -521,9 +520,8 @@ colors: ['#ffb15c', '#ffd9a8', '#ffffff', '#a8d8ff']
 | `name` | Gerätename | Beschriftung |
 | `icon` | Gerätesymbol | z. B. `mdi:ceiling-light` |
 | `color` | `auto` | `auto` tönt die Karte in der Farbe des Lichts; sonst wie bei der Raum-Karte |
-| `colors` | sieben Vorgaben | Eigene Farbtupfer als Hexwerte |
 | `show_color_temp` | `true` | Blendet den Farbtemperatur-Regler aus |
-| `show_colors` | `true` | Blendet die Farbtupfer aus |
+| `show_colors` | `true` | Blendet das Farbfeld aus |
 | `show_effects` | `true` | Blendet die Effekt-Chips aus |
 | `always_open` | `false` | Karte startet ausgeklappt — dann fehlt der Pfeil |
 
@@ -531,6 +529,11 @@ colors: ['#ffb15c', '#ffd9a8', '#ffffff', '#a8d8ff']
 setzt Ziehen die Helligkeit, Antippen schaltet um, Halten öffnet das Detailfenster.
 Ist am Licht nichts einzustellen — ein reiner Ein-Aus-Schalter —, gibt es keinen
 Pfeil, und das Antippen des Namens führt direkt ins Detailfenster.
+
+**Das Farbfeld** spannt den Farbton nach rechts und die Sättigung nach unten
+auf — oben satt, unten weiss. Eine Bewegung setzt beides. Der Ring zeigt, wo das
+Licht gerade steht; leuchtet es weiss statt farbig, steht er nirgends und das Feld
+zeigt keinen. Feste Farbtupfer gibt es nicht mehr — sie liessen alles dazwischen aus.
 
 **Die Zustandszeile trägt die Helligkeit**, weil sie zugeklappt das Einzige ist, was
 Auskunft gibt: `72 % · 2.700 K`, `90 % · Regenbogen`, `Aus`. Ist die Spalte zu schmal
@@ -700,6 +703,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.7.0** — Freie Farbwahl im Farbfeld statt sieben fester Tupfer; `colors` entfällt
 **2.6.0** — Regler ohne weissen Strich an der Füllkante; die Knöpfe auf den Schienen sind Ringe
 **2.5.0** — Licht-Karte zugeklappt nur noch eine Zeile; der Helligkeitsregler klappt mit aus
 **2.4.0** — Licht-Karte neu gebaut: klein, im Mushroom-Aufbau, ausklappbar wie die Raum-Karte
