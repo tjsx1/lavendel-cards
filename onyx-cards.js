@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.5.0
+ * Version 2.6.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -1025,8 +1025,6 @@ class OnyxRoomCard extends OnyxBase {
     .lfill{ position:absolute; left:0; top:0; bottom:0; transition:width .12s linear;
             background:color-mix(in srgb, var(--acc) 22%, transparent); }
     .lrow > *:not(.lfill){ position:relative; z-index:1; }
-    .handle{ position:absolute; top:50%; transform:translateY(-50%); width:2.5px; height:18px;
-             border-radius:9px; background:rgba(255,255,255,.55); z-index:2; }
     .lico{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
            background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
            border:1px solid rgba(255,255,255,.11);
@@ -1208,7 +1206,6 @@ class OnyxRoomCard extends OnyxBase {
         <div class="lrow ${it.dead ? 'dead' : ''} ${!it.on && !it.dead ? 'off' : ''}"
              data-ent="${esc(it.id)}" data-dom="${og.domain}">
           <div class="lfill" style="width:${pct}%"></div>
-          ${pct > 0 ? `<div class="handle" style="left:${pct}%"></div>` : ''}
           <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${esc(it.icon)}"></ha-icon></div>
           <div class="lname">${esc(it.name)}</div>
           <div class="lval">${esc(this._rowText(it, og.domain))}</div>
@@ -1280,7 +1277,6 @@ class OnyxRoomCard extends OnyxBase {
       const id = row.dataset.ent;
       const domain = row.dataset.dom;
       const fill = row.querySelector('.lfill');
-      const handle = row.querySelector('.handle');
       const val = row.querySelector('.lval');
       const canDrag = domain === 'light' || domain === 'cover';
 
@@ -1290,7 +1286,6 @@ class OnyxRoomCard extends OnyxBase {
         onHold: () => fireMoreInfo(this, id),
         onDrag: canDrag ? (pct) => {
           fill.style.width = pct + '%';
-          if (handle) handle.style.left = pct + '%';
           val.textContent = domain === 'cover' ? `${pct} % offen` : `${pct} %`;
         } : null,
         onDrop: canDrag ? (pct) => {
@@ -1375,10 +1370,6 @@ class OnyxSliderCard extends OnyxBase {
     .pct{ position:relative; font-size:13px; font-weight:600; color:#7d8fa0;
           font-variant-numeric:tabular-nums; }
     .sl.on .pct{ color:#fff; }
-    /* Der Griff liegt unter dem Symbol: bei kleinen Werten kreuzen sie sich,
-       und eine Linie quer durchs Symbol sieht nach Fehler aus. */
-    .grip{ position:absolute; left:50%; transform:translateX(-50%); width:24px; height:2.5px;
-           border-radius:9px; background:rgba(255,255,255,.55); z-index:1; }
     .sico{ position:relative; z-index:2; width:34px; height:34px; border-radius:50%;
            display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px;
            background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
@@ -1425,7 +1416,6 @@ class OnyxSliderCard extends OnyxBase {
       <div class="sl${on ? ' on' : ''}${m.dead ? ' dead' : ''}" id="sl">
         <div class="fill" style="height:${m.pct}%"></div>
         <div class="pct" id="pct">${m.dead ? '–' : m.pct + ' %'}</div>
-        ${m.pct > 0 && m.pct < 100 ? `<div class="grip" id="grip" style="bottom:calc(${m.pct}% - 1px)"></div>` : ''}
         <div class="sico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
       </div>
       ${this._config.show_name === false ? '' : `<div class="nm">${esc(m.name)}</div>`}
@@ -1435,7 +1425,6 @@ class OnyxSliderCard extends OnyxBase {
   _bind(m) {
     const sl = this.shadowRoot.getElementById('sl');
     const fill = sl.querySelector('.fill');
-    const grip = this.shadowRoot.getElementById('grip');
     const pct = this.shadowRoot.getElementById('pct');
 
     this._press(sl, {
@@ -1449,7 +1438,6 @@ class OnyxSliderCard extends OnyxBase {
         fill.style.height = v + '%';
         pct.textContent = v + ' %';
         sl.classList.toggle('on', v > 0);
-        if (grip) grip.style.bottom = `calc(${v}% - 1px)`;
       },
       onDrop: (v) => {
         if (m.domain === 'cover') this.call('cover', 'set_cover_position', { entity_id: m.id, position: v });
@@ -1466,8 +1454,8 @@ class OnyxSliderCard extends OnyxBase {
  * 3) STOREN-KARTE
  * ================================================================== */
 /* Lamellenregler: Knopfmitte von 6,5 px bis Breite minus 6,5 px */
-const KNOB_POS = (v) => `calc((100% - 13px) * ${v} / 100)`;
-const KNOB_FILL = (v) => `calc(6.5px + (100% - 13px) * ${v} / 100)`;
+const KNOB_POS = (v) => `calc((100% - 15px) * ${v} / 100)`;
+const KNOB_FILL = (v) => `calc(7.5px + (100% - 15px) * ${v} / 100)`;
 
 class OnyxCoverCard extends OnyxBase {
   static get CSS() {
@@ -1529,8 +1517,12 @@ class OnyxCoverCard extends OnyxBase {
                     background:color-mix(in srgb, var(--btn) 72%, transparent); }
     /* Der Knopf bleibt ganz in der Schiene — sonst ragt er bei 0 % in die
        Beschriftung und bei 100 % über den Kartenrand hinaus. */
-    .lam-track .knob{ position:absolute; width:13px; height:13px; border-radius:50%;
-                      background:#fff; box-shadow:0 2px 7px rgba(0,0,0,.5); }
+    /* Ein Ring statt eines Klotzes: die Schiene läuft sichtbar hindurch,
+       man sieht also, worauf man steht. */
+    .lam-track .knob{ position:absolute; width:15px; height:15px; border-radius:50%;
+                      background:none; border:2.5px solid #fff;
+                      box-shadow:0 2px 7px rgba(0,0,0,.5),
+                                 inset 0 0 0 1px rgba(0,0,0,.25); }
 
     .lock{ display:inline-flex; align-items:center; gap:6px; margin-top:11px;
            background:rgba(240,172,116,.14); border:1px solid rgba(240,172,116,.28);
@@ -3817,7 +3809,7 @@ function hslToRgb(h, sat, l) {
 }
 
 /** Wo der Knopf einer Schiene steht — er soll die Rundungen nie berühren */
-const LT_KNOB = (v) => `calc(9px + (100% - 18px) * ${v} / 100)`;
+const LT_KNOB = (v) => `calc(12px + (100% - 24px) * ${v} / 100)`;
 
 class OnyxLightCard extends OnyxBase {
   static get CSS() {
@@ -3875,8 +3867,6 @@ class OnyxLightCard extends OnyxBase {
            background:linear-gradient(90deg,
              color-mix(in srgb, var(--lite) 45%, transparent) 0%,
              color-mix(in srgb, var(--lite) 85%, transparent) 100%); }
-    .grip{ position:absolute; top:50%; transform:translate(-50%,-50%); width:2.5px;
-           height:22px; border-radius:9px; background:rgba(255,255,255,.6); z-index:2; }
     .cap{ position:absolute; inset:0; display:flex; align-items:center; gap:7px;
           padding:0 12px; font-size:12.5px; font-weight:600; color:#fff; z-index:1;
           --mdc-icon-size:16px; pointer-events:none;
@@ -3885,10 +3875,12 @@ class OnyxLightCard extends OnyxBase {
     /* Kaltweiss auf voller Helligkeit ist fast weiss; darauf ist weisse
        Schrift nicht mehr zu lesen. */
     .bar.bright .cap{ color:#1b1e24; }
-    .bar.bright .grip{ background:rgba(0,0,0,.45); }
-    .knob{ position:absolute; top:50%; transform:translate(-50%,-50%); width:6px;
-           height:26px; border-radius:99px; background:#fff; z-index:2;
-           box-shadow:0 2px 8px rgba(0,0,0,.45); }
+    /* Ein Fenster statt eines Strichs: durch den Ring sieht man genau die
+       Farbe, auf der man gerade steht. */
+    .knob{ position:absolute; top:50%; transform:translate(-50%,-50%); width:20px;
+           height:28px; border-radius:99px; background:none; z-index:2;
+           border:2.5px solid #fff;
+           box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
 
     /* Farbtupfer und Effekte — abgerundete Quadrate, damit sie zum
        Symbol oben passen; sie brechen um, wenn die Spalte schmal ist. */
@@ -4034,7 +4026,6 @@ class OnyxLightCard extends OnyxBase {
 
     const det = this._detail(m);
     const cap = this._cap(m);
-    const showGrip = m.on && m.pct > 2 && m.pct < 100;
     const barCls = [
       cap.mute ? 'mute' : '',
       m.on && m.pct >= 45 && m.lum > 0.72 ? 'bright' : ''
@@ -4044,7 +4035,6 @@ class OnyxLightCard extends OnyxBase {
       ${m.canDim ? `
         <div class="bar ${barCls}" id="field">
           ${m.on ? `<div class="fill" style="width:${m.pct}%"></div>` : ''}
-          ${showGrip ? `<div class="grip" id="grip" style="left:${m.pct}%"></div>` : ''}
           <div class="cap">${cap.html}</div>
         </div>` : ''}
       ${m.canTemp ? `
@@ -4117,7 +4107,6 @@ class OnyxLightCard extends OnyxBase {
     const field = root.getElementById('field');
     if (field) {
       const fill = field.querySelector('.fill');
-      const grip = root.getElementById('grip');
       const cap = field.querySelector('.cap');
       this._press(field, {
         axis: 'x',
@@ -4125,7 +4114,6 @@ class OnyxLightCard extends OnyxBase {
         onHold: () => fireMoreInfo(this, m.id),
         onDrag: m.dead ? null : (v) => {
           if (fill) fill.style.width = v + '%';
-          if (grip) grip.style.left = v + '%';
           const out = cap.querySelector('span');
           if (out) out.textContent = v + ' %';
         },

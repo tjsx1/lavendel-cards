@@ -700,6 +700,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.6.0** — Regler ohne weissen Strich an der Füllkante; die Knöpfe auf den Schienen sind Ringe
 **2.5.0** — Licht-Karte zugeklappt nur noch eine Zeile; der Helligkeitsregler klappt mit aus
 **2.4.0** — Licht-Karte neu gebaut: klein, im Mushroom-Aufbau, ausklappbar wie die Raum-Karte
 **2.3.0** — Neue Licht-Karte: Helligkeitsfeld, Farbtemperatur, Farben, Effekte
