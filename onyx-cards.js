@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.4.0
+ * Version 2.5.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -11,7 +11,7 @@
  *   custom:onyx-chart-card   – bis zu drei Messwerte, einer davon als Verlauf
  *   custom:onyx-vacuum-card  – Saugroboter mit Akkuring, Räumen, Verbrauchsteilen
  *   custom:onyx-weather-card – Wetter mit gezeichneter Szene und Vorhersage
- *   custom:onyx-light-card   – Licht, kompakt, mit ausklappbarer Farbe
+ *   custom:onyx-light-card   – Licht als eine Zeile, ausklappbar
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -3826,7 +3826,7 @@ class OnyxLightCard extends OnyxBase {
       padding:12px; border-radius:var(--onyx-r,24px);
       border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:10px; overflow:hidden;
-      box-shadow:none;
+      box-shadow:none; container-type:inline-size;
       background:linear-gradient(to right bottom,
         var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
       --lite:#8ea3b5;
@@ -3836,6 +3836,10 @@ class OnyxLightCard extends OnyxBase {
     ha-card.warm{ --lite:var(--acc);
       background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
     ha-card.off{ opacity:.55; }
+    /* Auf einer halben Spalte reicht der Platz nur für die Helligkeit;
+       die Farbtemperatur oder der Effekt fällt dann weg, statt in drei
+       Punkten zu enden. */
+    @container (max-width: 240px){ .p2 .xtra{ display:none; } }
 
     /* Kopfzeile: abgerundetes Quadrat links, daneben Name und Zustand.
        Zwei Zeilen, kein Knopf zu viel — die Karte soll auch auf einer
@@ -3878,10 +3882,6 @@ class OnyxLightCard extends OnyxBase {
           --mdc-icon-size:16px; pointer-events:none;
           white-space:nowrap; overflow:hidden; }
     .bar.mute .cap{ color:#6f8497; font-weight:500; font-size:11.5px; }
-    /* Ein Licht, das nur an und aus kann, bekommt keinen Füllstand,
-       sondern eine Fläche — sonst läse man 100 % Helligkeit heraus. */
-    .bar.solid{ background:color-mix(in srgb, var(--lite) 34%, transparent);
-                border-color:color-mix(in srgb, var(--lite) 48%, transparent); }
     /* Kaltweiss auf voller Helligkeit ist fast weiss; darauf ist weisse
        Schrift nicht mehr zu lesen. */
     .bar.bright .cap{ color:#1b1e24; }
@@ -3956,7 +3956,10 @@ class OnyxLightCard extends OnyxBase {
       ? a.effect_list.slice(0, 12) : [];
 
     const dead = isDead(st);
-    const expandable = !dead && (canTemp || canColor || fx.length > 0);
+    // Auch der Helligkeitsregler steckt im Ausgeklappten — zugeklappt ist
+    // die Karte eine Zeile hoch.
+    const canDim = modes.some((m) => m !== 'onoff');
+    const expandable = !dead && (canDim || canTemp || canColor || fx.length > 0);
     const always = this._config.always_open === true;
 
     return {
@@ -3968,7 +3971,7 @@ class OnyxLightCard extends OnyxBase {
       pct: pct < 0 ? 0 : pct,
       dead,
       lite, tint,
-      canDim: modes.some((m) => m !== 'onoff'),
+      canDim,
       // Wie hell die Leuchtfarbe selbst ist — entscheidet über die
       // Schriftfarbe im Balken
       lum: rgb ? (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 : 0,
@@ -3986,21 +3989,26 @@ class OnyxLightCard extends OnyxBase {
     };
   }
 
-  /** Zweite Zeile: was gerade eingestellt ist */
+  /**
+   * Zweite Zeile: was gerade eingestellt ist. Zugeklappt ist sie das
+   * Einzige, was über den Zustand Auskunft gibt — also steht die
+   * Helligkeit hier und nicht nur im Regler.
+   */
   _detail(m) {
-    if (m.dead) return t('unavailable');
-    if (!m.on) return t('off');
-    if (m.effect && m.effect !== 'None') return m.effect;
-    if (m.mode === 'color_temp' && m.kelvin) return nfmt(m.kelvin, 0) + ' K';
-    if (m.mode && LT_COLOR_MODES.includes(m.mode)) return t('lt.color');
-    return t('on');
+    if (m.dead) return { main: t('unavailable'), extra: '' };
+    if (!m.on) return { main: t('off'), extra: '' };
+    let extra = '';
+    if (m.effect && m.effect !== 'None') extra = m.effect;
+    else if (m.mode === 'color_temp' && m.kelvin) extra = nfmt(m.kelvin, 0) + ' K';
+    else if (m.mode && LT_COLOR_MODES.includes(m.mode)) extra = t('lt.color');
+    if (!m.canDim) return { main: extra || t('on'), extra: '' };
+    return { main: m.pct + ' %', extra };
   }
 
   /** Beschriftung im Helligkeitsbalken */
   _cap(m) {
     if (m.dead) return { mute: true, html: esc(t('unavailable')) };
     if (!m.on) return { mute: true, html: esc(t('lt.tapOn')) };
-    if (!m.canDim) return { mute: false, html: esc(t('on')) };
     return {
       mute: false,
       html: '<ha-icon icon="mdi:brightness-percent"></ha-icon><span>' + m.pct + ' %</span>'
@@ -4024,15 +4032,21 @@ class OnyxLightCard extends OnyxBase {
       ? (style ? style.replace(/"$/, ';' + lite + '"') : ` style="${lite}"`)
       : style;
 
+    const det = this._detail(m);
     const cap = this._cap(m);
-    const showGrip = m.on && m.canDim && m.pct > 2 && m.pct < 100;
+    const showGrip = m.on && m.pct > 2 && m.pct < 100;
     const barCls = [
       cap.mute ? 'mute' : '',
-      m.on && !m.dead && !m.canDim ? 'solid' : '',
-      m.on && m.canDim && m.pct >= 45 && m.lum > 0.72 ? 'bright' : ''
+      m.on && m.pct >= 45 && m.lum > 0.72 ? 'bright' : ''
     ].filter(Boolean).join(' ');
 
     const panel = !m.open ? '' : `
+      ${m.canDim ? `
+        <div class="bar ${barCls}" id="field">
+          ${m.on ? `<div class="fill" style="width:${m.pct}%"></div>` : ''}
+          ${showGrip ? `<div class="grip" id="grip" style="left:${m.pct}%"></div>` : ''}
+          <div class="cap">${cap.html}</div>
+        </div>` : ''}
       ${m.canTemp ? `
         <div class="bar" id="temp"
              style="background:linear-gradient(90deg,${esc(m.ramp)})">
@@ -4057,7 +4071,8 @@ class OnyxLightCard extends OnyxBase {
         <div class="sq" id="ico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
         <div class="txt" id="txt">
           <div class="p1">${esc(m.name)}</div>
-          <div class="p2">${esc(this._detail(m))}</div>
+          <div class="p2">${esc(det.main)}${det.extra
+            ? `<span class="xtra"> \u00b7 ${esc(det.extra)}</span>` : ''}</div>
         </div>
         ${m.expandable && !m.always ? `
           <div class="caret ${m.open ? 'open' : ''}" id="caret">
@@ -4065,12 +4080,6 @@ class OnyxLightCard extends OnyxBase {
           </div>` : ''}
       </div>
 
-      <div class="bar ${barCls}" id="field">
-        ${m.on && m.canDim && !m.dead
-          ? `<div class="fill" style="width:${m.pct}%"></div>` : ''}
-        ${showGrip ? `<div class="grip" id="grip" style="left:${m.pct}%"></div>` : ''}
-        <div class="cap">${cap.html}</div>
-      </div>
       ${panel}
     </ha-card>`;
   }
@@ -4106,25 +4115,26 @@ class OnyxLightCard extends OnyxBase {
     });
 
     const field = root.getElementById('field');
-    const fill = field.querySelector('.fill');
-    const grip = root.getElementById('grip');
-    const cap = field.querySelector('.cap');
-
-    this._press(field, {
-      axis: 'x',
-      onTap: toggle,
-      onHold: () => fireMoreInfo(this, m.id),
-      onDrag: m.dead || !m.canDim ? null : (v) => {
-        fill.style.width = v + '%';
-        if (grip) grip.style.left = v + '%';
-        const out = cap.querySelector('span');
-        if (out) out.textContent = v + ' %';
-      },
-      onDrop: m.dead || !m.canDim ? null : (v) => {
-        if (v <= 0) this.call('light', 'turn_off', { entity_id: m.id });
-        else call({ brightness_pct: v });
-      }
-    });
+    if (field) {
+      const fill = field.querySelector('.fill');
+      const grip = root.getElementById('grip');
+      const cap = field.querySelector('.cap');
+      this._press(field, {
+        axis: 'x',
+        onTap: toggle,
+        onHold: () => fireMoreInfo(this, m.id),
+        onDrag: m.dead ? null : (v) => {
+          if (fill) fill.style.width = v + '%';
+          if (grip) grip.style.left = v + '%';
+          const out = cap.querySelector('span');
+          if (out) out.textContent = v + ' %';
+        },
+        onDrop: m.dead ? null : (v) => {
+          if (v <= 0) this.call('light', 'turn_off', { entity_id: m.id });
+          else call({ brightness_pct: v });
+        }
+      });
+    }
 
     const temp = root.getElementById('temp');
     if (temp) {
@@ -4152,7 +4162,9 @@ class OnyxLightCard extends OnyxBase {
     });
   }
 
-  getCardSize() { return this._open ? 4 : 2; }
+  getCardSize() {
+    return this._open || this._config.always_open === true ? 4 : 1;
+  }
 }
 
 /* ==================================================================== *

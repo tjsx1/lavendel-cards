@@ -22,7 +22,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
-| `onyx-light-card` | Licht, kompakt; Farbtemperatur, Farben und Effekte klappen aus |
+| `onyx-light-card` | Licht als eine Zeile; Regler, Farben und Effekte klappen aus |
 
 ## Installation über HACS
 
@@ -500,13 +500,13 @@ auf den Chip wechselt den Zeitraum.
 
 ### onyx-light-card
 
-![Licht-Karte, ausgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/light-card.png)
+![Licht-Karte, zugeklappt und ausgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/light-card.png)
 
-Eine kleine Karte für ein einzelnes Licht, im Aufbau der Mushroom-Karten: Symbol
-links, Name und Zustand daneben, darunter ein flacher Balken über die ganze Breite.
-Was das Leuchtmittel sonst noch kann — Farbtemperatur, Farben, Effekte — klappt auf
-Antippen aus, wie die Gerätegruppen der Raum-Karte. Zugeklappt passt sie auf eine
-halbe Spalte.
+Eine kleine Karte für ein einzelnes Licht, im Aufbau der Mushroom-Karten. Zugeklappt
+ist sie eine Zeile hoch: Symbol links, Name und Zustand daneben. Alles zum Einstellen
+— Helligkeit, Farbtemperatur, Farben, Effekte — erscheint erst beim Aufklappen, wie
+die Gerätegruppen der Raum-Karte. So passen mehrere Lichter untereinander, ohne dass
+das Dashboard zur Reglerwand wird.
 
 ```yaml
 type: custom:onyx-light-card
@@ -525,12 +525,16 @@ colors: ['#ffb15c', '#ffd9a8', '#ffffff', '#a8d8ff']
 | `show_color_temp` | `true` | Blendet den Farbtemperatur-Regler aus |
 | `show_colors` | `true` | Blendet die Farbtupfer aus |
 | `show_effects` | `true` | Blendet die Effekt-Chips aus |
-| `always_open` | `false` | Zeigt alles ohne Antippen — dann fehlt der Pfeil |
+| `always_open` | `false` | Karte startet ausgeklappt — dann fehlt der Pfeil |
 
-**Bedienung.** Das Symbol schaltet, Name und Pfeil klappen auf, der Balken dimmt:
-quer ziehen setzt die Helligkeit, antippen schaltet um, halten öffnet das
-Detailfenster. Ist am Licht nichts auszuklappen, führt das Antippen auf den Namen
-direkt ins Detailfenster.
+**Bedienung.** Das Symbol schaltet, Name und Pfeil klappen auf. Im Balken darunter
+setzt Ziehen die Helligkeit, Antippen schaltet um, Halten öffnet das Detailfenster.
+Ist am Licht nichts einzustellen — ein reiner Ein-Aus-Schalter —, gibt es keinen
+Pfeil, und das Antippen des Namens führt direkt ins Detailfenster.
+
+**Die Zustandszeile trägt die Helligkeit**, weil sie zugeklappt das Einzige ist, was
+Auskunft gibt: `72 % · 2.700 K`, `90 % · Regenbogen`, `Aus`. Ist die Spalte zu schmal
+für beides, fällt der hintere Teil weg, statt in drei Punkten zu enden.
 
 **Die Karte nimmt die Farbe des Lichts an.** Nicht direkt: ein Leuchtmittel auf 6200 K
 ist fast weiss, und würde man das in den Verlauf mischen, käme milchiges Grau heraus.
@@ -542,8 +546,8 @@ behaupten, die niemand gemessen hat.
 
 **Was das Leuchtmittel nicht kann, verschwindet.** Der Farbtemperatur-Regler erscheint
 nur bei `color_temp`, die Farbtupfer nur bei einem Farbmodus, die Effekt-Chips nur bei
-vorhandener `effect_list`. Ein reiner Ein-Aus-Schalter bekommt keinen Füllstand,
-sondern eine Fläche mit „An" — sonst läse man hundert Prozent Helligkeit heraus.
+vorhandener `effect_list`, der Helligkeitsbalken nur, wenn sich das Licht überhaupt
+dimmen lässt. Kann es nichts davon, bleibt die Karte bei der einen Zeile.
 
 Die Schiene des Farbtemperatur-Reglers trägt den echten Kelvin-Verlauf deines
 Leuchtmittels, gerechnet aus `min_color_temp_kelvin` und `max_color_temp_kelvin` —
@@ -696,6 +700,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.5.0** — Licht-Karte zugeklappt nur noch eine Zeile; der Helligkeitsregler klappt mit aus
 **2.4.0** — Licht-Karte neu gebaut: klein, im Mushroom-Aufbau, ausklappbar wie die Raum-Karte
 **2.3.0** — Neue Licht-Karte: Helligkeitsfeld, Farbtemperatur, Farben, Effekte
 **2.2.0** — Neue Wetter-Karte mit gezeichneter Szene, Stationswerten und Vorhersage
