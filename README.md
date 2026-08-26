@@ -138,6 +138,10 @@ Blick auseinanderhalten willst:
 Gefärbt wird nur die aktive Karte. Ist im Raum nichts an, bleibt sie neutral grau —
 sonst sähen auch schlafende Räume aus, als liefe etwas.
 
+Die Gruppenknöpfe sind umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und
+zwar im hellen Ton der gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der
+Blick findet sofort, was aktiv ist.
+
 ### lavendel-slider-card
 
 ```yaml
@@ -329,6 +333,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.8.0** — Gruppenknöpfe umrandet statt gefüllt, grösser; aktive Farbe aus der Palette
 **0.7.1** — Cover randlos mit weichem Übergang, Knöpfe und Regler nach Vorbild
 **0.7.0** — Media-Karte im neuen Design, Kartengrund aus dem Cover
 **0.6.0** — Tippen klappt auf, Halten schaltet; Kartenfarbe wählbar

@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.7.1
+ * Version 0.8.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.7.1';
+const LAV_VERSION = '0.8.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -318,7 +318,8 @@ function paletteFromHex(hex) {
     `--w2:color-mix(in srgb, ${hex} 42%, #0c0e12)`,
     `--acc:color-mix(in srgb, ${hex} 55%, #ffffff)`,
     `--sub:color-mix(in srgb, ${hex} 62%, #9bb0c0)`,
-    `--lab:color-mix(in srgb, ${hex} 40%, #8fa3b3)`
+    `--lab:color-mix(in srgb, ${hex} 40%, #8fa3b3)`,
+    `--btn:color-mix(in srgb, ${hex} 88%, #ffffff)`
   ].join(';');
 }
 
@@ -328,16 +329,19 @@ function paletteFromHex(hex) {
  * Ecken des Verlaufs, den Ton für Werte und die Farbe des aktiven Knopfes.
  * ------------------------------------------------------------------ */
 const PAL_CSS = `
-ha-card{ --w1:#0d1b2e; --w2:#113a52; --acc:#8ad2f2; --sub:#6ba8cc; --lab:#6f9fc0; --btn:#7b5cf0; }
-ha-card.p-gruen  { --w1:#0d2419; --w2:#12452e; --acc:#7fe0ab; --sub:#6bbf95; --lab:#6fa88c; }
-ha-card.p-gelb   { --w1:#2b2410; --w2:#4d411a; --acc:#f0d27a; --sub:#cbb26a; --lab:#b3a074; }
-ha-card.p-orange { --w1:#2e1c0d; --w2:#532f14; --acc:#f0ac74; --sub:#cf9166; --lab:#b8886a; }
-ha-card.p-rot    { --w1:#2e1114; --w2:#521c22; --acc:#f2949a; --sub:#d1787f; --lab:#b87a80; }
-/* Auf violettem und rosa Grund verschwände ein violetter Knopf — dort Cyan. */
+ha-card{ --w1:#0d1b2e; --w2:#113a52; --acc:#8ad2f2; --sub:#6ba8cc; --lab:#6f9fc0; --btn:#2fa8f0; }
+ha-card.p-gruen  { --w1:#0d2419; --w2:#12452e; --acc:#7fe0ab; --sub:#6bbf95; --lab:#6fa88c;
+                   --btn:#2fc48a; }
+ha-card.p-gelb   { --w1:#2b2410; --w2:#4d411a; --acc:#f0d27a; --sub:#cbb26a; --lab:#b3a074;
+                   --btn:#e8c34a; }
+ha-card.p-orange { --w1:#2e1c0d; --w2:#532f14; --acc:#f0ac74; --sub:#cf9166; --lab:#b8886a;
+                   --btn:#f0913c; }
+ha-card.p-rot    { --w1:#2e1114; --w2:#521c22; --acc:#f2949a; --sub:#d1787f; --lab:#b87a80;
+                   --btn:#ef5f68; }
 ha-card.p-violett{ --w1:#1d1233; --w2:#34215c; --acc:#c3a8f5; --sub:#a48ddb; --lab:#9484c0;
-                   --btn:#4ec5e8; }
+                   --btn:#9b7bf5; }
 ha-card.p-rosa   { --w1:#2e1224; --w2:#521f3d; --acc:#f2a0cd; --sub:#d183b0; --lab:#b87fa2;
-                   --btn:#4ec5e8; }
+                   --btn:#ef6bb0; }
 `;
 
 /** Farbklasse und Inline-Stil aus der Konfiguration ableiten */
@@ -408,16 +412,18 @@ class LavendelRoomCard extends LavBase {
     ha-card.warm .sub{ color:var(--sub); }
 
     .ctl{ display:flex; align-items:center; gap:8px; }
-    .gbtn{ width:34px;height:34px;border-radius:50%;flex:none;
-           background:rgba(255,255,255,.085); display:grid; place-items:center;
-           color:#cfe4f2; --mdc-icon-size:17px; cursor:pointer;
-           transition:transform .12s ease, background .18s ease; }
-    .gbtn.on{ background:var(--btn); color:#fff;
-              box-shadow:0 4px 14px color-mix(in srgb, var(--btn) 45%, transparent); }
+    /* Umrandete Kreise, nicht gefüllte — gefüllt ist nur, was gerade läuft. */
+    .gbtn{ width:40px; height:40px; border-radius:50%; flex:none;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.17);
+           display:grid; place-items:center; color:#d3e6f5; --mdc-icon-size:19px;
+           cursor:pointer; transition:transform .12s ease, background .18s ease; }
+    .gbtn.on{ background:var(--btn); border-color:transparent; color:#fff;
+              box-shadow:0 4px 15px color-mix(in srgb, var(--btn) 50%, transparent); }
     .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.9),
                  0 0 0 4px color-mix(in srgb, var(--btn) 55%, transparent); }
     .gbtn.held{ transform:scale(.9); }
-    .gbtn.nav{ margin-left:auto; background:rgba(255,255,255,.05); color:rgba(255,255,255,.34); }
+    .gbtn.nav{ margin-left:auto; background:transparent;
+               border-color:rgba(255,255,255,.10); color:rgba(255,255,255,.30); }
 
     .divide{ height:1px; background:rgba(255,255,255,.09); }
     .grp{ display:flex; justify-content:space-between; align-items:baseline;
@@ -432,9 +438,10 @@ class LavendelRoomCard extends LavBase {
     .lrow > *:not(.lfill){ position:relative; z-index:1; }
     .handle{ position:absolute; top:50%; transform:translateY(-50%); width:2.5px; height:18px;
              border-radius:9px; background:rgba(255,255,255,.55); z-index:2; }
-    .lico{ width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
-           background:rgba(255,255,255,.08); color:#9db6c8; --mdc-icon-size:15px; }
-    .lico.grad{ background:var(--btn); color:#fff; }
+    .lico{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.15);
+           color:#9db6c8; --mdc-icon-size:16px; }
+    .lico.grad{ background:var(--btn); border-color:transparent; color:#fff; }
     .lname{ flex:1; min-width:0; font-size:13px; font-weight:500; color:#cddceb;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .lval{ font-size:12.5px; color:var(--sub); font-variant-numeric:tabular-nums;
