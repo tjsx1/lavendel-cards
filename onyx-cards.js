@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.3.0
+ * Version 2.4.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -11,7 +11,7 @@
  *   custom:onyx-chart-card   – bis zu drei Messwerte, einer davon als Verlauf
  *   custom:onyx-vacuum-card  – Saugroboter mit Akkuring, Räumen, Verbrauchsteilen
  *   custom:onyx-weather-card – Wetter mit gezeichneter Szene und Vorhersage
- *   custom:onyx-light-card   – Licht mit Helligkeitsfeld, Farbtemperatur, Farben
+ *   custom:onyx-light-card   – Licht, kompakt, mit ausklappbarer Farbe
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -62,16 +62,17 @@ const STRINGS = {
     vac: 'Saugroboter',
     w: 'Wetter',
     lt: 'Licht',
-    'lt.temp': 'Farbtemperatur',
     'lt.color': 'Farbe',
     'lt.tapOn': 'Antippen schaltet ein',
     'err.needLight': 'Die Entität muss aus der Domäne "light" kommen.',
     'card.light': 'Onyx Licht-Karte',
-    'card.light.d': 'Helligkeitsfeld, Farbtemperatur und Farben',
+    'card.light.d': 'Kompakt, mit ausklappbarer Farbe und Farbtemperatur',
     'ed.colors': 'Farbtupfer',
     'ed.show_color_temp': 'Farbtemperatur zeigen',
     'ed.show_colors': 'Farben zeigen',
     'ed.show_effects': 'Effekte zeigen',
+    'ed.always_open': 'Immer ausgeklappt',
+    'ed.h.always_open': 'Zeigt Farbtemperatur, Farben und Effekte ohne Antippen',
     'ed.h.colors': 'Hexwerte, mit Komma getrennt — leer lassen für die Vorgabe',
     'ed.h.light': 'Was das Leuchtmittel nicht kann, blendet die Karte von selbst aus',
     'w.temp': 'Temperatur',
@@ -290,16 +291,17 @@ const STRINGS = {
     vac: 'Vacuum',
     w: 'Weather',
     lt: 'Light',
-    'lt.temp': 'Color temperature',
     'lt.color': 'Color',
     'lt.tapOn': 'Tap to switch on',
     'err.needLight': 'The entity must come from the "light" domain.',
     'card.light': 'Onyx Light Card',
-    'card.light.d': 'Brightness field, color temperature and colors',
+    'card.light.d': 'Compact, with color and color temperature on tap',
     'ed.colors': 'Swatches',
     'ed.show_color_temp': 'Show color temperature',
     'ed.show_colors': 'Show colors',
     'ed.show_effects': 'Show effects',
+    'ed.always_open': 'Always expanded',
+    'ed.h.always_open': 'Shows color temperature, colors and effects without tapping',
     'ed.h.colors': 'Hex values, comma separated — leave empty for the default set',
     'ed.h.light': 'Whatever the bulb cannot do, the card hides by itself',
     'w.temp': 'Temperature',
@@ -3814,6 +3816,9 @@ function hslToRgb(h, sat, l) {
   return [hue(h + 1 / 3), hue(h), hue(h - 1 / 3)].map((v) => v * 255);
 }
 
+/** Wo der Knopf einer Schiene steht — er soll die Rundungen nie berühren */
+const LT_KNOB = (v) => `calc(9px + (100% - 18px) * ${v} / 100)`;
+
 class OnyxLightCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
@@ -3824,94 +3829,82 @@ class OnyxLightCard extends OnyxBase {
       box-shadow:none;
       background:linear-gradient(to right bottom,
         var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
-      --lite:#ffd9a8;
+      --lite:#8ea3b5;
     }
-    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+    /* Weiss das Leuchtmittel nichts über seine Farbe, bleibt die Karte bei
+       der Akzentfarbe ihrer Palette — der Balken erfindet dann keine. */
+    ha-card.warm{ --lite:var(--acc);
+      background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
     ha-card.off{ opacity:.55; }
 
-    .top{ display:flex; justify-content:space-between; align-items:center;
-          gap:11px; }
-    .lico{ width:34px;height:34px;border-radius:50%;flex:none; display:grid;
-           place-items:center; cursor:pointer;
-           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
-           color:#8ea3b5; --mdc-icon-size:18px; }
-    ha-card.warm .lico{ background:color-mix(in srgb, var(--lite) 30%, transparent);
-                        border-color:color-mix(in srgb, var(--lite) 55%, transparent);
-                        color:#fff;
-                        box-shadow:0 0 18px color-mix(in srgb, var(--lite) 34%, transparent); }
-    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
-    ha-card.warm .lab{ color:var(--lab); }
-    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
+    /* Kopfzeile: abgerundetes Quadrat links, daneben Name und Zustand.
+       Zwei Zeilen, kein Knopf zu viel — die Karte soll auch auf einer
+       halben Spalte noch ganz sein. */
+    .row{ display:flex; align-items:center; gap:10px; }
+    .sq{ width:42px; height:42px; border-radius:12px; flex:none; display:grid;
+         place-items:center; cursor:pointer; --mdc-icon-size:22px; color:#8ea3b5;
+         background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+         transition:transform .12s ease, background .18s ease; }
+    ha-card.warm .sq{ color:#fff;
+      background:color-mix(in srgb, var(--lite) 26%, transparent);
+      border-color:color-mix(in srgb, var(--lite) 46%, transparent);
+      box-shadow:0 0 20px color-mix(in srgb, var(--lite) 30%, transparent); }
+    .sq.held{ transform:scale(.92); }
+    .txt{ flex:1; min-width:0; cursor:pointer; }
+    .p1{ font-size:14px; font-weight:600; line-height:19px; color:#c3ccd6;
          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    ha-card.warm .nm{ color:#e9f1f8; }
-    .val{ text-align:right; line-height:1.3; }
-    .val b{ display:block; font-size:17px; font-weight:700; letter-spacing:-.02em;
-            color:#9fb0be; font-variant-numeric:tabular-nums; }
-    ha-card.warm .val b{ color:var(--acc); }
-    .val span{ display:block; font-size:11.5px; color:#72879a;
-               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    ha-card.warm .val span{ color:var(--sub); }
+    ha-card.warm .p1{ color:#e9f1f8; }
+    .p2{ font-size:12.5px; line-height:17px; color:#72879a;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .p2{ color:var(--sub); }
+    .caret{ flex:none; width:16px; height:16px; display:grid; place-items:center;
+            cursor:pointer; color:rgba(255,255,255,.30); --mdc-icon-size:17px;
+            transition:transform .2s ease, color .2s ease; }
+    .caret.open{ transform:rotate(180deg); color:rgba(255,255,255,.6); }
 
-    /* Das Helligkeitsfeld ist für das Licht, was das Fenster für die
-       Store ist: die Fläche, die zeigt und bedient. Gefüllt wird sie in
-       der Farbe, die das Licht gerade wirklich hat. */
-    .field{ position:relative; height:64px; border-radius:14px; overflow:hidden;
-            cursor:pointer; touch-action:pan-y;
-            background:rgba(255,255,255,.055);
-            border:1px solid rgba(255,255,255,.07); }
-    .ffill{ position:absolute; left:0; top:0; bottom:0; transition:width .12s linear;
-            background:linear-gradient(90deg,
-              color-mix(in srgb, var(--lite) 42%, transparent) 0%,
-              color-mix(in srgb, var(--lite) 85%, transparent) 100%); }
-    .fedge{ position:absolute; top:0; bottom:0; width:26px; transform:translateX(-13px);
-            background:linear-gradient(90deg,
-              transparent, color-mix(in srgb, var(--lite) 55%, transparent));
-            filter:blur(7px); pointer-events:none; }
-    .fgrip{ position:absolute; top:50%; transform:translate(-50%,-50%); width:2.5px;
-            height:22px; border-radius:9px; background:rgba(255,255,255,.6); z-index:2; }
-    .foff{ position:absolute; inset:0; display:grid; place-items:center;
-           font-size:12px; color:#6f8497; }
+    /* Flache Balken über die ganze Breite: der Helligkeitsregler und,
+       ausgeklappt, die Schiene der Farbtemperatur. */
+    .bar{ position:relative; height:42px; border-radius:12px; overflow:hidden;
+          cursor:pointer; touch-action:pan-y; background:rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.06); }
+    .fill{ position:absolute; left:0; top:0; bottom:0; transition:width .12s linear;
+           background:linear-gradient(90deg,
+             color-mix(in srgb, var(--lite) 45%, transparent) 0%,
+             color-mix(in srgb, var(--lite) 85%, transparent) 100%); }
+    .grip{ position:absolute; top:50%; transform:translate(-50%,-50%); width:2.5px;
+           height:22px; border-radius:9px; background:rgba(255,255,255,.6); z-index:2; }
+    .cap{ position:absolute; inset:0; display:flex; align-items:center; gap:7px;
+          padding:0 12px; font-size:12.5px; font-weight:600; color:#fff; z-index:1;
+          --mdc-icon-size:16px; pointer-events:none;
+          white-space:nowrap; overflow:hidden; }
+    .bar.mute .cap{ color:#6f8497; font-weight:500; font-size:11.5px; }
+    /* Ein Licht, das nur an und aus kann, bekommt keinen Füllstand,
+       sondern eine Fläche — sonst läse man 100 % Helligkeit heraus. */
+    .bar.solid{ background:color-mix(in srgb, var(--lite) 34%, transparent);
+                border-color:color-mix(in srgb, var(--lite) 48%, transparent); }
+    /* Kaltweiss auf voller Helligkeit ist fast weiss; darauf ist weisse
+       Schrift nicht mehr zu lesen. */
+    .bar.bright .cap{ color:#1b1e24; }
+    .bar.bright .grip{ background:rgba(0,0,0,.45); }
+    .knob{ position:absolute; top:50%; transform:translate(-50%,-50%); width:6px;
+           height:26px; border-radius:99px; background:#fff; z-index:2;
+           box-shadow:0 2px 8px rgba(0,0,0,.45); }
 
-    .ctl{ display:flex; gap:8px; }
-    .btn{ flex:1; height:40px; border-radius:13px; display:grid; place-items:center;
-          color:#fff; --mdc-icon-size:18px; cursor:pointer;
-          background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
-          -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
-          border:1px solid rgba(255,255,255,.11);
-          transition:transform .12s ease, background .18s ease; }
-    .btn.on{ background:color-mix(in srgb, var(--btn) 60%, transparent);
-             border-color:color-mix(in srgb, var(--btn) 78%, transparent);
-             box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
-                        0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
-    .btn.dim{ opacity:.38; }
-    .btn.held{ transform:scale(.94); }
-
-    /* Farbtemperatur — derselbe Regler wie die Lamellen der Storen-Karte,
-       nur trägt die Schiene hier den echten Kelvin-Verlauf. */
-    .lam{ display:flex; align-items:center; gap:10px; }
-    .lam-lbl{ font-size:11px; color:#6f8497; white-space:nowrap; }
-    ha-card.warm .lam-lbl{ color:var(--lab); }
-    .lam-track{ flex:1; height:16px; display:flex; align-items:center; cursor:pointer;
-                position:relative; touch-action:pan-y; }
-    .lam-track .bg{ position:absolute; left:0; right:0; height:7px; border-radius:99px; }
-    .lam-track .knob{ position:absolute; width:14px; height:14px; border-radius:50%;
-                      background:#fff; box-shadow:0 2px 7px rgba(0,0,0,.5); }
-
-    /* Farbtupfer */
-    .sws{ display:flex; gap:8px; flex-wrap:wrap; }
-    .sw{ width:28px; height:28px; border-radius:50%; cursor:pointer; flex:none;
+    /* Farbtupfer und Effekte — abgerundete Quadrate, damit sie zum
+       Symbol oben passen; sie brechen um, wenn die Spalte schmal ist. */
+    .sws{ display:flex; gap:6px; flex-wrap:wrap; }
+    .sw{ flex:1 1 28px; min-width:28px; height:30px; border-radius:10px; cursor:pointer;
          border:1px solid rgba(255,255,255,.18);
          transition:transform .12s ease, box-shadow .18s ease; }
     .sw.on{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
-                       0 0 0 4px color-mix(in srgb, var(--lite) 45%, transparent); }
+                       0 0 0 4px color-mix(in srgb, var(--lite) 42%, transparent); }
     .sw.held{ transform:scale(.9); }
 
-    /* Effekte, wie die Saugstufen des Roboters */
     .fx{ display:flex; gap:6px; flex-wrap:wrap; }
-    .fxi{ height:28px; border-radius:9px; display:grid; place-items:center; padding:0 10px;
+    .fxi{ height:30px; border-radius:10px; display:flex; align-items:center; padding:0 11px;
           font-size:11.5px; color:#8ea3b5; cursor:pointer; max-width:100%;
           overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-          background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); }
+          background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.07); }
     .fxi.on{ background:color-mix(in srgb, var(--btn) 45%, transparent);
              border-color:color-mix(in srgb, var(--btn) 65%, transparent);
              color:#fff; font-weight:600; }
@@ -3926,6 +3919,7 @@ class OnyxLightCard extends OnyxBase {
   setConfig(config) {
     if (!config.entity) throw new Error(t('err.needEntity'));
     if (config.entity.split('.')[0] !== 'light') throw new Error(t('err.needLight'));
+    this._open = this._open || false;
     super.setConfig(config);
   }
 
@@ -3955,33 +3949,44 @@ class OnyxLightCard extends OnyxBase {
     const swatches = (this._config.colors || LT_COLORS).map((c) => String(c));
     const cur = a.rgb_color ? ltHex(a.rgb_color).toLowerCase() : null;
 
+    const canTemp = this._config.show_color_temp !== false && modes.includes('color_temp');
+    const canColor = this._config.show_colors !== false
+      && modes.some((m) => LT_COLOR_MODES.includes(m));
+    const fx = this._config.show_effects !== false && Array.isArray(a.effect_list)
+      ? a.effect_list.slice(0, 12) : [];
+
+    const dead = isDead(st);
+    const expandable = !dead && (canTemp || canColor || fx.length > 0);
+    const always = this._config.always_open === true;
+
     return {
       id: this._config.entity,
       name: this._config.name || nameOf(this._hass, this._config.entity),
-      label: this._config.label || t('lt'),
       icon: this._config.icon || a.icon || 'mdi:lightbulb',
       color: this._config.color || null,
       on,
       pct: pct < 0 ? 0 : pct,
-      dead: isDead(st),
+      dead,
       lite, tint,
       canDim: modes.some((m) => m !== 'onoff'),
-      canTemp: this._config.show_color_temp !== false && modes.includes('color_temp'),
-      canColor: this._config.show_colors !== false
-        && modes.some((m) => LT_COLOR_MODES.includes(m)),
+      // Wie hell die Leuchtfarbe selbst ist — entscheidet über die
+      // Schriftfarbe im Balken
+      lum: rgb ? (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 : 0,
+      canTemp, canColor,
       kelvin, kMin, kMax,
       // Der Verlauf der Schiene ist der echte Kelvin-Verlauf des Leuchtmittels
       ramp: [0, .25, .5, .75, 1]
         .map((f) => ltHex(kelvinRgb(kMin + (kMax - kMin) * f))).join(','),
       mode: a.color_mode || null,
       swatches: swatches.map((c) => ({ c, on: cur === c.toLowerCase() })),
-      fx: this._config.show_effects !== false && Array.isArray(a.effect_list)
-        ? a.effect_list.slice(0, 12) : [],
-      effect: a.effect || null
+      fx,
+      effect: a.effect || null,
+      expandable, always,
+      open: expandable && (always || this._open)
     };
   }
 
-  /** Zweite Zeile rechts: was gerade eingestellt ist */
+  /** Zweite Zeile: was gerade eingestellt ist */
   _detail(m) {
     if (m.dead) return t('unavailable');
     if (!m.on) return t('off');
@@ -3989,6 +3994,17 @@ class OnyxLightCard extends OnyxBase {
     if (m.mode === 'color_temp' && m.kelvin) return nfmt(m.kelvin, 0) + ' K';
     if (m.mode && LT_COLOR_MODES.includes(m.mode)) return t('lt.color');
     return t('on');
+  }
+
+  /** Beschriftung im Helligkeitsbalken */
+  _cap(m) {
+    if (m.dead) return { mute: true, html: esc(t('unavailable')) };
+    if (!m.on) return { mute: true, html: esc(t('lt.tapOn')) };
+    if (!m.canDim) return { mute: false, html: esc(t('on')) };
+    return {
+      mute: false,
+      html: '<ha-icon icon="mdi:brightness-percent"></ha-icon><span>' + m.pct + ' %</span>'
+    };
   }
 
   _html(m) {
@@ -4001,64 +4017,61 @@ class OnyxLightCard extends OnyxBase {
           : paletteAttrs(null))
       : paletteAttrs(m.color);
     const warm = m.on && !m.dead;
-    const lite = ` --lite:${m.lite};`;
-    const styled = style
-      ? style.replace(/"$/, ';' + lite.trim() + '"')
-      : ` style="${lite.trim()}"`;
+    // Die Leuchtfarbe nur dann in den Balken schreiben, wenn sie gemessen
+    // ist. Sonst gilt die Regel aus dem Stylesheet: Akzentfarbe der Palette.
+    const lite = m.on && m.tint ? `--lite:${m.lite}` : '';
+    const styled = lite
+      ? (style ? style.replace(/"$/, ';' + lite + '"') : ` style="${lite}"`)
+      : style;
+
+    const cap = this._cap(m);
+    const showGrip = m.on && m.canDim && m.pct > 2 && m.pct < 100;
+    const barCls = [
+      cap.mute ? 'mute' : '',
+      m.on && !m.dead && !m.canDim ? 'solid' : '',
+      m.on && m.canDim && m.pct >= 45 && m.lum > 0.72 ? 'bright' : ''
+    ].filter(Boolean).join(' ');
+
+    const panel = !m.open ? '' : `
+      ${m.canTemp ? `
+        <div class="bar" id="temp"
+             style="background:linear-gradient(90deg,${esc(m.ramp)})">
+          <div class="knob" style="left:${LT_KNOB(this._kPct(m))}"></div>
+        </div>` : ''}
+      ${m.canColor ? `
+        <div class="sws">
+          ${m.swatches.map((s) => `
+            <div class="sw ${s.on ? 'on' : ''}" data-sw="${esc(s.c)}"
+                 style="background:${esc(s.c)}"></div>`).join('')}
+        </div>` : ''}
+      ${m.fx.length ? `
+        <div class="fx">
+          ${m.fx.map((f) => `
+            <div class="fxi ${f === m.effect ? 'on' : ''}"
+                 data-fx="${esc(f)}">${esc(f)}</div>`).join('')}
+        </div>` : ''}`;
 
     return `
     <ha-card class="${(cls + (warm ? ' warm' : '') + (m.dead ? ' off' : '')).trim()}"${styled}>
-      <div class="top">
-        <div class="lico" id="ico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
-        <div style="flex:1; min-width:0">
-          <div class="lab">${esc(m.label)}</div>
-          <div class="nm">${esc(m.name)}</div>
+      <div class="row">
+        <div class="sq" id="ico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="txt" id="txt">
+          <div class="p1">${esc(m.name)}</div>
+          <div class="p2">${esc(this._detail(m))}</div>
         </div>
-        <div class="val">
-          <b>${m.dead ? '–' : m.canDim ? m.pct + ' %' : esc(t(m.on ? 'on' : 'off'))}</b>
-          <span>${esc(m.canDim || m.dead ? this._detail(m) : (m.effect || ''))}</span>
-        </div>
+        ${m.expandable && !m.always ? `
+          <div class="caret ${m.open ? 'open' : ''}" id="caret">
+            <ha-icon icon="mdi:chevron-down"></ha-icon>
+          </div>` : ''}
       </div>
 
-      <div class="field" id="field">
-        <div class="ffill" style="width:${m.on ? m.pct : 0}%"></div>
-        ${m.on && m.canDim && m.pct > 2 && m.pct < 100
-          ? `<div class="fedge" id="edge" style="left:${m.pct}%"></div>
-             <div class="fgrip" id="grip" style="left:${m.pct}%"></div>` : ''}
-        ${m.on || m.dead ? '' : `<div class="foff">${esc(t('lt.tapOn'))}</div>`}
+      <div class="bar ${barCls}" id="field">
+        ${m.on && m.canDim && !m.dead
+          ? `<div class="fill" style="width:${m.pct}%"></div>` : ''}
+        ${showGrip ? `<div class="grip" id="grip" style="left:${m.pct}%"></div>` : ''}
+        <div class="cap">${cap.html}</div>
       </div>
-
-      <div class="ctl">
-        <div class="btn ${!m.on || !m.canDim ? 'dim' : ''}" id="down">
-          <ha-icon icon="mdi:minus"></ha-icon></div>
-        <div class="btn ${m.on ? 'on' : ''}" id="power">
-          <ha-icon icon="mdi:power"></ha-icon></div>
-        <div class="btn ${!m.on || !m.canDim ? 'dim' : ''}" id="up">
-          <ha-icon icon="mdi:plus"></ha-icon></div>
-      </div>
-
-      ${m.canTemp ? `
-      <div class="lam">
-        <span class="lam-lbl">${esc(t('lt.temp'))}</span>
-        <div class="lam-track" id="temp">
-          <div class="bg" style="background:linear-gradient(90deg,${esc(m.ramp)})"></div>
-          <div class="knob" style="left:${KNOB_POS(this._kPct(m))}"></div>
-        </div>
-      </div>` : ''}
-
-      ${m.canColor ? `
-      <div class="sws">
-        ${m.swatches.map((s) => `
-          <div class="sw ${s.on ? 'on' : ''}" data-sw="${esc(s.c)}"
-               style="background:${esc(s.c)}"></div>`).join('')}
-      </div>` : ''}
-
-      ${m.fx.length ? `
-      <div class="fx">
-        ${m.fx.map((f) => `
-          <div class="fxi ${f === m.effect ? 'on' : ''}" data-fx="${esc(f)}">${esc(f)}</div>`
-        ).join('')}
-      </div>` : ''}
+      ${panel}
     </ha-card>`;
   }
 
@@ -4073,45 +4086,44 @@ class OnyxLightCard extends OnyxBase {
     const guard = (fn) => () => { if (!m.dead) fn(); };
     const call = (data) => this.call('light', 'turn_on',
       Object.assign({ entity_id: m.id }, data));
+    const toggle = guard(() => this.call('light', 'toggle', { entity_id: m.id }));
 
     this._press(root.getElementById('ico'), {
-      onTap: () => fireMoreInfo(this, m.id),
+      onTap: toggle,
       onHold: () => fireMoreInfo(this, m.id)
     });
 
+    // Text und Pfeil klappen auf. Kann das Leuchtmittel nichts, was sich
+    // ausklappen liesse, führt derselbe Griff in die Geräteansicht.
+    const fold = () => {
+      if (!m.expandable || m.always) { fireMoreInfo(this, m.id); return; }
+      this._open = !m.open;
+      this._repaint();
+    };
+    ['txt', 'caret'].forEach((id) => {
+      const el = root.getElementById(id);
+      if (el) this._press(el, { onTap: fold, onHold: () => fireMoreInfo(this, m.id) });
+    });
+
     const field = root.getElementById('field');
-    const fill = field.querySelector('.ffill');
+    const fill = field.querySelector('.fill');
     const grip = root.getElementById('grip');
-    const edge = root.getElementById('edge');
-    const out = root.querySelector('.val b');
+    const cap = field.querySelector('.cap');
 
     this._press(field, {
       axis: 'x',
-      onTap: guard(() => this.call('light', 'toggle', { entity_id: m.id })),
+      onTap: toggle,
       onHold: () => fireMoreInfo(this, m.id),
       onDrag: m.dead || !m.canDim ? null : (v) => {
         fill.style.width = v + '%';
         if (grip) grip.style.left = v + '%';
-        if (edge) edge.style.left = v + '%';
-        out.textContent = v + ' %';
+        const out = cap.querySelector('span');
+        if (out) out.textContent = v + ' %';
       },
       onDrop: m.dead || !m.canDim ? null : (v) => {
         if (v <= 0) this.call('light', 'turn_off', { entity_id: m.id });
         else call({ brightness_pct: v });
       }
-    });
-
-    // Zehnerschritte für das, was sich mit dem Finger schlecht treffen lässt
-    const step = (d) => guard(() => {
-      if (!m.on || !m.canDim) return;
-      const v = clamp(m.pct + d, 1, 100);
-      call({ brightness_pct: v });
-    });
-    this._press(root.getElementById('down'), { onTap: step(-10) });
-    this._press(root.getElementById('up'), { onTap: step(10) });
-    this._press(root.getElementById('power'), {
-      onTap: guard(() => this.call('light', 'toggle', { entity_id: m.id })),
-      onHold: () => fireMoreInfo(this, m.id)
     });
 
     const temp = root.getElementById('temp');
@@ -4120,7 +4132,7 @@ class OnyxLightCard extends OnyxBase {
       const toK = (v) => Math.round(m.kMin + ((m.kMax - m.kMin) * v) / 100);
       this._press(temp, {
         axis: 'x',
-        onDrag: m.dead ? null : (v) => { knob.style.left = KNOB_POS(v); },
+        onDrag: m.dead ? null : (v) => { knob.style.left = LT_KNOB(v); },
         onDrop: m.dead ? null : (v) => call({ color_temp_kelvin: toK(v) })
       });
     }
@@ -4140,7 +4152,7 @@ class OnyxLightCard extends OnyxBase {
     });
   }
 
-  getCardSize() { return 4; }
+  getCardSize() { return this._open ? 4 : 2; }
 }
 
 /* ==================================================================== *
@@ -5075,21 +5087,26 @@ class OnyxWeatherEditor extends OnyxEditor {
  * ------------------------------------------------------------------ */
 class OnyxLightEditor extends OnyxEditor {
   static get DEFAULTS() {
-    return { show_color_temp: true, show_colors: true, show_effects: true };
+    return {
+      show_color_temp: true, show_colors: true, show_effects: true,
+      always_open: false
+    };
   }
 
   _helpKey(name) {
-    return name === 'colors' ? 'ed.h.colors' : (ED_HELP_KEY[name] || '');
+    if (name === 'colors') return 'ed.h.colors';
+    if (name === 'always_open') return 'ed.h.always_open';
+    return ED_HELP_KEY[name] || '';
   }
 
   _schema() {
     return [
       fieldEntity('entity', 'light'),
-      grid(fieldText('name'), fieldText('label')),
-      grid(fieldIcon('icon'), fieldColor()),
+      grid(fieldText('name'), fieldIcon('icon')),
+      fieldColor(),
       fieldText('colors'),
       grid(fieldBool('show_color_temp'), fieldBool('show_colors')),
-      fieldBool('show_effects')
+      grid(fieldBool('show_effects'), fieldBool('always_open'))
     ];
   }
 
@@ -5097,13 +5114,13 @@ class OnyxLightEditor extends OnyxEditor {
     return {
       entity: c.entity || '',
       name: c.name || '',
-      label: c.label || '',
       icon: c.icon || '',
       color: c.color || '',
       colors: (c.colors || []).join(', '),
       show_color_temp: c.show_color_temp !== false,
       show_colors: c.show_colors !== false,
-      show_effects: c.show_effects !== false
+      show_effects: c.show_effects !== false,
+      always_open: c.always_open === true
     };
   }
 
