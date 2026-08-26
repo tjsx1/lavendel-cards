@@ -333,6 +333,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**0.9.0** — Raumname neben das Icon, Karte kompakter
 **0.8.0** — Gruppenknöpfe umrandet statt gefüllt, grösser; aktive Farbe aus der Palette
 **0.7.1** — Cover randlos mit weichem Übergang, Knöpfe und Regler nach Vorbild
 **0.7.0** — Media-Karte im neuen Design, Kartengrund aus dem Cover

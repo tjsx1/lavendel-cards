@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.8.0
+ * Version 0.9.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.8.0';
+const LAV_VERSION = '0.9.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -380,7 +380,7 @@ class LavendelRoomCard extends LavBase {
     return PAL_CSS + `
     ha-card{
       padding:14px; border-radius:var(--lav-r, 16px); border:1px solid rgba(255,255,255,.07);
-      display:flex; flex-direction:column; gap:14px; overflow:hidden;
+      display:flex; flex-direction:column; gap:12px; overflow:hidden;
       background:linear-gradient(135deg,
         var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
       box-shadow:0 10px 30px rgba(0,0,0,.40);
@@ -393,6 +393,10 @@ class LavendelRoomCard extends LavBase {
     }
 
     .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
+    .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
+    .hname{ font-size:14px; font-weight:600; line-height:1.3; color:#c3ccd6;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .hname{ color:#e9f1f8; }
     .hico{ width:34px;height:34px;border-radius:50%;flex:none;
            background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
            display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; cursor:pointer; }
@@ -405,10 +409,7 @@ class LavendelRoomCard extends LavBase {
 
     .lab{ font-size:11.5px; font-weight:500; color:#6f8497; line-height:1.3; }
     ha-card.warm .lab{ color:var(--lab); }
-    .big{ font-size:27px; font-weight:700; letter-spacing:-.03em; line-height:1.1; color:#c3ccd6;
-          cursor:pointer; }
-    ha-card.warm .big{ color:#e9f1f8; }
-    .sub{ font-size:12.5px; color:#72879a; margin-top:5px; }
+    .sub{ font-size:13px; color:#72879a; }
     ha-card.warm .sub{ color:var(--sub); }
 
     .ctl{ display:flex; align-items:center; gap:8px; }
@@ -643,17 +644,19 @@ class LavendelRoomCard extends LavBase {
     return `
     <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
       <div class="head">
-        <div class="hico" id="head"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="hleft" id="head">
+          <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="hname">${esc(m.name)}</div>
+          </div>
+        </div>
         <div class="env">
           ${m.temp ? `<div class="t">${esc(m.temp)}</div>` : ''}
           ${m.hum ? `<div class="h">${esc(m.hum)}</div>` : ''}
         </div>
       </div>
-      <div>
-        <div class="lab">${esc(m.label)}</div>
-        <div class="big" id="title">${esc(m.name)}</div>
-        <div class="sub">${esc(this._summary(m))}</div>
-      </div>
+      <div class="sub">${esc(this._summary(m))}</div>
       <div class="ctl">
         ${buttons}
         ${m.path ? `<div class="gbtn nav" id="nav"><ha-icon icon="mdi:tune-variant"></ha-icon></div>` : ''}
@@ -666,7 +669,7 @@ class LavendelRoomCard extends LavBase {
     const root = this.shadowRoot;
 
     const toRoom = () => { if (m.path) navigate(this, m.path); };
-    ['head', 'title', 'nav'].forEach((id) => {
+    ['head', 'nav'].forEach((id) => {
       const el = root.getElementById(id);
       if (el) this._press(el, { onTap: toRoom, onHold: () => { this._open = null; this._repaint(); } });
     });
