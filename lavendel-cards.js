@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 0.9.0
+ * Version 1.0.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,7 +16,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '0.9.0';
+const LAV_VERSION = '1.0.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -379,22 +379,19 @@ class LavendelRoomCard extends LavBase {
   static get CSS() {
     return PAL_CSS + `
     ha-card{
-      padding:14px; border-radius:var(--lav-r, 16px); border:1px solid rgba(255,255,255,.07);
-      display:flex; flex-direction:column; gap:12px; overflow:hidden;
-      background:linear-gradient(135deg,
-        var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
-      box-shadow:0 10px 30px rgba(0,0,0,.40);
+      padding:12px; border-radius:var(--lav-r, 24px); border:1px solid rgba(255,255,255,.09);
+      display:flex; flex-direction:column; gap:10px; overflow:hidden;
+      background:linear-gradient(to right bottom,
+        var(--lav-cold-1,#141419) 0%, var(--lav-cold-2,#17171d) 100%);
+      box-shadow:none;
     }
     ha-card.warm{
-      background:linear-gradient(135deg,
-        var(--w1) 0%,
-        color-mix(in srgb, var(--w1) 55%, var(--w2)) 52%,
-        var(--w2) 100%);
+      background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%);
     }
 
     .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
     .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
-    .hname{ font-size:14px; font-weight:600; line-height:1.3; color:#c3ccd6;
+    .hname{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     ha-card.warm .hname{ color:#e9f1f8; }
     .hico{ width:34px;height:34px;border-radius:50%;flex:none;
@@ -402,29 +399,36 @@ class LavendelRoomCard extends LavBase {
            display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; cursor:pointer; }
     ha-card.warm .hico{ color:var(--acc); }
     .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
-    .env .t{ font-size:15px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
+    .env .t{ font-size:16px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
     .env .h{ font-size:12px; color:#72879a; }
     ha-card.warm .env .t{ color:var(--acc); }
     ha-card.warm .env .h{ color:var(--sub); }
 
-    .lab{ font-size:11.5px; font-weight:500; color:#6f8497; line-height:1.3; }
+    .lab{ font-size:11px; font-weight:400; line-height:14px; color:#6f8497; }
     ha-card.warm .lab{ color:var(--lab); }
-    .sub{ font-size:13px; color:#72879a; }
+    .sub{ font-size:12px; line-height:16px; color:#72879a; }
     ha-card.warm .sub{ color:var(--sub); }
 
     .ctl{ display:flex; align-items:center; gap:8px; }
-    /* Umrandete Kreise, nicht gefüllte — gefüllt ist nur, was gerade läuft. */
-    .gbtn{ width:40px; height:40px; border-radius:50%; flex:none;
-           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.17);
-           display:grid; place-items:center; color:#d3e6f5; --mdc-icon-size:19px;
+    /* Glasknöpfe. Aktiv ist kein Vollton, sondern ein Schleier der Kartenfarbe
+       mit Rand und weichem Schein — sonst erschlägt die Reihe die Karte. */
+    .gbtn{ width:36px; height:36px; border-radius:50%; flex:none;
+           background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+           -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+           border:1px solid rgba(255,255,255,.11);
+           display:grid; place-items:center; color:#fff; --mdc-icon-size:18px;
            cursor:pointer; transition:transform .12s ease, background .18s ease; }
-    .gbtn.on{ background:var(--btn); border-color:transparent; color:#fff;
-              box-shadow:0 4px 15px color-mix(in srgb, var(--btn) 50%, transparent); }
-    .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.9),
-                 0 0 0 4px color-mix(in srgb, var(--btn) 55%, transparent); }
+    .gbtn.on{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 78%, transparent);
+              color:#fff;
+              box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
+                         0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
+    .gbtn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
+                 0 0 0 4px color-mix(in srgb, var(--btn) 45%, transparent); }
     .gbtn.held{ transform:scale(.9); }
-    .gbtn.nav{ margin-left:auto; background:transparent;
-               border-color:rgba(255,255,255,.10); color:rgba(255,255,255,.30); }
+    .gbtn.nav{ margin-left:auto; background:none; -webkit-backdrop-filter:none;
+               backdrop-filter:none; border-color:rgba(255,255,255,.10);
+               color:rgba(255,255,255,.30); }
 
     .divide{ height:1px; background:rgba(255,255,255,.09); }
     .grp{ display:flex; justify-content:space-between; align-items:baseline;
@@ -440,9 +444,11 @@ class LavendelRoomCard extends LavBase {
     .handle{ position:absolute; top:50%; transform:translateY(-50%); width:2.5px; height:18px;
              border-radius:9px; background:rgba(255,255,255,.55); z-index:2; }
     .lico{ width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
-           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.15);
-           color:#9db6c8; --mdc-icon-size:16px; }
-    .lico.grad{ background:var(--btn); border-color:transparent; color:#fff; }
+           background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+           border:1px solid rgba(255,255,255,.11);
+           color:#c8d8e6; --mdc-icon-size:16px; }
+    .lico.grad{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
     .lname{ flex:1; min-width:0; font-size:13px; font-weight:500; color:#cddceb;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .lval{ font-size:12.5px; color:var(--sub); font-variant-numeric:tabular-nums;
@@ -1033,12 +1039,12 @@ class LavendelMediaCard extends LavBase {
     return PAL_CSS + `
     ha-card{
       position:relative; overflow:hidden; padding:0;
-      border:1px solid rgba(255,255,255,.07); border-radius:var(--lav-r,16px);
-      box-shadow:0 10px 30px rgba(0,0,0,.40);
+      border:1px solid rgba(255,255,255,.09); border-radius:var(--lav-r,24px);
+      box-shadow:none;
       background:linear-gradient(135deg,
         var(--lav-cold-1,#111318) 0%, var(--lav-cold-2,#171b22) 100%);
     }
-    ha-card.live{ background:linear-gradient(115deg, var(--w1) 0%, var(--w2) 100%); }
+    ha-card.live{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
 
     /* Der Kartengrund kommt aus dem Cover: gross gezogen und weichgezeichnet.
        Dadurch trägt jede Karte die Farbe der Musik, die gerade läuft. */
@@ -1049,13 +1055,15 @@ class LavendelMediaCard extends LavBase {
 
     /* Das Cover läuft randlos bis an die Kartenkante und blendet nach
        rechts weich aus — kein Rahmen, kein harter Schnitt. */
-    .art{ position:absolute; left:0; top:0; bottom:0; width:44%; cursor:pointer;
+    .art{ position:absolute; left:0; top:0; bottom:0; width:39%; cursor:pointer;
           background-size:cover; background-position:center;
-          -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 58%,rgba(0,0,0,0) 100%);
-                  mask-image:linear-gradient(90deg,#000 0%,#000 58%,rgba(0,0,0,0) 100%); }
+          -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 82%,rgba(0,0,0,.96) 89%,
+                             rgba(0,0,0,.68) 95%,rgba(0,0,0,.22) 99%,rgba(0,0,0,0) 100%);
+                  mask-image:linear-gradient(90deg,#000 0%,#000 82%,rgba(0,0,0,.96) 89%,
+                             rgba(0,0,0,.68) 95%,rgba(0,0,0,.22) 99%,rgba(0,0,0,0) 100%); }
     /* Ohne Cover gibt es keinen Platzhalter — der Text nimmt die ganze Breite. */
-    ha-card.nocover .info{ margin-left:0; padding-left:14px; }
-    .info{ position:relative; margin-left:44%; min-height:144px; padding:12px 13px 12px 2px;
+    ha-card.nocover .info{ margin-left:0; padding-left:12px; }
+    .info{ position:relative; margin-left:39%; min-height:150px; padding:12px 12px 12px 4px;
            display:flex; flex-direction:column; color:#fff; }
 
     .r1{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
@@ -1101,6 +1109,7 @@ class LavendelMediaCard extends LavBase {
     .vol .kn{ position:absolute; width:17px; height:17px; border-radius:50%; background:#fff;
               transform:translateX(-50%); box-shadow:0 2px 7px rgba(0,0,0,.45); }
     .sk{ flex:none; color:rgba(255,255,255,.92); --mdc-icon-size:19px; cursor:pointer; }
+    .pbtn{ -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); }
     .sk.off{ opacity:.32; }
 
     /* Ruhezustand: flache Kachel wie bei der Raum-Karte */

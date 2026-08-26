@@ -45,7 +45,7 @@ lavendel:
   app-header-edit-background-color: "#7b5cf0"
 
   # ---------- Variablen der Lavendel-Karten ----------
-  lav-r: "16px"
+  lav-r: "24px"
   lav-warm-1: "#0d1b2e"        # aktive Karte, dunkle Ecke oben links
   lav-warm-2: "#113a52"        # aktive Karte, helle Ecke unten rechts
   lav-cold-1: "#111318"        # ruhende Karte

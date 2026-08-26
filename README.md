@@ -32,6 +32,9 @@ URL:  /local/lavendel-cards.js
 Typ:  JavaScript-Modul
 ```
 
+> Das Theme setzt `lav-r` auf 24px — den Kartenradius. Änderst du ihn dort,
+> ziehen alle Karten mit.
+
 > Bei Home Assistant OS heißt der Ordner in der Samba-Freigabe `homeassistant` —
 > das **ist** `/config`. Einen Unterordner `config` gibt es nicht.
 > `www` gibt es frisch installiert noch nicht, den anlegen und danach
@@ -333,6 +336,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.0.0** — Masse am Vorbild nachgemessen: Radius 24, Glasknöpfe, Coverblende
 **0.9.0** — Raumname neben das Icon, Karte kompakter
 **0.8.0** — Gruppenknöpfe umrandet statt gefüllt, grösser; aktive Farbe aus der Palette
 **0.7.1** — Cover randlos mit weichem Übergang, Knöpfe und Regler nach Vorbild
