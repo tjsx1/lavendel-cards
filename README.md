@@ -10,6 +10,8 @@ Kartenfarben — für die Bedienung am Handy gebaut.
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
 über den **visuellen Editor** einrichten.
 
+![Onyx Cards](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/uebersicht.png)
+
 | Karte | Was sie kann |
 |---|---|
 | `onyx-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt |
@@ -65,6 +67,8 @@ Ohne Theme funktionieren die Karten, sehen aber neutraler aus.
 ## Verwendung
 
 ### onyx-room-card
+
+![Raum-Karte, Lichter aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-card.png)
 
 Zwei Betriebsarten. **Bereich** — die Karte sucht sich alles selbst:
 
@@ -156,6 +160,8 @@ Blick findet sofort, was aktiv ist.
 
 ### onyx-slider-card
 
+![Drei Zieh-Regler nebeneinander](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/slider-card.png)
+
 ```yaml
 type: custom:onyx-slider-card
 entity: light.wohnzimmer_decke
@@ -175,6 +181,8 @@ Ziehen setzt den Wert, Tippen schaltet um, Halten öffnet das Detailfenster.
 Vier passen nebeneinander.
 
 ### onyx-cover-card
+
+![Storen-Karte mit Lamellenregler](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/cover-card.png)
 
 ```yaml
 type: custom:onyx-cover-card
@@ -198,6 +206,8 @@ Auf und Ab gedimmt und nur Stop trägt den Verlauf.
 > Die Karte schreibt deshalb immer ein Wort dazu: „60 % offen" statt nur „60 %".
 
 ### onyx-media-card
+
+![Media-Karte mit Cover als Kartengrund](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/media-card.png)
 
 ```yaml
 type: custom:onyx-media-card
@@ -232,6 +242,8 @@ sekundengenau weiter, auch zwischen zwei Zustandsmeldungen.
 > deshalb keine feste Zeilenzahl setzen.
 
 ### onyx-actions-card
+
+![Schnellzugriffe in zwei Gruppen](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/actions-card.png)
 
 Schnellzugriffe für Szenen, Skripte, Automationen und Helfer — in einem Rahmen,
 wahlweise nach Art getrennt.
@@ -304,6 +316,8 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 
 ### onyx-chart-card
 
+![Diagramm-Karte mit drei Messwerten](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/chart-card.png)
+
 Bis zu drei Messwerte rechts, darunter der Verlauf von einem davon. Antippen
 eines Werts wechselt, welcher gezeichnet wird.
 
@@ -356,62 +370,9 @@ sie auf die Historie zurück.
 > über lange Zeiträume nichts — dann hilft nur, die Entität mit `state_class:
 > measurement` zu versehen.
 
-## Visueller Editor
-
-Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
-**Karte hinzufügen** oder beim Klick auf den Stift öffnet sich ein Formular statt der
-YAML — mit Entitäten-Picker, Bereichs-Picker, Symbolwahl und Farbliste.
-
-Was der Editor nicht kann, und warum:
-
-- **Eigene Namen und Symbole je Gerät** in den Listen der Raum-Karte
-  (`lights: [{entity: …, name: …, icon: …}]`) gibt es nur im Code-Editor. Der visuelle
-  Editor **lässt sie unangetastet** — wer eine Lampe dazunimmt, verliert die Feinheiten
-  der anderen nicht. Bei den Schnellzugriffen sind Name und Symbol dagegen pro Aktion
-  direkt im Formular.
-- **Umschalten zwischen `actions:` und `groups:`** macht der Schalter *In Gruppen
-  aufteilen*. Beim Ausschalten wandern alle Aktionen in eine Liste, es geht nichts
-  verloren.
-
-Zwischen Formular und YAML kann jederzeit hin- und hergewechselt werden. Der Editor
-schreibt nur, was vom Standard abweicht — leere Felder und Schalter auf ihrem
-Normalwert landen nicht in der Konfiguration.
-
-## Sprache / Language
-
-Die Karten übernehmen die Spracheinstellung von Home Assistant. Steht das Profil auf
-Deutsch, schreiben sie deutsch; auf Englisch, englisch. Andere Sprachen fallen auf
-Englisch zurück. Umgestellt wird nichts in der Karte, sondern unter
-**Profil → Sprache** — beim nächsten Neuladen der Seite ist alles übersetzt,
-Kartentexte, Fehlermeldungen und der visuelle Editor.
-
-Getrennt davon gelten **Profil → Zahlenformat** und **Zeitformat**: Wer die Oberfläche
-auf Englisch stellt, aber `1.234,56` sehen will, bekommt das. Zeiten erscheinen als
-`07:12` oder `7:12 AM`, je nach Einstellung.
-
-Die **Konfiguration** ist in beiden Sprachen gültig und war es schon immer. `covers:`
-und `storen:` meinen dasselbe, ebenso `lights:`/`lampen:`, `green`/`gruen`,
-`week`/`woche`. Ein Dashboard funktioniert also unverändert, egal in welcher Sprache es
-geschrieben wurde.
-
-Eine weitere Sprache ist eine weitere Spalte in `STRINGS` am Kopf von
-`onyx-cards.js` — 123 Schlüssel, Pull Requests willkommen.
-
----
-
-**English.** The cards follow the Home Assistant language setting (**Profile → Language**).
-German and English are built in; any other language falls back to English. Number and
-time formatting follow **Profile → Number format** and **Time format** independently, so
-an English UI with `1.234,56` works.
-
-Configuration keys are bilingual: `covers:` equals `storen:`, `lights:` equals `lampen:`,
-`green` equals `gruen`, `week` equals `woche`. Card options are documented in German
-above, but every key has the English form shown here.
-
-Adding a language means adding one more block to `STRINGS` at the top of
-`onyx-cards.js` — 123 keys. Pull requests welcome.
-
 ### onyx-vacuum-card
+
+![Saugroboter-Karte mit Raumauswahl](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/vacuum-card.png)
 
 ```yaml
 type: custom:onyx-vacuum-card
@@ -478,6 +439,8 @@ wird die Zeile rot.
 
 ### onyx-weather-card
 
+![Wetter-Karte mit Szene und Vorhersage](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/weather-card.png)
+
 ```yaml
 type: custom:onyx-weather-card
 entity: weather.home
@@ -537,6 +500,8 @@ auf den Chip wechselt den Zeitraum.
 
 ### onyx-light-card
 
+![Licht-Karte, ausgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/light-card.png)
+
 Eine kleine Karte für ein einzelnes Licht, im Aufbau der Mushroom-Karten: Symbol
 links, Name und Zustand daneben, darunter ein flacher Balken über die ganze Breite.
 Was das Leuchtmittel sonst noch kann — Farbtemperatur, Farben, Effekte — klappt auf
@@ -583,6 +548,61 @@ sondern eine Fläche mit „An" — sonst läse man hundert Prozent Helligkeit h
 Die Schiene des Farbtemperatur-Reglers trägt den echten Kelvin-Verlauf deines
 Leuchtmittels, gerechnet aus `min_color_temp_kelvin` und `max_color_temp_kelvin` —
 nicht einen erfundenen von Orange nach Blau.
+
+## Visueller Editor
+
+Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
+**Karte hinzufügen** oder beim Klick auf den Stift öffnet sich ein Formular statt der
+YAML — mit Entitäten-Picker, Bereichs-Picker, Symbolwahl und Farbliste.
+
+Was der Editor nicht kann, und warum:
+
+- **Eigene Namen und Symbole je Gerät** in den Listen der Raum-Karte
+  (`lights: [{entity: …, name: …, icon: …}]`) gibt es nur im Code-Editor. Der visuelle
+  Editor **lässt sie unangetastet** — wer eine Lampe dazunimmt, verliert die Feinheiten
+  der anderen nicht. Bei den Schnellzugriffen sind Name und Symbol dagegen pro Aktion
+  direkt im Formular.
+- **Umschalten zwischen `actions:` und `groups:`** macht der Schalter *In Gruppen
+  aufteilen*. Beim Ausschalten wandern alle Aktionen in eine Liste, es geht nichts
+  verloren.
+
+Zwischen Formular und YAML kann jederzeit hin- und hergewechselt werden. Der Editor
+schreibt nur, was vom Standard abweicht — leere Felder und Schalter auf ihrem
+Normalwert landen nicht in der Konfiguration.
+
+## Sprache / Language
+
+Die Karten übernehmen die Spracheinstellung von Home Assistant. Steht das Profil auf
+Deutsch, schreiben sie deutsch; auf Englisch, englisch. Andere Sprachen fallen auf
+Englisch zurück. Umgestellt wird nichts in der Karte, sondern unter
+**Profil → Sprache** — beim nächsten Neuladen der Seite ist alles übersetzt,
+Kartentexte, Fehlermeldungen und der visuelle Editor.
+
+Getrennt davon gelten **Profil → Zahlenformat** und **Zeitformat**: Wer die Oberfläche
+auf Englisch stellt, aber `1.234,56` sehen will, bekommt das. Zeiten erscheinen als
+`07:12` oder `7:12 AM`, je nach Einstellung.
+
+Die **Konfiguration** ist in beiden Sprachen gültig und war es schon immer. `covers:`
+und `storen:` meinen dasselbe, ebenso `lights:`/`lampen:`, `green`/`gruen`,
+`week`/`woche`. Ein Dashboard funktioniert also unverändert, egal in welcher Sprache es
+geschrieben wurde.
+
+Eine weitere Sprache ist eine weitere Spalte in `STRINGS` am Kopf von
+`onyx-cards.js` — 123 Schlüssel, Pull Requests willkommen.
+
+---
+
+**English.** The cards follow the Home Assistant language setting (**Profile → Language**).
+German and English are built in; any other language falls back to English. Number and
+time formatting follow **Profile → Number format** and **Time format** independently, so
+an English UI with `1.234,56` works.
+
+Configuration keys are bilingual: `covers:` equals `storen:`, `lights:` equals `lampen:`,
+`green` equals `gruen`, `week` equals `woche`. Card options are documented in German
+above, but every key has the English form shown here.
+
+Adding a language means adding one more block to `STRINGS` at the top of
+`onyx-cards.js` — 123 keys. Pull requests welcome.
 
 ## Beispiel-Dashboard
 
