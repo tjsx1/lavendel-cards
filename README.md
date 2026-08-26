@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Neun Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Zehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -23,6 +23,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
 | `onyx-light-card` | Licht als eine Zeile; Regler, Farbfeld und Effekte klappen aus |
+| `onyx-camera-card` | Kamera mit Livebild, Bewegung, Licht und Türöffner |
 
 ## Installation über HACS
 
@@ -556,6 +557,57 @@ Die Schiene des Farbtemperatur-Reglers trägt den echten Kelvin-Verlauf deines
 Leuchtmittels, gerechnet aus `min_color_temp_kelvin` und `max_color_temp_kelvin` —
 nicht einen erfundenen von Orange nach Blau.
 
+### onyx-camera-card
+
+![Kamera-Karte, randlos und mit Fuss](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/camera-card.png)
+
+Das Livebild einer Kamera, randlos: Beschriftung und Knöpfe schweben als Glas
+darüber, ein Schleier oben und unten hält die Schrift lesbar, egal wie hell das
+Bild gerade wird. Wer es lieber gerahmt hat, schaltet mit `footer: true` auf die
+gewohnte Onyx-Zeile unter dem Bild um. Ab der zweiten Kamera erscheint ein
+Streifen Vorschaubilder zum Umschalten.
+
+```yaml
+type: custom:onyx-camera-card
+entity: camera.einfahrt
+motion_entity: binary_sensor.einfahrt_bewegung
+light_entity: light.aussenlicht
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entity` | — | Pflicht, wenn `cameras` fehlt. Muss aus der Domäne `camera` kommen |
+| `cameras` | — | Mehrere Kameras; ab der zweiten erscheint der Streifen zum Umschalten |
+| `name` | Gerätename | Beschriftung |
+| `icon` | `mdi:cctv` | Nur sichtbar mit `footer: true` |
+| `color` | `blau` | Palette wie bei der Raum-Karte |
+| `aspect_ratio` | `16/9` | Zum Beispiel `4/3` oder `1/1` |
+| `motion_entity` | — | `binary_sensor`; färbt Abzeichen und Karte |
+| `doorbell_entity` | — | `binary_sensor`; zeigt „Es klingelt" |
+| `door_entity` | — | `lock`, `switch`, `button` oder `input_boolean`; Türöffner |
+| `light_entity` | — | `light`; Knopf in der Reihe |
+| `footer` | `false` | Symbol, Name und Zustand unter das Bild statt darüber |
+
+**Das Livebild zeichnet nicht diese Karte**, sondern `ha-camera-stream` aus dem
+Frontend — dasselbe Element, das auch im Detailfenster läuft. Es kennt HLS und
+WebRTC, holt sich die Zugangsdaten selbst und weiss, wann ein Stream neu aufgebaut
+werden muss. Springt es nicht an, fällt die Karte still auf das Standbild zurück
+und erneuert es alle zehn Sekunden. Antippen öffnet in beiden Fällen das
+Detailfenster.
+
+**Der Türöffner geht nicht auf den ersten Griff auf.** Einmal tippen spannt ihn —
+der Knopf färbt sich und fragt „Sicher?" —, das zweite Tippen öffnet. Nach drei
+Sekunden ohne Antwort ist er wieder entspannt. Ein `lock` mit `open` wird geöffnet,
+sonst entriegelt; ein `switch` wird eingeschaltet, ein `button` gedrückt.
+
+**Das Abzeichen sagt, was gerade ist, die Zeile darunter, seit wann.** Bewegung und
+Klingel färben nur das Abzeichen und die Kartenfarbe — nicht die ganze Fläche, sonst
+blinkt das Dashboard alle zwei Minuten rot.
+
+**Auf einer halben Spalte** ist das Bild nur noch rund hundert Pixel hoch. Dann
+fallen Knöpfe und zweite Zeile von selbst weg; übrig bleibt, was eine Vorschau
+ausmacht: der Name und ob gerade etwas los ist.
+
 ## Visueller Editor
 
 Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
@@ -703,6 +755,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.8.0** — Neue Kamera-Karte: Livebild, Bewegungs- und Klingelabzeichen, Türöffner, mehrere Kameras
 **2.7.0** — Freie Farbwahl im Farbfeld statt sieben fester Tupfer; `colors` entfällt
 **2.6.0** — Regler ohne weissen Strich an der Füllkante; die Knöpfe auf den Schienen sind Ringe
 **2.5.0** — Licht-Karte zugeklappt nur noch eine Zeile; der Helligkeitsregler klappt mit aus

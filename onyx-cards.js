@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.7.0
+ * Version 2.8.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -12,6 +12,7 @@
  *   custom:onyx-vacuum-card  – Saugroboter mit Akkuring, Räumen, Verbrauchsteilen
  *   custom:onyx-weather-card – Wetter mit gezeichneter Szene und Vorhersage
  *   custom:onyx-light-card   – Licht als eine Zeile, ausklappbar
+ *   custom:onyx-camera-card  – Kamera mit Livebild, Bewegung und Türöffner
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -102,6 +103,30 @@ const STRINGS = {
     'cond.unknown': 'Unbekannt',
     'err.needWeather': 'Die Entität muss aus der Domäne "weather" kommen.',
     'err.forecast': 'forecast muss daily, hourly oder none sein.',
+    cam: 'Kamera',
+    'cam.live': 'Live',
+    'cam.motion': 'Bewegung',
+    'cam.ring': 'Es klingelt',
+    'cam.quiet': 'Ruhig',
+    'cam.last': 'zuletzt {t}',
+    'cam.open': 'Tür öffnen',
+    'cam.sure': 'Sicher?',
+    'err.needCamera': 'Die Entität muss aus der Domäne "camera" kommen.',
+    'card.camera': 'Onyx Kamera-Karte',
+    'card.camera.d': 'Livebild mit Bewegung, Licht und Türöffner',
+    'log.streamLoad': 'Stream-Bündel liess sich nicht vorladen:',
+    'ed.cameras': 'Weitere Kameras',
+    'ed.motion_entity': 'Bewegungsmelder',
+    'ed.doorbell_entity': 'Klingel',
+    'ed.door_entity': 'Türöffner',
+    'ed.light_entity': 'Licht',
+    'ed.footer': 'Zeile unter dem Bild',
+    'ed.aspect_ratio': 'Seitenverhältnis',
+    'ed.h.cameras': 'Ab der zweiten Kamera erscheint ein Streifen zum Umschalten',
+    'ed.h.motion_entity': 'Ein binary_sensor; färbt das Abzeichen und die Karte',
+    'ed.h.door_entity': 'Schloss, Schalter oder Knopf — der Knopf braucht zwei Tipper',
+    'ed.h.footer': 'Symbol, Name und Zustand unter das Bild statt darüber',
+    'ed.h.aspect_ratio': 'Zum Beispiel 16/9, 4/3 oder 1/1',
     'card.weather': 'Onyx Wetter-Karte',
     'card.weather.d': 'Gezeichnete Wetterszene, Messwerte und Vorhersage',
     'ed.forecast': 'Vorhersage',
@@ -329,6 +354,30 @@ const STRINGS = {
     'cond.unknown': 'Unknown',
     'err.needWeather': 'The entity must come from the "weather" domain.',
     'err.forecast': 'forecast must be daily, hourly or none.',
+    cam: 'Camera',
+    'cam.live': 'Live',
+    'cam.motion': 'Motion',
+    'cam.ring': 'Ringing',
+    'cam.quiet': 'All quiet',
+    'cam.last': 'last {t}',
+    'cam.open': 'Open door',
+    'cam.sure': 'Sure?',
+    'err.needCamera': 'The entity must come from the "camera" domain.',
+    'card.camera': 'Onyx Camera Card',
+    'card.camera.d': 'Live view with motion, light and door release',
+    'log.streamLoad': 'Could not preload the stream bundle:',
+    'ed.cameras': 'More cameras',
+    'ed.motion_entity': 'Motion sensor',
+    'ed.doorbell_entity': 'Doorbell',
+    'ed.door_entity': 'Door release',
+    'ed.light_entity': 'Light',
+    'ed.footer': 'Row below the picture',
+    'ed.aspect_ratio': 'Aspect ratio',
+    'ed.h.cameras': 'From the second camera on, a strip appears for switching',
+    'ed.h.motion_entity': 'A binary_sensor; tints the badge and the card',
+    'ed.h.door_entity': 'Lock, switch or button — the button needs two taps',
+    'ed.h.footer': 'Icon, name and state below the picture instead of over it',
+    'ed.h.aspect_ratio': 'For example 16/9, 4/3 or 1/1',
     'card.weather': 'Onyx Weather Card',
     'card.weather.d': 'Drawn weather scene, readings and forecast',
     'ed.forecast': 'Forecast',
@@ -4188,6 +4237,508 @@ class OnyxLightCard extends OnyxBase {
   }
 }
 
+/* ================================================================== *
+ * 10) KAMERA-KARTE
+ * ================================================================== */
+
+/**
+ * Das Live-Bild zeichnet nicht diese Karte, sondern `<ha-camera-stream>`
+ * aus dem Frontend: das Element kennt HLS und WebRTC, holt sich die
+ * Zugangsdaten selbst und weiss, wann ein Stream neu aufgebaut werden
+ * muss. Es steckt aber im nachgeladenen Bündel — genau wie `<ha-form>`.
+ * Also erzwingen wir das Nachladen über eine eingebaute Karte, die es
+ * ihrerseits mitbringt.
+ */
+let _streamReady = null;
+function ensureStreamLoaded(entityId) {
+  if (_streamReady) return _streamReady;
+  _streamReady = (async () => {
+    if (customElements.get('ha-camera-stream')) return;
+    try {
+      const helpers = await window.loadCardHelpers();
+      await helpers.createCardElement({
+        type: 'picture-entity', entity: entityId, camera_view: 'live'
+      });
+    } catch (err) {
+      console.warn('[onyx-cards] ' + t('log.streamLoad'), err);
+    }
+    await Promise.race([
+      customElements.whenDefined('ha-camera-stream'),
+      new Promise((r) => setTimeout(r, 4000))
+    ]);
+  })();
+  return _streamReady;
+}
+
+/** Wie oft sich das Standbild erneuert, wenn kein Stream zustande kommt */
+const CAM_POLL = 10000;
+
+class OnyxCameraCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      position:relative; padding:0; overflow:hidden; box-shadow:none;
+      border-radius:var(--onyx-r,24px); border:1px solid rgba(255,255,255,.09);
+      background:linear-gradient(to right bottom,
+        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+      container-type:inline-size;
+    }
+    ha-card.foot{ padding:12px; display:flex; flex-direction:column; gap:10px; }
+    /* Auf einer halben Spalte ist das Bild nur noch rund 100 px hoch —
+       dann passen Knöpfe und zweite Zeile nicht mehr darüber. Übrig
+       bleibt, was eine Vorschau ausmacht: Name und ob etwas los ist. */
+    @container (max-width: 240px){
+      .over .bar{ display:none; }
+      .over .ttl .s{ display:none; }
+      .badge .lb{ display:none; }
+      .badge{ padding:0 7px; }
+    }
+    ha-card.alarm{ --acc:#f2949a; --sub:#d1787f; --lab:#b87a80; --btn:#ef5f68; }
+    ha-card.off{ opacity:.6; }
+
+    /* Das Bild. Ohne Fuss füllt es die Karte, mit Fuss sitzt es gerundet
+       darin — in beiden Fällen im Seitenverhältnis der Kamera. */
+    .pic{ position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+          background:#0e1116; cursor:pointer; }
+    ha-card.foot .pic{ border-radius:14px; }
+    .pic img, .pic video, .pic ha-camera-stream{
+      display:block; width:100%; height:100%; object-fit:cover; }
+    .pic ha-camera-stream video{ width:100%; height:100%; object-fit:cover; }
+
+    /* Ein Schleier oben und unten, damit die Schrift auf jedem Bild
+       lesbar bleibt — auch wenn nachts der Scheinwerfer angeht. */
+    .scrim{ position:absolute; inset:0; pointer-events:none;
+            background:linear-gradient(180deg, rgba(6,8,11,.72) 0%,
+              rgba(6,8,11,0) 34%, rgba(6,8,11,0) 56%, rgba(6,8,11,.82) 100%); }
+    .scrim.top{ background:linear-gradient(180deg, rgba(6,8,11,.7) 0%,
+                  rgba(6,8,11,0) 42%); }
+
+    /* Der Rahmen ums Bild: nur er trägt das Schwebende. Ohne ihn spannte
+       sich die Auflage über die ganze Karte und die Knöpfe landeten
+       hinter dem Streifen der übrigen Kameras. */
+    .frame{ position:relative; }
+    .over{ position:absolute; inset:0; display:flex; flex-direction:column;
+           justify-content:space-between; padding:12px; pointer-events:none; }
+    .over > *{ pointer-events:auto; }
+    .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .ttl{ min-width:0; }
+    .ttl .n{ font-size:14px; font-weight:600; line-height:19px; color:#fff;
+             text-shadow:0 1px 6px rgba(0,0,0,.75);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ttl .s{ font-size:11.5px; line-height:16px; color:rgba(255,255,255,.74);
+             text-shadow:0 1px 6px rgba(0,0,0,.75);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .badge{ display:inline-flex; align-items:center; gap:6px; height:24px; flex:none;
+            padding:0 9px; border-radius:99px; font-size:11px; font-weight:600;
+            color:#fff; --mdc-icon-size:13px; white-space:nowrap;
+            background:rgba(12,15,20,.55); border:1px solid rgba(255,255,255,.16);
+            -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+    .badge .dot{ width:7px; height:7px; border-radius:50%; background:#ff4d4d;
+                 box-shadow:0 0 8px 2px rgba(255,77,77,.6); }
+    .badge.warn{ background:color-mix(in srgb, var(--btn) 34%, transparent);
+                 border-color:color-mix(in srgb, var(--btn) 55%, transparent); }
+    .badge.mute{ color:rgba(255,255,255,.8); font-weight:500; }
+
+    /* Glasknöpfe wie überall sonst, hier über dem Bild schwebend */
+    .bar{ display:flex; gap:8px; }
+    .gb{ flex:1; height:38px; border-radius:12px; display:flex; align-items:center;
+         justify-content:center; gap:8px; color:#fff; --mdc-icon-size:18px;
+         cursor:pointer; font-size:12.5px; font-weight:600;
+         background:rgba(12,15,20,.42); border:1px solid rgba(255,255,255,.14);
+         -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+         transition:transform .12s ease, background .18s ease; }
+    .gb.on{ background:color-mix(in srgb, var(--btn) 58%, transparent);
+            border-color:color-mix(in srgb, var(--btn) 76%, transparent); }
+    .gb.wide{ flex:2.4; }
+    .gb.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
+                          0 0 0 4px color-mix(in srgb, var(--btn) 45%, transparent); }
+    .gb.held{ transform:scale(.94); }
+
+    /* Fussvariante: die gewohnte Onyx-Zeile unter dem Bild */
+    .row{ display:flex; align-items:center; gap:10px; }
+    .sq{ width:42px; height:42px; border-radius:12px; flex:none; display:grid;
+         place-items:center; --mdc-icon-size:22px; color:#8ea3b5; cursor:pointer;
+         background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10); }
+    ha-card.alarm .sq{ color:#fff;
+      background:color-mix(in srgb, var(--btn) 26%, transparent);
+      border-color:color-mix(in srgb, var(--btn) 46%, transparent); }
+    .txt{ flex:1; min-width:0; }
+    .p1{ font-size:14px; font-weight:600; line-height:19px; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .p2{ font-size:12.5px; line-height:17px; color:#72879a;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.alarm .p2{ color:var(--sub); }
+    .fbar{ display:flex; gap:8px; }
+    .fb{ flex:1; height:38px; border-radius:12px; display:flex; align-items:center;
+         justify-content:center; gap:8px; color:#fff; --mdc-icon-size:18px;
+         cursor:pointer; font-size:12.5px; font-weight:600;
+         background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+         -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+         border:1px solid rgba(255,255,255,.11);
+         transition:transform .12s ease, background .18s ease; }
+    .fb.on{ background:color-mix(in srgb, var(--btn) 58%, transparent);
+            border-color:color-mix(in srgb, var(--btn) 76%, transparent); }
+    .fb.wide{ flex:2.4; }
+    .fb.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
+                          0 0 0 4px color-mix(in srgb, var(--btn) 45%, transparent); }
+    .fb.held{ transform:scale(.94); }
+
+    /* Streifen der übrigen Kameras */
+    .strip{ display:flex; gap:8px; }
+    .thumb{ position:relative; flex:1; aspect-ratio:16/9; border-radius:10px;
+            overflow:hidden; cursor:pointer; background:#0e1116;
+            border:1px solid rgba(255,255,255,.10); }
+    .thumb img{ display:block; width:100%; height:100%; object-fit:cover; }
+    .thumb.on{ border-color:rgba(255,255,255,.85);
+               box-shadow:0 0 0 2px color-mix(in srgb, var(--btn) 45%, transparent); }
+    .thumb .lbl{ position:absolute; left:0; right:0; bottom:0; padding:3px 6px;
+                 font-size:9.5px; color:#fff; background:rgba(6,8,11,.6);
+                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .thumb .mv{ position:absolute; top:4px; right:4px; width:7px; height:7px;
+                border-radius:50%; background:#ff4d4d;
+                box-shadow:0 0 7px 2px rgba(255,77,77,.6); }
+    .thumb.held{ opacity:.7; }
+
+    .dead{ position:absolute; inset:0; display:grid; place-items:center;
+           grid-auto-flow:row; justify-items:center; gap:8px;
+           background:rgba(10,12,16,.82); color:#6f8497; font-size:12.5px;
+           --mdc-icon-size:26px; }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return { type: 'custom:onyx-camera-card', entity: firstEntity(hass, 'camera') };
+  }
+
+  setConfig(config) {
+    const list = normList(config.cameras)
+      || (config.entity ? [{ entity: config.entity }] : null);
+    if (!list || !list.length) throw new Error(t('err.needEntity'));
+    for (const c of list) {
+      if (c.entity.split('.')[0] !== 'camera') throw new Error(t('err.needCamera'));
+    }
+    this._idx = 0;
+    this._muted = true;
+    this._armed = false;
+    super.setConfig(config);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._poll) { clearInterval(this._poll); this._poll = null; }
+  }
+
+  _list() {
+    return normList(this._config.cameras) || [{ entity: this._config.entity }];
+  }
+
+  /** Ein Zustand als "an" gelesen, ohne dass die Entität da sein muss */
+  _flag(id) {
+    const st = id && this._hass.states[id];
+    return !!(st && isOn(st));
+  }
+
+  _model() {
+    const hass = this._hass, cfg = this._config;
+    const list = this._list();
+    const idx = clamp(this._idx, 0, list.length - 1);
+
+    const cams = list.map((c, i) => {
+      const st = hass.states[c.entity];
+      return {
+        id: c.entity,
+        name: c.name || nameOf(hass, c.entity),
+        dead: isDead(st),
+        // Das Standbild kommt mit einem Zeichen im Anhang, das mit jedem
+        // Zustandswechsel neu vergeben wird — also nicht selbst basteln.
+        pic: (st && st.attributes.entity_picture) || null,
+        motion: this._flag(c.motion || (i === idx ? cfg.motion_entity : null))
+      };
+    });
+
+    const cur = cams[idx];
+    if (!hass.states[cur.id]) throw new Error(t('err.entity', { id: cur.id }));
+
+    const ring = this._flag(cfg.doorbell_entity);
+    const motion = this._flag(cfg.motion_entity);
+    const lightId = cfg.light_entity || null;
+    const doorId = cfg.door_entity || null;
+
+    // Wann zuletzt etwas los war. Das Abzeichen sagt, was gerade ist —
+    // die Zeile darunter sagt, seit wann.
+    const stamps = [cfg.motion_entity, cfg.doorbell_entity]
+      .map((id) => (id && hass.states[id] ? Date.parse(hass.states[id].last_changed) : NaN))
+      .filter((v) => !isNaN(v));
+    const last = stamps.length ? Math.max.apply(null, stamps) : null;
+
+    const sub = cur.dead ? t('unavailable')
+      : last ? t('cam.last', { t: fmtTime(new Date(last)) })
+      : t('cam.quiet');
+
+    return {
+      idx,
+      id: cur.id,
+      name: cfg.name || cur.name,
+      sub,
+      pic: cur.pic,
+      dead: cur.dead,
+      motion, ring,
+      icon: cfg.icon || (cfg.doorbell_entity ? 'mdi:doorbell-video' : 'mdi:cctv'),
+      color: cfg.color || null,
+      light: lightId ? { id: lightId, on: this._flag(lightId) } : null,
+      door: doorId ? { id: doorId } : null,
+      armed: this._armed,
+      muted: this._muted,
+      footer: cfg.footer === true,
+      strip: cams.length > 1 ? cams : null,
+      ratio: cfg.aspect_ratio || '16/9'
+    };
+  }
+
+  /** Die Knopfreihe — dieselbe Auswahl, oben schwebend oder unten fest */
+  _buttons(m, cls) {
+    const btn = (id, extra, inner) =>
+      `<div class="${cls} ${extra}" id="${id}">${inner}</div>`;
+    const out = [];
+    if (m.door) {
+      out.push(btn('door', 'wide' + (m.armed ? ' on armed' : ''),
+        `<ha-icon icon="mdi:lock-open-variant"></ha-icon>` +
+        `<span>${esc(t(m.armed ? 'cam.sure' : 'cam.open'))}</span>`));
+    }
+    out.push(btn('full', '', '<ha-icon icon="mdi:fullscreen"></ha-icon>'));
+    out.push(btn('sound', m.muted ? '' : 'on',
+      `<ha-icon icon="mdi:volume-${m.muted ? 'off' : 'high'}"></ha-icon>`));
+    if (m.light) {
+      out.push(btn('light', m.light.on ? 'on' : '',
+        '<ha-icon icon="mdi:lightbulb"></ha-icon>'));
+    }
+    return `<div class="${cls === 'gb' ? 'bar' : 'fbar'}">${out.join('')}</div>`;
+  }
+
+  _badge(m) {
+    if (m.dead) return '';
+    // Die Beschriftung steckt in einem eigenen Element, damit sie auf
+    // schmalen Spalten wegfallen kann und das Zeichen stehen bleibt.
+    const b = (cls, mark, label) =>
+      `<span class="badge ${cls}">${mark}<span class="lb">${esc(label)}</span></span>`;
+    if (m.ring) return b('warn', '<ha-icon icon="mdi:bell-ring"></ha-icon>', t('cam.ring'));
+    if (m.motion) return b('warn', '<ha-icon icon="mdi:motion-sensor"></ha-icon>', t('cam.motion'));
+    return b('', '<span class="dot"></span>', t('cam.live'));
+  }
+
+  _picture(m) {
+    return `
+      <div class="pic" id="pic" style="aspect-ratio:${esc(m.ratio)}">
+        ${m.dead ? '<div class="dead"><ha-icon icon="mdi:cctv-off"></ha-icon></div>' : ''}
+      </div>`;
+  }
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+    const alarm = (m.ring || m.motion) && !m.dead;
+    const klass = (cls + (m.footer ? ' foot' : '') + (alarm ? ' alarm' : '')
+      + (m.dead ? ' off' : '')).trim();
+
+    const strip = m.strip ? `
+      <div class="strip">
+        ${m.strip.map((c, i) => `
+          <div class="thumb ${i === m.idx ? 'on' : ''}" data-cam="${i}">
+            ${c.pic ? `<img src="${esc(c.pic)}" alt="">` : ''}
+            ${c.motion ? '<div class="mv"></div>' : ''}
+            <div class="lbl">${esc(c.name)}</div>
+          </div>`).join('')}
+      </div>` : '';
+
+    // Ohne Fuss schwebt alles über dem Bild, mit Fuss steht es darunter.
+    if (!m.footer) {
+      return `
+      <ha-card class="${klass}"${style}>
+        <div class="frame">
+          ${this._picture(m)}
+          <div class="scrim"></div>
+          <div class="over">
+            <div class="top">
+              <div class="ttl">
+                <div class="n">${esc(m.name)}</div>
+                <div class="s">${esc(m.sub)}</div>
+              </div>
+              ${this._badge(m)}
+            </div>
+            ${m.dead ? '<div></div>' : this._buttons(m, 'gb')}
+          </div>
+        </div>
+        ${strip ? `<div style="padding:12px">${strip}</div>` : ''}
+      </ha-card>`;
+    }
+
+    return `
+    <ha-card class="${klass}"${style}>
+      <div class="frame">
+        ${this._picture(m)}
+        <div class="scrim top" style="border-radius:14px"></div>
+        <div class="over" style="padding:9px; justify-content:flex-start">
+          <div class="top"><div></div>${this._badge(m)}</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="sq" id="ico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="txt">
+          <div class="p1">${esc(m.name)}</div>
+          <div class="p2">${esc(m.sub)}</div>
+        </div>
+      </div>
+      ${m.dead ? '' : this._buttons(m, 'fb')}
+      ${strip}
+    </ha-card>`;
+  }
+
+  /**
+   * Das Bild in die Karte hängen. Der Stream lebt über den Neuaufbau
+   * hinweg: würde er bei jedem Zustandswechsel neu erzeugt, ruckelte
+   * die Karte jedes Mal von vorne los.
+   */
+  _fill(m) {
+    const box = this.shadowRoot.getElementById('pic');
+    if (!box || m.dead) return;
+    const st = this._hass.states[m.id];
+
+    ensureStreamLoaded(m.id).then(() => {
+      if (!this.isConnected) return;
+      const host = this.shadowRoot.getElementById('pic');
+      if (!host) return;
+      const Cls = customElements.get('ha-camera-stream');
+      if (!Cls) { this._still(host, m); return; }
+      if (!this._stream) {
+        this._stream = document.createElement('ha-camera-stream');
+        this._stream.controls = false;
+        this._stream.allowExoPlayer = false;
+      }
+      this._stream.hass = this._hass;
+      this._stream.stateObj = st;
+      this._stream.muted = this._muted;
+      if (this._stream.parentNode !== host) host.appendChild(this._stream);
+      if (this._poll) { clearInterval(this._poll); this._poll = null; }
+    });
+
+    // Bis der Stream steht — und falls er nie steht — das Standbild
+    if (!this._stream) this._still(box, m);
+  }
+
+  /** Rückfall: das Standbild, das sich von selbst erneuert */
+  _still(host, m) {
+    if (!m.pic) return;
+    let img = host.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      img.alt = '';
+      host.insertBefore(img, host.firstChild);
+    }
+    // Nicht jede Bildadresse trägt schon ein Fragezeichen, und ein
+    // eingebettetes Bild verträgt gar keinen Anhang.
+    const bust = () => {
+      const u = m.pic;
+      img.src = /^data:/.test(u) ? u
+        : u + (u.indexOf('?') < 0 ? '?' : '&') + '_onyx=' + Date.now();
+    };
+    bust();
+    if (this._poll) clearInterval(this._poll);
+    this._poll = setInterval(() => {
+      if (!this.isConnected || this._stream) { clearInterval(this._poll); this._poll = null; return; }
+      bust();
+    }, CAM_POLL);
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    this._fill(m);
+
+    const open = () => fireMoreInfo(this, m.id);
+    const pic = root.getElementById('pic');
+    if (pic) this._press(pic, { onTap: open, onHold: open });
+
+    const ico = root.getElementById('ico');
+    if (ico) this._press(ico, { onTap: open, onHold: open });
+
+    const full = root.getElementById('full');
+    if (full) this._press(full, { onTap: open });
+
+    const sound = root.getElementById('sound');
+    if (sound) {
+      this._press(sound, {
+        onTap: () => {
+          this._muted = !this._muted;
+          if (this._stream) this._stream.muted = this._muted;
+          this._repaint();
+        }
+      });
+    }
+
+    const light = root.getElementById('light');
+    if (light) {
+      this._press(light, {
+        onTap: () => this.call('light', 'toggle', { entity_id: m.light.id }),
+        onHold: () => fireMoreInfo(this, m.light.id)
+      });
+    }
+
+    // Der Türöffner geht nicht auf den ersten Griff auf: einmal tippen
+    // spannt ihn, das zweite Mal öffnet. Drei Sekunden später ist er
+    // wieder entspannt.
+    const door = root.getElementById('door');
+    if (door) {
+      this._press(door, {
+        onTap: () => {
+          if (!this._armed) {
+            this._armed = true;
+            clearTimeout(this._armTimer);
+            this._armTimer = setTimeout(() => { this._armed = false; this._repaint(); }, 3000);
+            this._repaint();
+            return;
+          }
+          this._armed = false;
+          clearTimeout(this._armTimer);
+          const dom = m.door.id.split('.')[0];
+          if (dom === 'lock') {
+            const st = this._hass.states[m.door.id];
+            const feat = (st && st.attributes.supported_features) || 0;
+            this.call('lock', (feat & 1) ? 'open' : 'unlock', { entity_id: m.door.id });
+          } else if (dom === 'switch' || dom === 'input_boolean') {
+            this.call(dom, 'turn_on', { entity_id: m.door.id });
+          } else {
+            this.call('button', 'press', { entity_id: m.door.id });
+          }
+          this._repaint();
+        },
+        onHold: () => fireMoreInfo(this, m.door.id)
+      });
+    }
+
+    root.querySelectorAll('[data-cam]').forEach((el) => {
+      const i = Number(el.dataset.cam);
+      this._press(el, {
+        onTap: () => {
+          if (i === m.idx) { open(); return; }
+          this._idx = i;
+          // Andere Kamera, anderes Bild: das Standbild muss weg, sonst
+          // stünde für einen Moment die falsche Einfahrt in der Karte.
+          const host = root.getElementById('pic');
+          const img = host && host.querySelector('img');
+          if (img) img.remove();
+          this._repaint();
+        }
+      });
+    });
+  }
+
+  getCardSize() {
+    let n = 4;
+    if (this._config.footer === true) n += 2;
+    if (normList(this._config.cameras) && normList(this._config.cameras).length > 1) n += 1;
+    return n;
+  }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -5064,11 +5615,65 @@ class OnyxVacuumEditor extends OnyxEditor {
 /* ------------------------------------------------------------------ *
  * Wetter
  * ------------------------------------------------------------------ */
+const CAM_HELP = {
+  cameras: 'ed.h.cameras', motion_entity: 'ed.h.motion_entity',
+  door_entity: 'ed.h.door_entity', footer: 'ed.h.footer',
+  aspect_ratio: 'ed.h.aspect_ratio'
+};
+
 const WX_HELP = {
   forecast: 'ed.h.forecast', temperature: 'ed.h.station', humidity: 'ed.h.station',
   wind: 'ed.h.station', illuminance: 'ed.h.illuminance', sun: 'ed.h.sun',
   color: 'ed.h.color'
 };
+
+class OnyxCameraEditor extends OnyxEditor {
+  static get DEFAULTS() { return { footer: false, aspect_ratio: '16/9' }; }
+
+  _helpKey(name) {
+    return CAM_HELP[name] || ED_HELP_KEY[name] || '';
+  }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'camera'),
+      fieldEntity('cameras', 'camera', true),
+      grid(fieldText('name'), fieldIcon('icon')),
+      grid(fieldColor(), fieldText('aspect_ratio')),
+      grid(fieldEntity('motion_entity', 'binary_sensor'),
+           fieldEntity('doorbell_entity', 'binary_sensor')),
+      grid(fieldEntity('door_entity', ['lock', 'switch', 'button', 'input_boolean']),
+           fieldEntity('light_entity', 'light')),
+      fieldBool('footer')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      // Im Formular ist die Liste eine Reihe von Kennungen; die
+      // Feinheiten aus dem YAML bleiben beim Zurückschreiben erhalten.
+      cameras: (normList(c.cameras) || []).map((e) => e.entity),
+      name: c.name || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      aspect_ratio: c.aspect_ratio || '16/9',
+      motion_entity: c.motion_entity || '',
+      doorbell_entity: c.doorbell_entity || '',
+      door_entity: c.door_entity || '',
+      light_entity: c.light_entity || '',
+      footer: c.footer === true
+    };
+  }
+
+  _fromForm(data) {
+    const cfg = Object.assign({}, this._config, data);
+    const ids = data.cameras || [];
+    if (ids.length) cfg.cameras = mergeList(ids, this._config.cameras);
+    else delete cfg.cameras;
+    return cfg;
+  }
+}
 
 class OnyxWeatherEditor extends OnyxEditor {
   static get DEFAULTS() { return { forecast: 'daily', forecast_count: 5 }; }
@@ -5179,6 +5784,7 @@ defineEditor('onyx-chart-card-editor', OnyxChartEditor);
 defineEditor('onyx-vacuum-card-editor', OnyxVacuumEditor);
 defineEditor('onyx-weather-card-editor', OnyxWeatherEditor);
 defineEditor('onyx-light-card-editor', OnyxLightEditor);
+defineEditor('onyx-camera-card-editor', OnyxCameraEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -5192,7 +5798,8 @@ const EDITOR_OF = [
   [OnyxChartCard, 'onyx-chart-card-editor'],
   [OnyxVacuumCard, 'onyx-vacuum-card-editor'],
   [OnyxWeatherCard, 'onyx-weather-card-editor'],
-  [OnyxLightCard, 'onyx-light-card-editor']
+  [OnyxLightCard, 'onyx-light-card-editor'],
+  [OnyxCameraCard, 'onyx-camera-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -5227,6 +5834,7 @@ defineCard('onyx-chart-card', OnyxChartCard);
 defineCard('onyx-vacuum-card', OnyxVacuumCard);
 defineCard('onyx-weather-card', OnyxWeatherCard);
 defineCard('onyx-light-card', OnyxLightCard);
+defineCard('onyx-camera-card', OnyxCameraCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -5283,10 +5891,17 @@ window.customCards.push(
     name: t('card.light'),
     description: t('card.light.d'),
     preview: false
+  },
+  {
+    type: 'onyx-camera-card',
+    name: t('card.camera'),
+    description: t('card.camera.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
-  OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard, OnyxLightCard
+  OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard,
+  OnyxLightCard, OnyxCameraCard
 };
