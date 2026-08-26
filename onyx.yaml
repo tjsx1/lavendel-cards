@@ -1,0 +1,72 @@
+# Onyx — Theme für Home Assistant (dunkle Fassung)
+# Ablage:  /config/themes/onyx.yaml
+#
+# In der configuration.yaml muss einmal stehen:
+#   frontend:
+#     themes: !include_dir_merge_named themes
+#
+# Danach: Entwicklerwerkzeuge → YAML → "Themes neu laden"
+# und im Benutzerprofil unten "Onyx" auswählen.
+
+onyx:
+  # ---------- Grund und Flächen ----------
+  primary-background-color: "#07090d"
+  secondary-background-color: "#0e1116"
+  lovelace-background: "#07090d"
+  card-background-color: "#14171d"
+  ha-card-background: "#14171d"
+  ha-card-border-radius: "16px"
+  ha-card-border-width: "0"
+  ha-card-box-shadow: "0 10px 30px rgba(0,0,0,0.40)"
+
+  # ---------- Text ----------
+  primary-text-color: "#e6f1f8"
+  secondary-text-color: "#8fb3cc"
+  disabled-text-color: "#5d7d95"
+  text-primary-color: "#ffffff"
+  divider-color: "rgba(255,255,255,0.09)"
+
+  # ---------- Akzente ----------
+  primary-color: "#7b5cf0"
+  accent-color: "#8ad2f2"
+  dark-primary-color: "#5a3fd0"
+  light-primary-color: "#a58cf5"
+  state-icon-color: "#9db6c8"
+  state-icon-active-color: "#8ad2f2"
+  paper-item-icon-color: "#9db6c8"
+  paper-item-icon-active-color: "#8ad2f2"
+  switch-checked-color: "#7b5cf0"
+  slider-color: "#7b5cf0"
+  slider-track-color: "rgba(255,255,255,0.14)"
+
+  # ---------- Kopfzeile ----------
+  app-header-background-color: "transparent"
+  app-header-text-color: "#e6f1f8"
+  app-header-edit-background-color: "#7b5cf0"
+
+  # ---------- Variablen der Onyx-Karten ----------
+  onyx-r: "24px"
+  onyx-warm-1: "#0d1b2e"        # aktive Karte, dunkle Ecke oben links
+  onyx-warm-2: "#113a52"        # aktive Karte, helle Ecke unten rechts
+  onyx-cold-1: "#111318"        # ruhende Karte
+  onyx-cold-2: "#171b22"
+  onyx-act: "#7b5cf0"           # aktiver Knopf
+  onyx-value: "#8ad2f2"         # gemessene Werte
+  onyx-label: "#6f9fc0"
+  onyx-sub: "#6ba8cc"
+  onyx-name: "#e6f1f8"
+  onyx-accent-ink: "#7fc6e8"
+
+  # ---------- noch aus der hellen Fassung ----------
+  # Diese Variablen benutzen Regler-, Storen-, Media- und Schnellzugriff-Karte,
+  # solange sie noch nicht umgestellt sind.
+  onyx-grad: "linear-gradient(135deg,#4ec5e8 0%,#7b6bf0 52%,#e7599b 100%)"
+  onyx-glow: "0 6px 16px rgba(123,92,240,0.40)"
+  onyx-soft: "0 2px 10px rgba(0,0,0,0.35)"
+  onyx-card-on: "#1a1f27"
+  onyx-flat: "rgba(255,255,255,0.07)"
+  onyx-ink3: "#6b8da6"
+
+  # ---------- Abstände im Sections-Raster ----------
+  ha-view-sections-column-gap: "12px"
+  ha-view-sections-row-gap: "12px"

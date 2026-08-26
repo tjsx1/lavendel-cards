@@ -1,6 +1,6 @@
-# Auftrag: Hand-Installation der Lavendel-Karten zurückbauen
+# Auftrag: Hand-Installation der Onyx-Karten zurückbauen
 
-Ziel: Die von Hand kopierte Fassung der Lavendel-Karten vollständig entfernen,
+Ziel: Die von Hand kopierte Fassung der Onyx-Karten vollständig entfernen,
 damit anschließend die HACS-Installation sauber übernehmen kann. **Theme und
 Dashboard bleiben unverändert.**
 
@@ -34,23 +34,23 @@ konsistent hält:
 Einstellungen → Dashboards → ⋮ (oben rechts) → Ressourcen
 ```
 
-Dort den Eintrag suchen, dessen URL mit `/local/lavendel-cards.js` beginnt
+Dort den Eintrag suchen, dessen URL mit `/local/onyx-cards.js` beginnt
 (er kann ein `?v=1` oder ähnliches angehängt haben) und **löschen**.
 
-> Einen Eintrag mit `/hacsfiles/lavendel-cards/lavendel-cards.js` gibt es
+> Einen Eintrag mit `/hacsfiles/onyx-cards/onyx-cards.js` gibt es
 > möglicherweise auch. **Der bleibt** — den hat HACS angelegt.
 
 ### Falls das Menü „Ressourcen" fehlt
 
 Dann läuft das Dashboard im YAML-Modus. In diesem Fall steht die Ressource in der
 `configuration.yaml` oder einer eingebundenen Datei unter `lovelace: resources:`.
-Dort den Block mit `/local/lavendel-cards.js` entfernen.
+Dort den Block mit `/local/onyx-cards.js` entfernen.
 
 ### Prüfen auf Dateiebene
 
 Die Liste liegt in `<config>/.storage/lovelace_resources` (JSON). Darin darf nach
 dem Löschen **kein** Eintrag mehr vorkommen, dessen `url` den Text
-`/local/lavendel-cards.js` enthält. Diese Datei nur lesen, nicht von Hand
+`/local/onyx-cards.js` enthält. Diese Datei nur lesen, nicht von Hand
 bearbeiten, solange Home Assistant läuft — sie wird sonst überschrieben.
 
 ---
@@ -58,7 +58,7 @@ bearbeiten, solange Home Assistant läuft — sie wird sonst überschrieben.
 ## Schritt 2 — Datei löschen
 
 ```
-<config>/www/lavendel-cards.js        → löschen
+<config>/www/onyx-cards.js        → löschen
 ```
 
 Bei Home Assistant OS ist `<config>` der Ordner, der in der Samba-Freigabe
@@ -85,10 +85,10 @@ Datei weiter aus, und der ganze Rückbau wirkt, als hätte er nichts gebracht.
 
 | Datei | Warum sie bleibt |
 |---|---|
-| `<config>/themes/lavendel.yaml` | Das Theme liefert HACS **nicht** mit. Wird es gelöscht, verlieren die Karten Verlauf und Schatten. |
-| Die Theme-Auswahl im Benutzerprofil | Bleibt auf „Lavendel" stehen |
+| `<config>/themes/onyx.yaml` | Das Theme liefert HACS **nicht** mit. Wird es gelöscht, verlieren die Karten Verlauf und Schatten. |
+| Die Theme-Auswahl im Benutzerprofil | Bleibt auf „Onyx" stehen |
 | `frontend: themes:` in der `configuration.yaml` | Wird weiterhin gebraucht |
-| Das Dashboard-YAML | Die Kartennamen sind identisch (`custom:lavendel-room-card` usw.). Es ändert sich nichts. |
+| Das Dashboard-YAML | Die Kartennamen sind identisch (`custom:onyx-room-card` usw.). Es ändert sich nichts. |
 | Der HACS-Ressourceneintrag `/hacsfiles/...` | Der ist der neue, richtige |
 
 ---
@@ -100,9 +100,9 @@ Datei weiter aus, und der ganze Rückbau wirkt, als hätte er nichts gebracht.
 **Erfolgreich, wenn:**
 
 - Genau **eine** Zeile `LAVENDEL-CARDS 0.2.1` erscheint — nicht zwei
-- **Keine** Warnung `[lavendel-cards] "lavendel-room-card" ist bereits registriert`
+- **Keine** Warnung `[onyx-cards] "onyx-room-card" ist bereits registriert`
 - Die Karten werden normal dargestellt, nicht weiß und ohne roten Fehlertext
-- Im Netzwerk-Tab taucht `lavendel-cards.js` nur unter `/hacsfiles/` auf,
+- Im Netzwerk-Tab taucht `onyx-cards.js` nur unter `/hacsfiles/` auf,
   nicht unter `/local/`
 
 **Wenn die Warnung „ist bereits registriert" erscheint:** Es ist noch ein zweiter

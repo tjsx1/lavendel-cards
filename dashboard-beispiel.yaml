@@ -1,4 +1,4 @@
-# Lavendel — Beispiel-Dashboard für das Handy
+# Onyx — Beispiel-Dashboard für das Handy
 #
 # Einfügen: Dashboard öffnen → ⋮ → "Raw-Konfigurationseditor"
 # und diesen Inhalt einsetzen. Vorher die Bereichs-IDs und Entitäten anpassen.
@@ -22,25 +22,25 @@ views:
             heading: Zuhause
             heading_style: title
 
-          - type: custom:lavendel-room-card
+          - type: custom:onyx-room-card
             area: wohnzimmer
             navigation_path: /lovelace/wohnzimmer
             grid_options:
               columns: 6
 
-          - type: custom:lavendel-room-card
+          - type: custom:onyx-room-card
             area: kueche
             navigation_path: /lovelace/kueche
             grid_options:
               columns: 6
 
-          - type: custom:lavendel-room-card
+          - type: custom:onyx-room-card
             area: schlafzimmer
             navigation_path: /lovelace/schlafzimmer
             grid_options:
               columns: 6
 
-          - type: custom:lavendel-room-card
+          - type: custom:onyx-room-card
             area: bad
             navigation_path: /lovelace/bad
             grid_options:
@@ -61,28 +61,28 @@ views:
             heading_style: subtitle
 
           # Zieh-Regler: vier passen nebeneinander (je 3 Spalten)
-          - type: custom:lavendel-slider-card
+          - type: custom:onyx-slider-card
             entity: light.wohnzimmer_decke
             name: Decke
             grid_options:
               columns: 3
               rows: 3
 
-          - type: custom:lavendel-slider-card
+          - type: custom:onyx-slider-card
             entity: light.wohnzimmer_steh
             name: Steh
             grid_options:
               columns: 3
               rows: 3
 
-          - type: custom:lavendel-slider-card
+          - type: custom:onyx-slider-card
             entity: light.wohnzimmer_led
             name: LED
             grid_options:
               columns: 3
               rows: 3
 
-          - type: custom:lavendel-slider-card
+          - type: custom:onyx-slider-card
             entity: light.wohnzimmer_lese
             name: Lese
             grid_options:
@@ -95,7 +95,7 @@ views:
             heading: Storen
             heading_style: subtitle
 
-          - type: custom:lavendel-cover-card
+          - type: custom:onyx-cover-card
             entity: cover.wohnzimmer_sued
             # optional: Sperre sichtbar machen, solange der Windwächter greift
             # lock_entity: binary_sensor.windwaechter
@@ -103,7 +103,7 @@ views:
             grid_options:
               columns: 6
 
-          - type: custom:lavendel-cover-card
+          - type: custom:onyx-cover-card
             entity: cover.wohnzimmer_west
             grid_options:
               columns: 6
@@ -116,7 +116,7 @@ views:
 
           # Läuft nichts, schrumpft die Karte von selbst auf eine flache Kachel.
           # Deshalb keine feste Zeilenzahl setzen.
-          - type: custom:lavendel-media-card
+          - type: custom:onyx-media-card
             entity: media_player.sonos_wohnzimmer
             grid_options:
               columns: 12

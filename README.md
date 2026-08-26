@@ -1,4 +1,4 @@
-# Lavendel Cards
+# Onyx Cards
 
 **English speakers:** the cards follow Home Assistant's own language setting — see
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
@@ -12,33 +12,33 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 
 | Karte | Was sie kann |
 |---|---|
-| `lavendel-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt |
-| `lavendel-slider-card` | Vertikaler Zieh-Regler für Licht, Storen oder Lautstärke |
-| `lavendel-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
-| `lavendel-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
-| `lavendel-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
-| `lavendel-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
+| `onyx-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt |
+| `onyx-slider-card` | Vertikaler Zieh-Regler für Licht, Storen oder Lautstärke |
+| `onyx-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
+| `onyx-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
+| `onyx-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
+| `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 
 ## Installation über HACS
 
 1. HACS öffnen → oben rechts ⋮ → **Benutzerdefinierte Repositories**
 2. URL dieses Repositories eintragen, Kategorie **Dashboard** (früher „Lovelace"), hinzufügen
-3. „Lavendel Cards" suchen → **Herunterladen**
+3. „Onyx Cards" suchen → **Herunterladen**
 4. Home Assistant neu starten, danach den Browser hart neu laden (Strg + Shift + R)
 
 HACS trägt die Ressource selbst ein — der Schritt unter Einstellungen → Dashboards → Ressourcen entfällt.
 
 ### Ohne HACS
 
-`lavendel-cards.js` nach `/config/www/` kopieren, dann unter
+`onyx-cards.js` nach `/config/www/` kopieren, dann unter
 Einstellungen → Dashboards → ⋮ → Ressourcen hinzufügen:
 
 ```
-URL:  /local/lavendel-cards.js
+URL:  /local/onyx-cards.js
 Typ:  JavaScript-Modul
 ```
 
-> Das Theme setzt `lav-r` auf 24px — den Kartenradius. Änderst du ihn dort,
+> Das Theme setzt `onyx-r` auf 24px — den Kartenradius. Änderst du ihn dort,
 > ziehen alle Karten mit.
 
 > Bei Home Assistant OS heißt der Ordner in der Samba-Freigabe `homeassistant` —
@@ -48,25 +48,25 @@ Typ:  JavaScript-Modul
 
 ## Theme
 
-`lavendel.yaml` nach `/config/themes/` kopieren. In der `configuration.yaml` muss einmalig stehen:
+`onyx.yaml` nach `/config/themes/` kopieren. In der `configuration.yaml` muss einmalig stehen:
 
 ```yaml
 frontend:
   themes: !include_dir_merge_named themes
 ```
 
-Dann Entwicklerwerkzeuge → YAML → **Themes neu laden**, und im Benutzerprofil „Lavendel" wählen.
+Dann Entwicklerwerkzeuge → YAML → **Themes neu laden**, und im Benutzerprofil „Onyx" wählen.
 Das Theme setzt auch die Variablen, aus denen die Karten ihren Verlauf und ihre Schatten lesen.
 Ohne Theme funktionieren die Karten, sehen aber neutraler aus.
 
 ## Verwendung
 
-### lavendel-room-card
+### onyx-room-card
 
 Zwei Betriebsarten. **Bereich** — die Karte sucht sich alles selbst:
 
 ```yaml
-type: custom:lavendel-room-card
+type: custom:onyx-room-card
 area: wohnzimmer
 navigation_path: /lovelace/wohnzimmer
 ```
@@ -74,7 +74,7 @@ navigation_path: /lovelace/wohnzimmer
 **Eigene Listen** — du bestimmst genau, was erscheint und in welcher Reihenfolge:
 
 ```yaml
-type: custom:lavendel-room-card
+type: custom:onyx-room-card
 name: Wohnzimmer
 icon: mdi:sofa
 temperature: sensor.wohnzimmer_temperatur
@@ -136,10 +136,10 @@ quer ziehen = Helligkeit oder Storenhöhe, Halten = Detailfenster.
 Blick auseinanderhalten willst:
 
 ```yaml
-- type: custom:lavendel-room-card
+- type: custom:onyx-room-card
   area: wohnzimmer
   color: gruen
-- type: custom:lavendel-room-card
+- type: custom:onyx-room-card
   area: kueche
   color: orange
 ```
@@ -151,10 +151,10 @@ Die Gruppenknöpfe sind umrandete Kreise; **gefüllt ist nur, was gerade läuft*
 zwar im hellen Ton der gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der
 Blick findet sofort, was aktiv ist.
 
-### lavendel-slider-card
+### onyx-slider-card
 
 ```yaml
-type: custom:lavendel-slider-card
+type: custom:onyx-slider-card
 entity: light.wohnzimmer_decke
 name: Decke
 grid_options: { columns: 3, rows: 3 }
@@ -171,10 +171,10 @@ grid_options: { columns: 3, rows: 3 }
 Ziehen setzt den Wert, Tippen schaltet um, Halten öffnet das Detailfenster.
 Vier passen nebeneinander.
 
-### lavendel-cover-card
+### onyx-cover-card
 
 ```yaml
-type: custom:lavendel-cover-card
+type: custom:onyx-cover-card
 entity: cover.wohnzimmer_sued
 lock_entity: binary_sensor.windwaechter
 ```
@@ -194,10 +194,10 @@ Auf und Ab gedimmt und nur Stop trägt den Verlauf.
 > Prozente sind bei Storen zweideutig — Home Assistant zählt **100 % = ganz offen**.
 > Die Karte schreibt deshalb immer ein Wort dazu: „60 % offen" statt nur „60 %".
 
-### lavendel-media-card
+### onyx-media-card
 
 ```yaml
-type: custom:lavendel-media-card
+type: custom:onyx-media-card
 entity: media_player.sonos_wohnzimmer
 ```
 
@@ -228,13 +228,13 @@ sekundengenau weiter, auch zwischen zwei Zustandsmeldungen.
 > Läuft nichts, schrumpft die Karte auf eine flache Kachel. Im Sections-Raster
 > deshalb keine feste Zeilenzahl setzen.
 
-### lavendel-actions-card
+### onyx-actions-card
 
 Schnellzugriffe für Szenen, Skripte, Automationen und Helfer — in einem Rahmen,
 wahlweise nach Art getrennt.
 
 ```yaml
-type: custom:lavendel-actions-card
+type: custom:onyx-actions-card
 title: Schnellzugriff
 groups:
   - label: Szenen
@@ -257,7 +257,7 @@ groups:
 Ohne Gruppen genügt eine flache Liste:
 
 ```yaml
-type: custom:lavendel-actions-card
+type: custom:onyx-actions-card
 title: Schnellzugriff
 actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 ```
@@ -299,13 +299,13 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 > Eine nie ausgelöste Szene steht in Home Assistant auf `unknown`. Die Karte wertet
 > das als Normalzustand, nicht als Fehler — grau wird nur, was wirklich `unavailable` ist.
 
-### lavendel-chart-card
+### onyx-chart-card
 
 Bis zu drei Messwerte rechts, darunter der Verlauf von einem davon. Antippen
 eines Werts wechselt, welcher gezeichnet wird.
 
 ```yaml
-type: custom:lavendel-chart-card
+type: custom:onyx-chart-card
 title: Energie
 label: Energie
 icon: mdi:flash
@@ -392,7 +392,7 @@ und `storen:` meinen dasselbe, ebenso `lights:`/`lampen:`, `green`/`gruen`,
 geschrieben wurde.
 
 Eine weitere Sprache ist eine weitere Spalte in `STRINGS` am Kopf von
-`lavendel-cards.js` — 123 Schlüssel, Pull Requests willkommen.
+`onyx-cards.js` — 123 Schlüssel, Pull Requests willkommen.
 
 ---
 
@@ -406,7 +406,7 @@ Configuration keys are bilingual: `covers:` equals `storen:`, `lights:` equals `
 above, but every key has the English form shown here.
 
 Adding a language means adding one more block to `STRINGS` at the top of
-`lavendel-cards.js` — 123 keys. Pull requests welcome.
+`onyx-cards.js` — 123 keys. Pull requests welcome.
 
 ## Beispiel-Dashboard
 
@@ -432,26 +432,75 @@ in der App: Einstellungen → Companion-App → Frontend-Cache leeren.
 zuweisen oder `entities:` mit festen Listen benutzen.
 
 **Schrift sieht anders aus** — die Karten laden Poppins von Google Fonts. Ohne Internet
-fällt sie auf die Standardschrift zurück. Wer das nicht will, setzt im Theme `lav-font`
+fällt sie auf die Standardschrift zurück. Wer das nicht will, setzt im Theme `onyx-font`
 auf eine lokale Schrift.
+
+## Umstieg von Lavendel Cards
+
+Bis Version 1.5.0 hiessen die Karten `lavendel-…`. Der Name kam vom ersten, hellen
+Entwurf, den es seit der dunklen Fassung nicht mehr gibt. Ab 2.0.0 heissen sie
+`onyx-…` — **ohne Rückwärtskompatibilität**: Die alten Namen sind nicht mehr
+registriert, ein Dashboard mit `custom:lavendel-room-card` zeigt „Custom element
+doesn't exist".
+
+**1. In HACS austauschen**
+
+HACS → Lavendel Cards → ⋮ → **Entfernen**. Dann ⋮ oben rechts →
+**Benutzerdefinierte Repositories** → dieses Repository eintragen, Kategorie
+**Dashboard** → herunterladen. Home Assistant neu starten.
+
+**2. Dashboard-YAML anpassen**
+
+Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann alle sechs Vorkommen ersetzen:
+
+| alt | neu |
+|---|---|
+| `custom:lavendel-room-card` | `custom:onyx-room-card` |
+| `custom:lavendel-slider-card` | `custom:onyx-slider-card` |
+| `custom:lavendel-cover-card` | `custom:onyx-cover-card` |
+| `custom:lavendel-media-card` | `custom:onyx-media-card` |
+| `custom:lavendel-actions-card` | `custom:onyx-actions-card` |
+| `custom:lavendel-chart-card` | `custom:onyx-chart-card` |
+
+Alle **Optionen bleiben unverändert** — `area:`, `color:`, `entities:`, `period:`,
+`groups:`, alles. Es ändert sich nur das Wort vor dem Bindestrich. Wer die YAML in
+einer Datei liegen hat, kommt mit einem Befehl durch:
+
+```bash
+sed -i 's/custom:lavendel-/custom:onyx-/g' ui-lovelace.yaml
+```
+
+**3. Theme austauschen**
+
+Die CSS-Variablen heissen jetzt `--onyx-…` statt `--lav-…`. Das alte
+`/config/themes/lavendel.yaml` löschen, `onyx.yaml` an dieselbe Stelle legen, unter
+Entwicklerwerkzeuge → YAML → **Themes neu laden**, und im Benutzerprofil „Onyx"
+auswählen. Ohne diesen Schritt funktionieren die Karten weiter, greifen aber auf ihre
+eingebauten Farben zurück statt auf die des Themes.
+
+**4. Alte Ressource entfernen**
+
+Wer die Datei früher von Hand unter `/local/lavendel-cards.js` eingetragen hatte:
+Einstellungen → Dashboards → ⋮ → **Ressourcen** → Eintrag löschen und
+`/config/www/lavendel-cards.js` wegräumen.
 
 ## Umstieg von der Hand-Installation
 
 Läuft die Datei schon unter `/local/`, muss der alte Eintrag weg — sonst sind zwei
 Fassungen derselben Karten geladen und nur eine gewinnt:
 
-1. Einstellungen → Dashboards → ⋮ → **Ressourcen** → Eintrag `/local/lavendel-cards.js` löschen
-2. `/config/www/lavendel-cards.js` löschen (optional, aber sauberer)
+1. Einstellungen → Dashboards → ⋮ → **Ressourcen** → Eintrag `/local/onyx-cards.js` löschen
+2. `/config/www/onyx-cards.js` löschen (optional, aber sauberer)
 3. In HACS herunterladen, Home Assistant neu starten, Browser hart neu laden
 
-Das Theme unter `/config/themes/lavendel.yaml` bleibt liegen — HACS liefert es nicht mit.
-Am Dashboard-YAML ändert sich nichts, die Kartennamen sind dieselben.
+Das Theme unter `/config/themes/onyx.yaml` bleibt liegen — HACS liefert es nicht mit.
 
 Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis,
 statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.0.0** — Umbenannt: `lavendel-…` heisst jetzt `onyx-…`. Kein Rückwärtsbetrieb, siehe [Umstieg](#umstieg-von-lavendel-cards)
 **1.5.0** — Zweisprachig: Texte, Zahlen- und Zeitformat folgen den Einstellungen von Home Assistant
 **1.4.0** — Diagramm-Karte: weiche Linie ohne Überschwinger, Rauschen wird zusammengefasst
 **1.3.0** — Regler, Storen und Schnellzugriffe im dunklen Design; Farbwahl auch dort

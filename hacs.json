@@ -1,6 +1,6 @@
 {
-  "name": "Lavendel Cards",
-  "filename": "lavendel-cards.js",
+  "name": "Onyx Cards",
+  "filename": "onyx-cards.js",
   "render_readme": true,
   "homeassistant": "2024.8.0"
 }

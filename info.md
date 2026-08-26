@@ -1,15 +1,20 @@
-# Lavendel Cards
+# Onyx Cards
 
-Vier Lovelace-Karten im Lavendel-Look, für die Bedienung am Handy gebaut.
-Keine Abhängigkeiten — weder button-card noch card-mod nötig.
+Sechs Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Kartenfarben — für die Bedienung am Handy gebaut. Deutsch und Englisch, je nach
+Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 
-- **Raum-Karte** — klappt auf Halten eines Gruppen-Icons auf und zeigt jedes Gerät einzeln
+- **Raum-Karte** — klappt pro Gerätegruppe auf und zeigt jedes Gerät einzeln
 - **Zieh-Regler** — vertikal, für Licht, Storen oder Lautstärke
 - **Storen-Karte** — Höhe, Lamellenwinkel, Fahrtasten, Windsperre
 - **Media-Karte** — Cover als Hintergrund, schrumpft wenn nichts läuft
+- **Schnellzugriffe** — Szenen, Skripte und Automationen in vier Formen
+- **Diagramm-Karte** — bis zu drei Messwerte, einer davon als Verlauf
+
+Alle sechs sind über den visuellen Editor einzurichten.
 
 Nach dem Herunterladen Home Assistant neu starten und den Browser hart neu laden.
-Das mitgelieferte Theme `lavendel.yaml` gehört nach `/config/themes/` — es setzt die
-Farben, aus denen die Karten ihren Verlauf lesen.
+Das mitgelieferte Theme `onyx.yaml` gehört nach `/config/themes/`.
 
-Alle Optionen stehen in der README.
+**Umstieg von Lavendel Cards:** die Kartennamen haben sich geändert
+(`custom:lavendel-…` → `custom:onyx-…`). Die Anleitung steht in der README.
