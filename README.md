@@ -22,7 +22,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
-| `onyx-light-card` | Licht als eine Zeile; Regler, Farbfeld und Effekte klappen aus |
+| `onyx-light-card` | Licht als eine Zeile; Regler, Farbrad und Effekte klappen aus |
 | `onyx-camera-card` | Kamera mit Livebild, Bewegung, Licht und Türöffner |
 
 ## Installation über HACS
@@ -522,7 +522,7 @@ icon: mdi:ceiling-light
 | `icon` | Gerätesymbol | z. B. `mdi:ceiling-light` |
 | `color` | `auto` | `auto` tönt die Karte in der Farbe des Lichts; sonst wie bei der Raum-Karte |
 | `show_color_temp` | `true` | Blendet den Farbtemperatur-Regler aus |
-| `show_colors` | `true` | Blendet das Farbfeld aus |
+| `show_colors` | `true` | Blendet das Farbrad aus |
 | `show_effects` | `true` | Blendet die Effekt-Chips aus |
 | `always_open` | `false` | Karte startet ausgeklappt — dann fehlt der Pfeil |
 
@@ -531,14 +531,22 @@ setzt Ziehen die Helligkeit, Antippen schaltet um, Halten öffnet das Detailfens
 Ist am Licht nichts einzustellen — ein reiner Ein-Aus-Schalter —, gibt es keinen
 Pfeil, und das Antippen des Namens führt direkt ins Detailfenster.
 
-**Das Farbfeld** spannt den Farbton nach rechts und die Sättigung nach unten
-auf — oben satt, unten weiss. Eine Bewegung setzt beides. Der Ring zeigt, wo das
-Licht gerade steht; leuchtet es weiss statt farbig, steht er nirgends und das Feld
-zeigt keinen. Feste Farbtupfer gibt es nicht mehr — sie liessen alles dazwischen aus.
+**Das Farbrad** trägt den Farbton rundherum und die Sättigung nach aussen: aussen
+satt, in der Mitte weiss. Es wächst mit der Spalte mit und passt auch auf eine halbe.
+Der Ring zeigt, wo das Licht gerade steht; leuchtet es weiss statt farbig, steht er
+nirgends und das Rad zeigt keinen. Ebenso auf der Farbtemperatur-Schiene: solange die
+Lampe farbig leuchtet, steht dort kein Ring — ein Kelvin-Wert wäre schlicht gelogen.
+Er erscheint, sobald du ziehst.
 
 **Die Zustandszeile trägt die Helligkeit**, weil sie zugeklappt das Einzige ist, was
 Auskunft gibt: `72 % · 2.700 K`, `90 % · Regenbogen`, `Aus`. Ist die Spalte zu schmal
 für beides, fällt der hintere Teil weg, statt in drei Punkten zu enden.
+
+**Was zu einer Lampe gehört, glüht in ihrer Farbe.** Nicht nur hier: auch der
+runde Knopf im Zieh-Regler und die Gerätezeilen der Raum-Karte nehmen die Farbe
+der Lampe an, die sie gerade steuern. Eine blaue Lampe hinter einem gelben Knopf
+sah falsch aus. Weiss eine Lampe nichts über ihre Farbe, oder ist sie aus, bleibt
+es bei der Palette der Karte.
 
 **Die Karte nimmt die Farbe des Lichts an.** Nicht direkt: ein Leuchtmittel auf 6200 K
 ist fast weiss, und würde man das in den Verlauf mischen, käme milchiges Grau heraus.
@@ -755,6 +763,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.9.0** — Farbrad statt Farbfeld; Knöpfe und Zeilen glühen in der Farbe der Lampe
 **2.8.0** — Neue Kamera-Karte: Livebild, Bewegungs- und Klingelabzeichen, Türöffner, mehrere Kameras
 **2.7.0** — Freie Farbwahl im Farbfeld statt sieben fester Tupfer; `colors` entfällt
 **2.6.0** — Regler ohne weissen Strich an der Füllkante; die Knöpfe auf den Schienen sind Ringe

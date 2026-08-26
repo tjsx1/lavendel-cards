@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.8.0
+ * Version 2.9.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -67,9 +67,9 @@ const STRINGS = {
     'lt.tapOn': 'Antippen schaltet ein',
     'err.needLight': 'Die Entität muss aus der Domäne "light" kommen.',
     'card.light': 'Onyx Licht-Karte',
-    'card.light.d': 'Kompakt, mit ausklappbarer Farbe und Farbtemperatur',
+    'card.light.d': 'Eine Zeile; Regler, Farbrad und Effekte klappen aus',
     'ed.show_color_temp': 'Farbtemperatur zeigen',
-    'ed.show_colors': 'Farbfeld zeigen',
+    'ed.show_colors': 'Farbrad zeigen',
     'ed.show_effects': 'Effekte zeigen',
     'ed.always_open': 'Immer ausgeklappt',
     'ed.h.always_open': 'Zeigt Farbtemperatur, Farben und Effekte ohne Antippen',
@@ -318,9 +318,9 @@ const STRINGS = {
     'lt.tapOn': 'Tap to switch on',
     'err.needLight': 'The entity must come from the "light" domain.',
     'card.light': 'Onyx Light Card',
-    'card.light.d': 'Compact, with color and color temperature on tap',
+    'card.light.d': 'One row; slider, color wheel and effects on tap',
     'ed.show_color_temp': 'Show color temperature',
-    'ed.show_colors': 'Show color field',
+    'ed.show_colors': 'Show color wheel',
     'ed.show_effects': 'Show effects',
     'ed.always_open': 'Always expanded',
     'ed.h.always_open': 'Shows color temperature, colors and effects without tapping',
@@ -1156,6 +1156,8 @@ class OnyxRoomCard extends OnyxBase {
           id,
           name: entry.name || nameOf(hass, id),
           icon: entry.icon || GROUPS[d].icon,
+          // Nur Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
+          glow: d === 'light' ? lightGlow(st) : null,
           on,
           dead: isDead(st),
           pct: pctOf(st),
@@ -1255,7 +1257,8 @@ class OnyxRoomCard extends OnyxBase {
         const pct = dragable && it.pct > 0 ? it.pct : 0;
         return `
         <div class="lrow ${it.dead ? 'dead' : ''} ${!it.on && !it.dead ? 'off' : ''}"
-             data-ent="${esc(it.id)}" data-dom="${og.domain}">
+             data-ent="${esc(it.id)}" data-dom="${og.domain}"${
+               it.glow ? ` style="--acc:${esc(it.glow)};--btn:${esc(it.glow)}"` : ''}>
           <div class="lfill" style="width:${pct}%"></div>
           <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${esc(it.icon)}"></ha-icon></div>
           <div class="lname">${esc(it.name)}</div>
@@ -1455,6 +1458,9 @@ class OnyxSliderCard extends OnyxBase {
       pct: pct < 0 ? 0 : pct,
       dead: isDead(st),
       color: this._config.color || null,
+      // Steuert die Kachel eine Lampe, die ihre Farbe kennt, glüht der
+      // Knopf in dieser Farbe statt in der Palette der Karte.
+      glow: this._config.entity.startsWith('light.') ? lightGlow(st) : null,
       domain: this._config.entity.split('.')[0]
     };
   }
@@ -1462,8 +1468,12 @@ class OnyxSliderCard extends OnyxBase {
   _html(m) {
     const { cls, style } = paletteAttrs(m.color);
     const on = !m.dead && m.pct > 0;
+    const glow = m.glow ? `--btn:${m.glow}` : '';
+    const styled = glow
+      ? (style ? style.replace(/"$/, ';' + glow + '"') : ` style="${glow}"`)
+      : style;
     return `
-    <ha-card class="${cls.trim()}"${style}>
+    <ha-card class="${cls.trim()}"${styled}>
       <div class="sl${on ? ' on' : ''}${m.dead ? ' dead' : ''}" id="sl">
         <div class="fill" style="height:${m.pct}%"></div>
         <div class="pct" id="pct">${m.dead ? '–' : m.pct + ' %'}</div>
@@ -3845,6 +3855,21 @@ function rgbToHs(rgb) {
   return [h * 360, mx ? (d / mx) * 100 : 0];
 }
 
+/**
+ * Die Farbe, in der eine eingeschaltete Lampe glüht — oder null, wenn sie
+ * nichts über ihre Farbe weiss. Absichtlich der kräftige Ton aus ltTint
+ * und nicht die rohe Farbe: der Knopf soll auf dunklem Grund noch etwas
+ * hermachen, auch wenn die Lampe fast weiss leuchtet.
+ */
+function lightGlow(st) {
+  if (!st || st.state !== 'on') return null;
+  const a = st.attributes;
+  const kelvin = a.color_temp_kelvin || null;
+  if (!a.rgb_color && !kelvin) return null;
+  return ltTint(a.rgb_color || null, kelvin,
+    a.min_color_temp_kelvin || 2000, a.max_color_temp_kelvin || 6500);
+}
+
 function rgbToHsl(rgb) {
   const [r, g, b] = rgb.map((v) => v / 255);
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
@@ -3874,8 +3899,23 @@ function hslToRgb(h, sat, l) {
 
 /** Wo der Knopf einer Schiene steht — er soll die Rundungen nie berühren */
 const LT_KNOB = (v) => `calc(12px + (100% - 24px) * ${v} / 100)`;
-/** Wo der Ring im Farbfeld steht — er soll die Ränder nie überlaufen */
-const CF_POS = (v) => `calc(13px + (100% - 26px) * ${clamp(v, 0, 100)} / 100)`;
+/**
+ * Farbrad und Zahlenwerte ineinander umrechnen. Der Verlauf beginnt bei
+ * 90 Grad, also liegt Rot rechts und der Farbton läuft im Uhrzeigersinn.
+ */
+function wheelToHs(x, y) {
+  const dx = x - 50, dy = 50 - y;            // y kommt von unten gezählt
+  const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  const hue = (deg - 90 + 720) % 360;
+  const sat = clamp(Math.round((Math.hypot(dx, dy) / 50) * 100), 0, 100);
+  return [Math.round(hue), sat];
+}
+
+function hsToWheel(hue, sat) {
+  const rad = (((hue + 90) % 360) * Math.PI) / 180;
+  const r = clamp(sat, 0, 100) / 2;
+  return { left: 50 + r * Math.sin(rad), top: 50 - r * Math.cos(rad) };
+}
 
 class OnyxLightCard extends OnyxBase {
   static get CSS() {
@@ -3950,14 +3990,17 @@ class OnyxLightCard extends OnyxBase {
 
     /* Das Farbfeld: Farbton nach rechts, Sättigung nach unten. Eine
        Bewegung setzt beides — feste Tupfer liessen alles dazwischen aus. */
-    /* Kein Rand: er läge über dem Verlauf und liesse an der Unterkante
-       einen farbigen Haarstrich stehen. */
-    .cfield{ position:relative; height:84px; border-radius:12px; overflow:hidden;
-             cursor:pointer; touch-action:none;
-             background:
-               linear-gradient(to bottom, rgba(255,255,255,0) 0%, #ffffff 96%),
-               linear-gradient(90deg, #ff0000, #ffff00, #00ff00,
-                               #00ffff, #0000ff, #ff00ff, #ff0000); }
+    /* Das Farbrad: Farbton rundherum, Sättigung nach aussen. Es wächst
+       mit der Spalte mit, bleibt aber in beide Richtungen im Rahmen. */
+    .wheelbox{ display:flex; justify-content:center; padding:2px 0; }
+    .wheel{ position:relative; width:clamp(96px, 52%, 168px); aspect-ratio:1;
+            border-radius:50%; cursor:pointer; touch-action:none;
+            box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);
+            background:
+              radial-gradient(circle closest-side,
+                #ffffff 0%, rgba(255,255,255,0) 100%),
+              conic-gradient(from 90deg, #ff0000, #ffff00, #00ff00,
+                             #00ffff, #0000ff, #ff00ff, #ff0000); }
     .cdot{ position:absolute; transform:translate(-50%,-50%); width:22px; height:22px;
            border-radius:50%; background:none; border:2.5px solid #fff; z-index:2;
            box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
@@ -4089,7 +4132,7 @@ class OnyxLightCard extends OnyxBase {
     const warm = m.on && !m.dead;
     // Die Leuchtfarbe nur dann in den Balken schreiben, wenn sie gemessen
     // ist. Sonst gilt die Regel aus dem Stylesheet: Akzentfarbe der Palette.
-    const lite = m.on && m.tint ? `--lite:${m.lite}` : '';
+    const lite = m.on && m.tint ? `--lite:${m.lite};--btn:${m.tint}` : '';
     const styled = lite
       ? (style ? style.replace(/"$/, ';' + lite + '"') : ` style="${lite}"`)
       : style;
@@ -4110,12 +4153,17 @@ class OnyxLightCard extends OnyxBase {
       ${m.canTemp ? `
         <div class="bar" id="temp"
              style="background:linear-gradient(90deg,${esc(m.ramp)})">
-          <div class="knob" style="left:${LT_KNOB(this._kPct(m))}"></div>
+          ${m.mode === 'color_temp' && m.kelvin
+            ? `<div class="knob" style="left:${LT_KNOB(this._kPct(m))}"></div>` : ''}
         </div>` : ''}
       ${m.canColor ? `
-        <div class="cfield" id="cfield">
-          ${m.hs ? `<div class="cdot" style="left:${CF_POS(m.hs[0] / 3.6)};
-                     top:${CF_POS(100 - m.hs[1])}"></div>` : ''}
+        <div class="wheelbox">
+          <div class="wheel" id="wheel">
+            ${m.hs ? (() => {
+              const p = hsToWheel(m.hs[0], m.hs[1]);
+              return `<div class="cdot" style="left:${p.left}%; top:${p.top}%"></div>`;
+            })() : ''}
+          </div>
         </div>` : ''}
       ${m.fx.length ? `
         <div class="fx">
@@ -4195,35 +4243,46 @@ class OnyxLightCard extends OnyxBase {
 
     const temp = root.getElementById('temp');
     if (temp) {
-      const knob = temp.querySelector('.knob');
+      // Leuchtet die Lampe gerade farbig, steht kein Ring auf der Schiene —
+      // ein Kelvin-Wert wäre dort schlicht gelogen. Sobald man zieht,
+      // erscheint er.
+      let knob = temp.querySelector('.knob');
       const toK = (v) => Math.round(m.kMin + ((m.kMax - m.kMin) * v) / 100);
+      const place = (v) => {
+        if (!knob) {
+          knob = document.createElement('div');
+          knob.className = 'knob';
+          temp.appendChild(knob);
+        }
+        knob.style.left = LT_KNOB(v);
+      };
       this._press(temp, {
         axis: 'x',
-        onDrag: m.dead ? null : (v) => { knob.style.left = LT_KNOB(v); },
+        onDrag: m.dead ? null : place,
         onDrop: m.dead ? null : (v) => call({ color_temp_kelvin: toK(v) })
       });
     }
 
-    const cf = root.getElementById('cfield');
-    if (cf) {
-      let dot = cf.querySelector('.cdot');
-      // x ist der Farbton, y die Sättigung — oben voll, unten weiss.
-      const toHs = (p) => [Math.round(p.x * 3.6), p.y];
-      const place = (p) => {
+    const wheel = root.getElementById('wheel');
+    if (wheel) {
+      let dot = wheel.querySelector('.cdot');
+      const place = (hs) => {
         if (!dot) {
           dot = document.createElement('div');
           dot.className = 'cdot';
-          cf.appendChild(dot);
+          wheel.appendChild(dot);
         }
-        dot.style.left = CF_POS(p.x);
-        dot.style.top = CF_POS(100 - p.y);
+        const p = hsToWheel(hs[0], hs[1]);
+        dot.style.left = p.left + '%';
+        dot.style.top = p.top + '%';
       };
-      this._press(cf, {
+      const at = (p) => wheelToHs(p.x, p.y);
+      this._press(wheel, {
         axis: 'xy',
-        onTap: m.dead ? null : (p) => { place(p); call({ hs_color: toHs(p) }); },
+        onTap: m.dead ? null : (p) => { const hs = at(p); place(hs); call({ hs_color: hs }); },
         onHold: () => fireMoreInfo(this, m.id),
-        onDrag: m.dead ? null : place,
-        onDrop: m.dead ? null : (p) => call({ hs_color: toHs(p) })
+        onDrag: m.dead ? null : (p) => place(at(p)),
+        onDrop: m.dead ? null : (p) => call({ hs_color: at(p) })
       });
     }
 

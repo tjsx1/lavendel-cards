@@ -12,7 +12,7 @@ Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 - **Diagramm-Karte** — bis zu drei Messwerte, einer davon als Verlauf
 - **Saugroboter-Karte** — Akkuring, Raumauswahl, Verbrauchsteile
 - **Wetter-Karte** — gezeichnete Wetterszene, Messwerte, Vorhersage
-- **Licht-Karte** — eine Zeile; Regler, Farbfeld und Effekte klappen aus
+- **Licht-Karte** — eine Zeile; Regler, Farbrad und Effekte klappen aus
 - **Kamera-Karte** — Livebild, Bewegung, Licht und Türöffner
 
 Alle sind über den visuellen Editor einzurichten.
