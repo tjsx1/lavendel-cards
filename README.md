@@ -152,8 +152,11 @@ Blick auseinanderhalten willst:
   color: orange
 ```
 
-Gefärbt wird nur die aktive Karte. Ist im Raum nichts an, bleibt sie neutral grau —
-sonst sähen auch schlafende Räume aus, als liefe etwas.
+**Die Farbe gehört zum Raum, nicht zu seinem Zustand.** Auch wenn nichts läuft,
+bleibt die Karte blau oder grün oder violett — nur gedämpft, in den dunklen Grund
+hineingemischt. Dass gerade etwas läuft, sagen der volle Verlauf, die gefüllten
+Gruppenknöpfe und die Zeile darunter; dafür braucht es nicht auch noch den Wechsel
+nach Grau.
 
 Die Gruppenknöpfe stehen in der Reihenfolge Licht, Storen, Musik, Klima. Sie sind
 umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und zwar im hellen Ton der
@@ -765,6 +768,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.11.0** — Raum-Karte bleibt auch im Ruhezustand in ihrer Farbe, nur gedämpft
 **2.10.0** — Raum-Karte: Gruppen in der Reihenfolge Licht, Storen, Musik, Klima; der Knopf zur Raumseite entfällt
 **2.9.0** — Farbrad statt Farbfeld; Knöpfe und Zeilen glühen in der Farbe der Lampe
 **2.8.0** — Neue Kamera-Karte: Livebild, Bewegungs- und Klingelabzeichen, Türöffner, mehrere Kameras

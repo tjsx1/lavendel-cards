@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.10.0
+ * Version 2.11.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -1013,11 +1013,16 @@ function normList(list) {
 class OnyxRoomCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
+    /* Ist im Raum nichts an, bleibt die Karte trotzdem in ihrer Farbe —
+       nur gedämpft, in den dunklen Grund hineingemischt. Die Farbe gehört
+       zum Raum, nicht zum Zustand; ob etwas läuft, sagen der volle Verlauf,
+       die Knopfreihe und die Zeile darunter. */
     ha-card{
       padding:12px; border-radius:var(--onyx-r, 24px); border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:10px; overflow:hidden;
       background:linear-gradient(to right bottom,
-        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+        color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
+        color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
       box-shadow:none;
     }
     ha-card.warm{
