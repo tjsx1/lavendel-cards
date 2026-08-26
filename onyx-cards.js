@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.0.0
+ * Version 2.1.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -9,6 +9,7 @@
  *   custom:onyx-media-card   – Medienspieler mit Cover, Fortschritt und Lautstärke
  *   custom:onyx-actions-card – Schnellzugriffe für Szenen, Skripte, Automationen
  *   custom:onyx-chart-card   – bis zu drei Messwerte, einer davon als Verlauf
+ *   custom:onyx-vacuum-card  – Saugroboter mit Akkuring, Räumen, Verbrauchsteilen
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -17,7 +18,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.0.0';
+const ONYX_VERSION = '2.1.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -56,6 +57,45 @@ function ensureFont() {
 const STRINGS = {
   de: {
     room: 'Raum',
+    vac: 'Saugroboter',
+    'vac.cleaning': 'saugt',
+    'vac.paused': 'pausiert',
+    'vac.returning': 'kehrt zurück',
+    'vac.stopped': 'steht',
+    'vac.idle': 'bereit',
+    'vac.charging': 'lädt',
+    'vac.charged': 'geladen',
+    'vac.docked': 'An der Ladestation',
+    'vac.toDock': 'Auf dem Weg zur Station',
+    'vac.errorGeneric': 'Störung',
+    'vac.start': 'Starten',
+    'vac.pause': 'Pause',
+    'vac.resume': 'Weiter',
+    'vac.cancel': 'Abbrechen',
+    'vac.cleanRoom': '1 Raum saugen',
+    'vac.cleanRooms': '{n} Räume saugen',
+    'vac.rooms': 'Räume',
+    'vac.selected': '{n} ausgewählt',
+    'vac.consumables': 'Verbrauchsteile',
+    'vac.due': '{n} fällig',
+    'vac.since': 'seit {t}',
+    'vac.minutes': '{n} Min',
+    'vac.area': '{n} m²',
+    'err.needVacuum': 'Die Entität muss aus der Domäne "vacuum" kommen.',
+    'card.vacuum': 'Onyx Saugroboter-Karte',
+    'card.vacuum.d': 'Akkuring, Räume und Verbrauchsteile',
+    'ed.battery_entity': 'Akku-Sensor',
+    'ed.show_fan_speed': 'Saugstufen anzeigen',
+    'ed.rooms': 'Räume',
+    'ed.consumables': 'Verbrauchsteile',
+    'ed.room_command': 'Befehl für Räume',
+    'ed.id': 'Segment-Nummer',
+    'ed.max': 'Voller Wert',
+    'ed.h.battery_entity': 'Leer lassen: die Karte sucht den Akku beim selben Gerät',
+    'ed.h.room_command': 'Roborock und Xiaomi: app_segment_clean',
+    'ed.h.rooms': 'Die Segment-Nummern stehen in der App des Herstellers',
+    'ed.h.consumables': 'Sensoren in Prozent; für Stundenzähler den vollen Wert angeben',
+    'ed.addRoom': 'Raum',
     inRoom: '{g} im Raum',
     'log.dup': '"{tag}" ist bereits registriert — diese Datei ({v}) wird ignoriert. '
       + 'Vermutlich sind zwei Ressourcen eingetragen: die alte unter /local/ und die von '
@@ -188,6 +228,45 @@ const STRINGS = {
 
   en: {
     room: 'Room',
+    vac: 'Vacuum',
+    'vac.cleaning': 'cleaning',
+    'vac.paused': 'paused',
+    'vac.returning': 'returning',
+    'vac.stopped': 'stopped',
+    'vac.idle': 'idle',
+    'vac.charging': 'charging',
+    'vac.charged': 'charged',
+    'vac.docked': 'Docked',
+    'vac.toDock': 'On the way to the dock',
+    'vac.errorGeneric': 'Error',
+    'vac.start': 'Start',
+    'vac.pause': 'Pause',
+    'vac.resume': 'Resume',
+    'vac.cancel': 'Stop',
+    'vac.cleanRoom': 'Clean 1 room',
+    'vac.cleanRooms': 'Clean {n} rooms',
+    'vac.rooms': 'Rooms',
+    'vac.selected': '{n} selected',
+    'vac.consumables': 'Consumables',
+    'vac.due': '{n} due',
+    'vac.since': 'for {t}',
+    'vac.minutes': '{n} min',
+    'vac.area': '{n} m²',
+    'err.needVacuum': 'The entity must come from the "vacuum" domain.',
+    'card.vacuum': 'Onyx Vacuum Card',
+    'card.vacuum.d': 'Battery ring, rooms and consumables',
+    'ed.battery_entity': 'Battery sensor',
+    'ed.show_fan_speed': 'Show fan speeds',
+    'ed.rooms': 'Rooms',
+    'ed.consumables': 'Consumables',
+    'ed.room_command': 'Room command',
+    'ed.id': 'Segment number',
+    'ed.max': 'Full value',
+    'ed.h.battery_entity': 'Leave empty and the card looks for the battery on the same device',
+    'ed.h.room_command': 'Roborock and Xiaomi: app_segment_clean',
+    'ed.h.rooms': 'The segment numbers are listed in the vendor app',
+    'ed.h.consumables': 'Percentage sensors; for hour counters give the full value',
+    'ed.addRoom': 'Room',
     inRoom: '{g} in this room',
     'log.dup': '"{tag}" is already registered — this file ({v}) is being ignored. '
       + 'Most likely two resources are set up: the old one under /local/ and the HACS one '
@@ -2485,6 +2564,496 @@ class OnyxChartCard extends OnyxBase {
   getCardSize() { return 4; }
 }
 
+/* ================================================================== *
+ * 7) SAUGROBOTER-KARTE
+ * ================================================================== */
+
+/** Bits aus supported_features des vacuum */
+const VF = {
+  TURN_ON: 1, TURN_OFF: 2, PAUSE: 4, STOP: 8, RETURN_HOME: 16,
+  FAN_SPEED: 32, BATTERY: 64, STATUS: 128, SEND_COMMAND: 256,
+  LOCATE: 512, CLEAN_SPOT: 1024, MAP: 2048, STATE: 4096, START: 8192
+};
+
+/** Zustände, in denen der Roboter wirklich arbeitet */
+const VAC_BUSY = ['cleaning', 'returning', 'paused', 'error'];
+
+/** Verstrichene Zeit auf Minuten gerundet — sonst zeichnet die Karte sekündlich neu */
+function sinceMin(iso) {
+  const t = Date.parse(iso);
+  if (isNaN(t)) return null;
+  const m = Math.floor((Date.now() - t) / 60000);
+  return m >= 0 && m < 60 * 24 ? m : null;
+}
+
+class OnyxVacuumCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      padding:12px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09);
+      display:flex; flex-direction:column; gap:10px; overflow:hidden;
+      box-shadow:none;
+      background:linear-gradient(to right bottom,
+        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+    }
+    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+
+    .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
+    .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
+
+    /* Der Akkuring: ein Kegelverlauf als Rand um den Symbolkreis, den jede
+       Karte ohnehin hat. Der Akkustand ist die Zahl, die man beim
+       Saugroboter zuerst sucht — deshalb steht sie zweimal da, einmal zum
+       Überfliegen und einmal zum Nachlesen. */
+    .ring{ width:42px; height:42px; border-radius:50%; padding:2.5px; flex:none;
+           background:conic-gradient(var(--acc) calc(var(--b) * 1%),
+                                     rgba(255,255,255,.10) 0); }
+    /* Unter 20 % rot, unabhängig von der Kartenfarbe — ein leerer Akku soll
+       auch auf einer violetten Karte auffallen. */
+    .ring.low{ background:conic-gradient(#ef5f68 calc(var(--b) * 1%),
+                                         rgba(255,255,255,.10) 0); }
+    .ring > .vico{ width:100%; height:100%; border-radius:50%; display:grid;
+                   place-items:center; background:#15181d; color:#8ea3b5;
+                   --mdc-icon-size:19px; }
+    ha-card.warm .ring > .vico{ background:color-mix(in srgb, var(--w1) 82%, #000);
+                                color:var(--acc); }
+    .ring.dead{ opacity:.45; }
+    /* Nicht erreichbar: die ganze Karte tritt zurück und nimmt keine Befehle */
+    ha-card.off{ opacity:.55; }
+    ha-card.off .prim, ha-card.off .gbtn{ cursor:default; }
+    @keyframes onyxspin{ to{ transform:rotate(360deg) } }
+    .ring.run{ animation:onyxspin 3.4s linear infinite; }
+    .ring.run > .vico{ animation:onyxspin 3.4s linear infinite reverse; }
+
+    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
+    ha-card.warm .lab{ color:var(--lab); }
+    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .nm{ color:#e9f1f8; }
+    .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
+    .env .t{ font-size:16px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
+    ha-card.warm .env .t{ color:var(--acc); }
+    .env .h{ font-size:12px; color:#72879a; }
+    ha-card.warm .env .h{ color:var(--sub); }
+
+    .sub{ font-size:12px; line-height:16px; color:#72879a; }
+    ha-card.warm .sub{ color:var(--sub); }
+
+    /* Störung im selben Ton wie die Windsperre der Storen-Karte */
+    .warn{ display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
+           background:rgba(240,172,116,.14); border:1px solid rgba(240,172,116,.28);
+           color:#f0ac74; border-radius:99px; padding:4px 11px; font-size:11.5px;
+           font-weight:500; --mdc-icon-size:13px; }
+
+    /* Bedienreihe. Start und Pause ist die eine Handlung, für die man die
+       Karte öffnet — die bekommt Text, nicht bloss ein Symbol. */
+    .ctl{ display:flex; align-items:center; gap:8px; }
+    .glass{ background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+            -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+            border:1px solid rgba(255,255,255,.11); }
+    .prim{ flex:1; height:40px; border-radius:13px; display:flex; align-items:center;
+           justify-content:center; gap:8px; color:#fff; font-size:13px; font-weight:600;
+           --mdc-icon-size:18px; cursor:pointer;
+           transition:transform .12s ease, background .18s ease; }
+    .prim.on{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 78%, transparent);
+              box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
+                         0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
+    .prim.held{ transform:scale(.97); }
+    .gbtn{ width:40px; height:40px; border-radius:50%; flex:none; display:grid;
+           place-items:center; color:#fff; --mdc-icon-size:18px; cursor:pointer;
+           transition:transform .12s ease, background .18s ease; }
+    .gbtn.dim{ opacity:.38; }
+    .gbtn.held{ transform:scale(.92); }
+
+    /* Saugstufe steht immer sichtbar: vier Stufen durchzutippen wäre lästig,
+       und man will vor dem Starten sehen, worauf sie steht. */
+    .fans{ display:flex; gap:6px; }
+    .fan{ flex:1; height:28px; border-radius:9px; display:grid; place-items:center;
+          font-size:11.5px; color:#8ea3b5; cursor:pointer; padding:0 4px;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+          background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07);
+          transition:background .18s ease; }
+    .fan.on{ background:color-mix(in srgb, var(--btn) 45%, transparent);
+             border-color:color-mix(in srgb, var(--btn) 65%, transparent);
+             color:#fff; font-weight:600; }
+    .fan.held{ opacity:.6; }
+
+    .divide{ height:1px; background:rgba(255,255,255,.09); }
+    .grp{ display:flex; justify-content:space-between; align-items:baseline;
+          font-size:11px; color:#6f8497; }
+    ha-card.warm .grp{ color:var(--lab); }
+    .grp b{ font-weight:600; color:var(--acc); }
+
+    /* Räume: dieselben Kacheln wie die Schnellzugriffe */
+    .rooms{ display:grid; gap:10px; }
+    .rm{ text-align:center; cursor:pointer; }
+    .rm .box{ width:100%; aspect-ratio:1; max-width:70px; margin:0 auto 6px;
+              border-radius:18px; display:grid; place-items:center; color:#c8d8e6;
+              --mdc-icon-size:22px;
+              background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+              -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+              border:1px solid rgba(255,255,255,.11);
+              transition:transform .12s ease, background .18s ease; }
+    .rm.on .box{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                 border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .rm.held .box{ transform:scale(.94); }
+    .rm span{ font-size:10.5px; color:#a8bccd; display:block; line-height:1.3;
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .rm.on span{ color:#fff; }
+
+    /* Verbrauchsteile: dieselben Zeilen wie die Geräteliste der Raumkarte */
+    .rows{ display:flex; flex-direction:column; gap:7px; }
+    .lrow{ position:relative; overflow:hidden; border-radius:12px; height:46px;
+           display:flex; align-items:center; gap:11px; padding:0 12px;
+           background:rgba(255,255,255,.055); cursor:pointer; }
+    .lfill{ position:absolute; left:0; top:0; bottom:0;
+            background:color-mix(in srgb, var(--acc) 22%, transparent); }
+    .lrow > *:not(.lfill){ position:relative; z-index:1; }
+    .lico{ width:30px; height:30px; border-radius:50%; flex:none; display:grid;
+           place-items:center; color:#c8d8e6; --mdc-icon-size:16px;
+           background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+           border:1px solid rgba(255,255,255,.11); }
+    .lname{ flex:1; min-width:0; font-size:13px; font-weight:500; color:#cddceb;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lval{ font-size:12.5px; color:var(--sub); font-variant-numeric:tabular-nums; }
+    .lrow.due .lfill{ background:rgba(239,95,104,.22); }
+    .lrow.due .lval{ color:#f2949a; }
+    .lrow.held{ opacity:.7; }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return { type: 'custom:onyx-vacuum-card', entity: firstEntity(hass, 'vacuum') };
+  }
+
+  setConfig(config) {
+    if (!config.entity) throw new Error(t('err.needEntity'));
+    if (config.entity.split('.')[0] !== 'vacuum') throw new Error(t('err.needVacuum'));
+    this._open = this._open || null;
+    this._picked = this._picked || [];
+    super.setConfig(config);
+  }
+
+  /* --- Akku: Attribut, eigene Entität, sonst der Sensor am selben Gerät --- */
+  _battery(st) {
+    const a = st.attributes.battery_level;
+    if (a != null && !isNaN(a)) return Math.round(Number(a));
+
+    const cfgId = this._config.battery_entity;
+    if (cfgId) {
+      const b = this._hass.states[cfgId];
+      const n = b ? Number(b.state) : NaN;
+      return isNaN(n) ? null : Math.round(n);
+    }
+
+    // Neuere Integrationen führen den Akku als eigenen Sensor. Wir suchen
+    // ihn am selben Gerät statt über Namensraten — das trifft auch dann,
+    // wenn der Sensor ganz anders heisst.
+    const ent = (this._hass.entities || {})[this._config.entity];
+    const dev = ent && ent.device_id;
+    if (!dev) return null;
+    for (const [id, e] of Object.entries(this._hass.entities || {})) {
+      if (e.device_id !== dev || id.split('.')[0] !== 'sensor') continue;
+      const s = this._hass.states[id];
+      if (!s || s.attributes.device_class !== 'battery') continue;
+      const n = Number(s.state);
+      if (!isNaN(n)) return Math.round(n);
+    }
+    return null;
+  }
+
+  _rooms() {
+    return (this._config.rooms || [])
+      .map((r) => (typeof r === 'string' ? { name: r, id: r } : Object.assign({}, r)))
+      .filter((r) => r.id != null && r.id !== '');
+  }
+
+  /** Verbrauchsteile in Prozent. Manche Sensoren melden Prozent, andere Stunden. */
+  _consumables() {
+    const list = normList(this._config.consumables) || [];
+    return list.map((c) => {
+      const st = this._hass.states[c.entity];
+      const unit = st ? (st.attributes.unit_of_measurement || '') : '';
+      let pct = null;
+      if (st && !isDead(st)) {
+        const n = Number(st.state);
+        if (!isNaN(n)) {
+          // Prozentsensoren direkt, Stundensensoren gegen ihren Maximalwert
+          pct = unit === '%' ? n
+            : c.max ? clamp(Math.round((n / c.max) * 100), 0, 100) : null;
+        }
+      }
+      return {
+        id: c.entity,
+        name: c.name || nameOf(this._hass, c.entity),
+        icon: c.icon || (st && st.attributes.icon) || 'mdi:air-filter',
+        pct,
+        raw: st && !isDead(st) ? `${nfmt(Number(st.state), 0)} ${unit}`.trim() : '–',
+        due: pct != null && pct <= 10,
+        dead: !st || isDead(st)
+      };
+    });
+  }
+
+  _model() {
+    const st = this._hass.states[this._config.entity];
+    if (!st) throw new Error(t('err.entity', { id: this._config.entity }));
+    const a = st.attributes;
+    const f = a.supported_features || 0;
+    const state = st.state;
+    const batt = this._battery(st);
+    const rooms = this._rooms();
+    const cons = this._open === 'cons' ? this._consumables() : [];
+
+    // "docked" heisst nicht automatisch voll: unter 100 % wird geladen.
+    const charging = state === 'docked' && batt != null && batt < 100;
+    const busy = VAC_BUSY.includes(state);
+
+    return {
+      id: this._config.entity,
+      name: this._config.name || nameOf(this._hass, this._config.entity),
+      label: this._config.label || t('vac'),
+      icon: this._config.icon || 'mdi:robot-vacuum',
+      color: this._config.color || null,
+      state,
+      dead: isDead(st) && state !== 'idle',
+      batt,
+      charging,
+      busy,
+      minutes: busy ? sinceMin(st.last_changed) : null,
+      area: a.cleaned_area != null ? Math.round(Number(a.cleaned_area)) : null,
+      status: a.status || null,
+      error: state === 'error' ? (a.error || t('vac.errorGeneric')) : null,
+      fan: a.fan_speed || null,
+      fanList: (f & VF.FAN_SPEED) && Array.isArray(a.fan_speed_list)
+        ? a.fan_speed_list : [],
+      can: {
+        start: !!(f & (VF.START | VF.TURN_ON)),
+        pause: !!(f & VF.PAUSE),
+        stop: !!(f & VF.STOP),
+        home: !!(f & VF.RETURN_HOME),
+        locate: !!(f & VF.LOCATE),
+        send: !!(f & VF.SEND_COMMAND)
+      },
+      rooms: rooms.map((r, i) => Object.assign({ i }, r,
+        { on: this._picked.includes(String(r.id)) })),
+      picked: this._picked.length,
+      cons,
+      dueCount: cons.filter((c) => c.due).length,
+      open: this._open,
+      hasRooms: rooms.length > 0,
+      hasCons: (normList(this._config.consumables) || []).length > 0,
+      showFan: this._config.show_fan_speed !== false
+    };
+  }
+
+  /** Zustand in Worte: die Kopfzeile knapp, die Zeile darunter ausführlich */
+  _stateWord(m) {
+    if (m.dead) return t('unavailable');
+    if (m.state === 'cleaning') return t('vac.cleaning');
+    if (m.state === 'paused') return t('vac.paused');
+    if (m.state === 'returning') return t('vac.returning');
+    if (m.state === 'error') return t('vac.stopped');
+    if (m.state === 'docked') return t(m.charging ? 'vac.charging' : 'vac.charged');
+    return t('vac.idle');
+  }
+
+  _summary(m) {
+    const bits = [];
+    if (m.state === 'returning') bits.push(t('vac.toDock'));
+    else if (m.state === 'docked') bits.push(t('vac.docked'));
+    else if (m.status) bits.push(m.status);
+    else bits.push(this._stateWord(m));
+
+    if (m.minutes != null) bits.push(t('vac.since', { t: t('vac.minutes', { n: m.minutes }) }));
+    if (m.area) bits.push(t('vac.area', { n: nfmt(m.area, 0) }));
+    return bits.join(' · ');
+  }
+
+  /** Welcher Knopf wo hinführt, hängt allein am Zustand */
+  _primary(m) {
+    if (m.state === 'cleaning') return { key: 'pause', icon: 'mdi:pause', text: t('vac.pause') };
+    if (m.state === 'paused') return { key: 'start', icon: 'mdi:play', text: t('vac.resume') };
+    if (m.state === 'returning') return { key: 'stop', icon: 'mdi:stop', text: t('vac.cancel') };
+    if (m.picked) {
+      return { key: 'segments', icon: 'mdi:play',
+        text: t(m.picked === 1 ? 'vac.cleanRoom' : 'vac.cleanRooms', { n: m.picked }) };
+    }
+    return { key: 'start', icon: 'mdi:play', text: t('vac.start') };
+  }
+
+  _html(m) {
+    // Eine Störung übersteuert die Kartenfarbe. Ein stehender Roboter, der
+    // in fröhlichem Violett leuchtet, wird übersehen — und genau das ist
+    // die Meldung, die man nicht übersehen darf.
+    const { cls, style } = paletteAttrs(m.error ? 'rot' : m.color);
+    const warm = (m.busy || m.charging) && !m.dead;
+    const p = this._primary(m);
+    const ringCls = [m.batt != null && m.batt < 20 ? 'low' : '',
+      m.state === 'cleaning' ? 'run' : '', m.dead ? 'dead' : ''].join(' ');
+
+    const sections = [];
+    if (m.open === 'rooms' && m.hasRooms) {
+      const cols = Math.min(4, Math.max(2, m.rooms.length));
+      sections.push(`
+        <div class="divide"></div>
+        <div class="grp"><span>${esc(t('vac.rooms'))}</span>
+          <b>${m.picked ? esc(t('vac.selected', { n: m.picked })) : ''}</b></div>
+        <div class="rooms" style="grid-template-columns:repeat(${cols},1fr)">
+          ${m.rooms.map((r) => `
+            <div class="rm ${r.on ? 'on' : ''}" data-room="${esc(r.id)}">
+              <div class="box"><ha-icon icon="${esc(r.icon || 'mdi:floor-plan')}"></ha-icon></div>
+              <span>${esc(r.name)}</span>
+            </div>`).join('')}
+        </div>`);
+    }
+    if (m.open === 'cons' && m.hasCons) {
+      sections.push(`
+        <div class="divide"></div>
+        <div class="grp"><span>${esc(t('vac.consumables'))}</span>
+          <b>${m.dueCount ? esc(t('vac.due', { n: m.dueCount })) : ''}</b></div>
+        <div class="rows">
+          ${m.cons.map((c) => `
+            <div class="lrow ${c.due ? 'due' : ''}" data-cons="${esc(c.id)}">
+              <div class="lfill" style="width:${c.pct == null ? 0 : c.pct}%"></div>
+              <div class="lico"><ha-icon icon="${esc(c.icon)}"></ha-icon></div>
+              <div class="lname">${esc(c.name)}</div>
+              <div class="lval">${c.pct == null ? esc(c.raw) : c.pct + ' %'}</div>
+            </div>`).join('')}
+        </div>`);
+    }
+
+    return `
+    <ha-card class="${(cls + (warm ? ' warm' : '') + (m.dead ? ' off' : '')).trim()}"${style}>
+      <div class="head">
+        <div class="hleft" id="hl">
+          <div class="ring ${ringCls}" style="--b:${m.batt == null ? 0 : m.batt}">
+            <div class="vico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+          </div>
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="nm">${esc(m.name)}</div>
+          </div>
+        </div>
+        <div class="env">
+          <div class="t">${m.batt == null ? '–' : m.batt + ' %'}</div>
+          <div class="h">${esc(this._stateWord(m))}</div>
+        </div>
+      </div>
+
+      ${m.error ? `<div class="warn"><ha-icon icon="mdi:alert-circle-outline"></ha-icon>${esc(m.error)}</div>`
+        : m.dead ? '' : `<div class="sub">${esc(this._summary(m))}</div>`}
+
+      <div class="ctl">
+        <div class="prim glass ${(m.busy || m.picked) && !m.dead ? 'on' : ''}" id="prim">
+          <ha-icon icon="${esc(p.icon)}"></ha-icon>${esc(p.text)}</div>
+        <div class="gbtn glass ${m.state === 'docked' || !m.can.home ? 'dim' : ''}" id="home">
+          <ha-icon icon="mdi:home-import-outline"></ha-icon></div>
+        <div class="gbtn glass ${m.can.locate ? '' : 'dim'}" id="locate">
+          <ha-icon icon="mdi:map-marker"></ha-icon></div>
+      </div>
+
+      ${m.showFan && m.fanList.length && !m.dead ? `
+      <div class="fans">
+        ${m.fanList.map((f) => `
+          <div class="fan ${f === m.fan ? 'on' : ''}" data-fan="${esc(f)}">${esc(f)}</div>`).join('')}
+      </div>` : ''}
+
+      ${sections.join('')}
+    </ha-card>`;
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    const p = this._primary(m);
+
+    // Tippen auf den Kopf blättert durch die eingerichteten Abschnitte,
+    // Halten öffnet das Detailfenster — wie in der Raumkarte.
+    this._press(root.getElementById('hl'), {
+      onTap: () => {
+        const steps = [null];
+        if (m.hasRooms) steps.push('rooms');
+        if (m.hasCons) steps.push('cons');
+        if (steps.length === 1) { fireMoreInfo(this, m.id); return; }
+        const next = steps[(steps.indexOf(this._open) + 1) % steps.length];
+        this._open = next;
+        this._repaint();
+      },
+      onHold: () => fireMoreInfo(this, m.id)
+    });
+
+    this._press(root.getElementById('prim'), {
+      onTap: () => {
+        if (m.dead) return;
+        if (p.key === 'pause') return this.call('vacuum', 'pause', { entity_id: m.id });
+        if (p.key === 'stop') return this.call('vacuum', 'stop', { entity_id: m.id });
+        if (p.key === 'segments') {
+          this.call('vacuum', 'send_command', {
+            entity_id: m.id,
+            command: this._config.room_command || 'app_segment_clean',
+            params: this._picked.map((x) => (isNaN(Number(x)) ? x : Number(x)))
+          });
+          this._picked = [];
+          this._repaint();
+          return;
+        }
+        this.call('vacuum', m.can.start && !m.can.pause ? 'turn_on' : 'start',
+          { entity_id: m.id });
+      },
+      onHold: () => fireMoreInfo(this, m.id)
+    });
+
+    this._press(root.getElementById('home'), {
+      onTap: () => {
+        if (!m.dead && m.can.home) this.call('vacuum', 'return_to_base', { entity_id: m.id });
+      }
+    });
+    this._press(root.getElementById('locate'), {
+      onTap: () => {
+        if (!m.dead && m.can.locate) this.call('vacuum', 'locate', { entity_id: m.id });
+      }
+    });
+
+    root.querySelectorAll('[data-fan]').forEach((el) => {
+      this._press(el, {
+        onTap: () => this.call('vacuum', 'set_fan_speed',
+          { entity_id: m.id, fan_speed: el.dataset.fan })
+      });
+    });
+
+    root.querySelectorAll('[data-room]').forEach((el) => {
+      const id = el.dataset.room;
+      this._press(el, {
+        onTap: () => {
+          const i = this._picked.indexOf(id);
+          if (i < 0) this._picked.push(id); else this._picked.splice(i, 1);
+          this._repaint();
+        },
+        // Halten saugt sofort nur diesen einen Raum
+        onHold: () => {
+          this.call('vacuum', 'send_command', {
+            entity_id: m.id,
+            command: this._config.room_command || 'app_segment_clean',
+            params: [isNaN(Number(id)) ? id : Number(id)]
+          });
+          this._picked = [];
+          this._repaint();
+        }
+      });
+    });
+
+    root.querySelectorAll('[data-cons]').forEach((el) => {
+      this._press(el, { onTap: () => fireMoreInfo(this, el.dataset.cons) });
+    });
+  }
+
+  getCardSize() {
+    return this._open ? 5 : 3;
+  }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -2531,7 +3100,9 @@ function ensureFormLoaded() {
 const ED_HELP_KEY = {
   color: 'ed.h.color', area: 'ed.h.area', navigation_path: 'ed.h.navigation_path',
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
-  entities: 'ed.h.entities', columns: 'ed.h.columns'
+  entities: 'ed.h.entities', columns: 'ed.h.columns',
+  battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
+  consumables: 'ed.h.consumables'
 };
 
 const ED_CSS = `
@@ -3201,6 +3772,157 @@ class OnyxActionsEditor extends OnyxEditor {
 }
 
 /* ------------------------------------------------------------------ *
+ * Saugroboter
+ *
+ * Die Räume brauchen mehr als ein Schema: Name, Segment-Nummer und Symbol
+ * je Zeile, dazu Hinzufügen und Entfernen. Das bauen wir wie bei den
+ * Schnellzugriffen selbst — die Felder bleiben <ha-form>.
+ * ------------------------------------------------------------------ */
+class OnyxVacuumEditor extends OnyxEditor {
+  static get DEFAULTS() { return { show_fan_speed: true, room_command: 'app_segment_clean' }; }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'vacuum'),
+      grid(fieldText('name'), fieldText('label')),
+      grid(fieldIcon('icon'), fieldColor()),
+      fieldEntity('battery_entity', 'sensor'),
+      fieldEntity('consumables', 'sensor', true),
+      grid(fieldText('room_command'), fieldBool('show_fan_speed'))
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      label: c.label || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      battery_entity: c.battery_entity || '',
+      consumables: (normList(c.consumables) || []).map((e) => e.entity),
+      room_command: c.room_command || 'app_segment_clean',
+      show_fan_speed: c.show_fan_speed !== false
+    };
+  }
+
+  _fromForm(data) {
+    const cfg = Object.assign({}, this._config, data);
+    cfg.consumables = mergeList(data.consumables || [], this._config.consumables);
+    cfg.rooms = this._state ? this._packRooms() : this._config.rooms;
+    return cfg;
+  }
+
+  /* --- Räume als eigene Liste --- */
+  _model() {
+    if (!this._state) {
+      this._state = {
+        rooms: (this._config.rooms || []).map((r) => (typeof r === 'string'
+          ? { name: r, id: r, icon: '' }
+          : { name: r.name || '', id: r.id == null ? '' : String(r.id), icon: r.icon || '' }))
+      };
+    }
+    return this._state;
+  }
+
+  _packRooms() {
+    return this._state.rooms
+      .filter((r) => r.id !== '' && r.id != null)
+      .map((r) => {
+        const o = { name: r.name || String(r.id), id: isNaN(Number(r.id)) ? r.id : Number(r.id) };
+        if (r.icon) o.icon = r.icon;
+        return o;
+      });
+  }
+
+  _commit() {
+    const cfg = Object.assign({}, this._config);
+    cfg.rooms = this._packRooms();
+    this._emit(cfg);
+  }
+
+  _roomSchema() {
+    return [grid(fieldText('name'), fieldText('id')), fieldIcon('icon')];
+  }
+
+  _btn(icon, text, onClick, cls) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (cls ? ' ' + cls : '');
+    b.type = 'button';
+    b.innerHTML = `<ha-icon icon="${icon}"></ha-icon>${text ? '<span></span>' : ''}`;
+    if (text) b.querySelector('span').textContent = text;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  _extra(root) {
+    const st = this._model();
+    const sig = 'r' + st.rooms.length;
+
+    if (!this._list) {
+      this._hint = document.createElement('p');
+      this._hint.className = 'hint';
+      root.appendChild(this._hint);
+      this._list = document.createElement('div');
+      this._list.className = 'ed';
+      root.appendChild(this._list);
+    }
+    this._hint.textContent = t('ed.h.rooms');
+
+    if (sig !== this._listSig) {
+      this._listSig = sig;
+      this._forms = [];
+      this._list.textContent = '';
+
+      const box = document.createElement('div');
+      box.className = 'grp';
+      const head = document.createElement('div');
+      head.className = 'sec';
+      head.textContent = t('ed.rooms');
+      box.appendChild(head);
+
+      st.rooms.forEach((_, i) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const rf = this._makeForm((d) => {
+          st.rooms[i] = { name: d.name || '', id: d.id || '', icon: d.icon || '' };
+          this._commit();
+          this._render();
+        });
+        this._forms.push({
+          form: rf,
+          schema: this._roomSchema(),
+          data: () => Object.assign({ name: '', id: '', icon: '' }, st.rooms[i])
+        });
+        row.appendChild(rf);
+        row.appendChild(this._btn('mdi:close', '', () => {
+          st.rooms.splice(i, 1);
+          this._listSig = null;
+          this._commit();
+          this._render();
+        }, 'x'));
+        box.appendChild(row);
+      });
+
+      const adds = document.createElement('div');
+      adds.className = 'adds';
+      adds.appendChild(this._btn('mdi:plus', t('ed.addRoom'), () => {
+        st.rooms.push({ name: '', id: '', icon: '' });
+        this._listSig = null;
+        this._render();
+      }));
+      box.appendChild(adds);
+      this._list.appendChild(box);
+    }
+
+    for (const f of this._forms) {
+      this._fillForm(f.form, f.schema, f.data());
+      f.form.computeLabel = (x) => (x.name ? t('ed.' + x.name) : '');
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Registrierung der Editoren
  * ------------------------------------------------------------------ */
 function defineEditor(tag, cls) {
@@ -3213,6 +3935,7 @@ defineEditor('onyx-cover-card-editor', OnyxCoverEditor);
 defineEditor('onyx-media-card-editor', OnyxMediaEditor);
 defineEditor('onyx-actions-card-editor', OnyxActionsEditor);
 defineEditor('onyx-chart-card-editor', OnyxChartEditor);
+defineEditor('onyx-vacuum-card-editor', OnyxVacuumEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -3223,7 +3946,8 @@ const EDITOR_OF = [
   [OnyxCoverCard, 'onyx-cover-card-editor'],
   [OnyxMediaCard, 'onyx-media-card-editor'],
   [OnyxActionsCard, 'onyx-actions-card-editor'],
-  [OnyxChartCard, 'onyx-chart-card-editor']
+  [OnyxChartCard, 'onyx-chart-card-editor'],
+  [OnyxVacuumCard, 'onyx-vacuum-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -3255,6 +3979,7 @@ defineCard('onyx-cover-card', OnyxCoverCard);
 defineCard('onyx-media-card', OnyxMediaCard);
 defineCard('onyx-actions-card', OnyxActionsCard);
 defineCard('onyx-chart-card', OnyxChartCard);
+defineCard('onyx-vacuum-card', OnyxVacuumCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -3293,10 +4018,16 @@ window.customCards.push(
     name: t('card.chart'),
     description: t('card.chart.d'),
     preview: false
+  },
+  {
+    type: 'onyx-vacuum-card',
+    name: t('card.vacuum'),
+    description: t('card.vacuum.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
-  OnyxMediaCard, OnyxActionsCard, OnyxChartCard
+  OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard
 };

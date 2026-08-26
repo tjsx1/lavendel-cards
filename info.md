@@ -1,6 +1,6 @@
 # Onyx Cards
 
-Sechs Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Sieben Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut. Deutsch und Englisch, je nach
 Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 
@@ -10,8 +10,9 @@ Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 - **Media-Karte** — Cover als Hintergrund, schrumpft wenn nichts läuft
 - **Schnellzugriffe** — Szenen, Skripte und Automationen in vier Formen
 - **Diagramm-Karte** — bis zu drei Messwerte, einer davon als Verlauf
+- **Saugroboter-Karte** — Akkuring, Raumauswahl, Verbrauchsteile
 
-Alle sechs sind über den visuellen Editor einzurichten.
+Alle sind über den visuellen Editor einzurichten.
 
 Nach dem Herunterladen Home Assistant neu starten und den Browser hart neu laden.
 Das mitgelieferte Theme `onyx.yaml` gehört nach `/config/themes/`.

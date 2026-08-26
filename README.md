@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Sechs Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Sieben Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -18,6 +18,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
 | `onyx-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
 | `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
+| `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 
 ## Installation über HACS
 
@@ -355,7 +356,7 @@ sie auf die Historie zurück.
 
 ## Visueller Editor
 
-Alle sechs Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
+Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
 **Karte hinzufügen** oder beim Klick auf den Stift öffnet sich ein Formular statt der
 YAML — mit Entitäten-Picker, Bereichs-Picker, Symbolwahl und Farbliste.
 
@@ -408,6 +409,71 @@ above, but every key has the English form shown here.
 Adding a language means adding one more block to `STRINGS` at the top of
 `onyx-cards.js` — 123 keys. Pull requests welcome.
 
+### onyx-vacuum-card
+
+```yaml
+type: custom:onyx-vacuum-card
+entity: vacuum.roborock
+color: violett
+consumables:
+  - entity: sensor.roborock_filter_left
+    name: Filter
+    icon: mdi:air-filter
+  - entity: sensor.roborock_main_brush_left
+    name: Hauptbürste
+    icon: mdi:brush
+rooms:
+  - { name: Wohnen, id: 16, icon: mdi:sofa }
+  - { name: Küche, id: 17, icon: mdi:silverware-fork-knife }
+  - { name: Bad, id: 18, icon: mdi:shower }
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entity` | — | Pflicht. Muss aus der Domäne `vacuum` kommen |
+| `name` | Gerätename | Überschrift |
+| `label` | Saugroboter | Die kleine Zeile darüber |
+| `icon` | `mdi:robot-vacuum` | Symbol im Ring |
+| `color` | blau | Kartenfarbe, gleiche Werte wie bei der Raum-Karte |
+| `battery_entity` | wird gesucht | Eigener Akku-Sensor, falls die Entität keinen `battery_level` hat |
+| `rooms` | — | Liste aus `{name, id, icon}`. `id` ist die Segment-Nummer des Herstellers |
+| `room_command` | `app_segment_clean` | Der Befehl, den `vacuum.send_command` bekommt |
+| `consumables` | — | Sensoren für Filter, Bürsten, Wischtuch |
+| `show_fan_speed` | `true` | Blendet die Stufenreihe aus |
+
+**Der Akkuring.** Der Symbolkreis oben links trägt den Akkustand als Kegelverlauf.
+Damit steht die Zahl zweimal da: als Ring zum Überfliegen, als Prozentwert zum
+Nachlesen. **Unter 20 % wird der Ring rot**, unabhängig von der Kartenfarbe — ein
+leerer Akku soll auch auf einer violetten Karte auffallen. Während des Saugens dreht
+er sich langsam.
+
+Den Akkustand holt die Karte aus dem Attribut `battery_level`. Neuere Integrationen
+führen ihn als eigenen Sensor; dann sucht die Karte am selben Gerät nach einem Sensor
+mit `device_class: battery`. Findet sie den nicht, hilft `battery_entity`.
+
+**Der Hauptknopf** wechselt mit dem Zustand: Starten → Pause → Weiter → Abbrechen.
+Sind Räume ausgewählt, wird er zu „2 Räume saugen".
+
+**Eine Störung übersteuert die Kartenfarbe** und färbt alles rot, mit dem Fehlertext
+in derselben Pille wie die Windsperre der Storen-Karte. Ein stehender Roboter, der in
+fröhlichem Violett leuchtet, wird übersehen.
+
+**Bedienung.** Tippen auf den Kopf blättert durch Räume und Verbrauchsteile, Halten
+öffnet das Detailfenster. Tippen auf eine Raumkachel wählt aus, **Halten saugt sofort
+nur diesen Raum**. Tippen auf eine Stufe setzt sie.
+
+**Räume sind herstellerabhängig.** Home Assistant hat dafür keine einheitliche
+Schnittstelle; die Karte schickt `vacuum.send_command` mit `app_segment_clean` und den
+Nummern als Parameter. Das passt für Roborock und Xiaomi. Verlangt dein Modell etwas
+anderes, ändert `room_command` den Befehl. Ohne `rooms:` entfällt der ganze Block.
+
+Die **Segment-Nummern** stehen nicht in Home Assistant, sondern in der App des
+Herstellers — bei Roborock in der Kartenverwaltung, wenn man einen Raum antippt.
+
+**Verbrauchsteile** in Prozent werden direkt gezeichnet. Zählt dein Sensor
+Reststunden, gib mit `max:` den vollen Wert an, dann rechnet die Karte um. Unter 10 %
+wird die Zeile rot.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -416,7 +482,7 @@ Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann Bereichs-IDs und Entit�
 
 ## Was noch fehlt
 
-Alle sechs Karten tragen jetzt dasselbe dunkle Design.
+Alle Karten tragen dasselbe dunkle Design.
 
 Noch nicht gebaut: Klima-Ring, Energie-Card und die Statusleiste.
 
@@ -500,6 +566,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.1.0** — Neue Saugroboter-Karte mit Akkuring, Raumauswahl und Verbrauchsteilen
 **2.0.0** — Umbenannt: `lavendel-…` heisst jetzt `onyx-…`. Kein Rückwärtsbetrieb, siehe [Umstieg](#umstieg-von-lavendel-cards)
 **1.5.0** — Zweisprachig: Texte, Zahlen- und Zeitformat folgen den Einstellungen von Home Assistant
 **1.4.0** — Diagramm-Karte: weiche Linie ohne Überschwinger, Rauschen wird zusammengefasst
