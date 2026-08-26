@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Elf Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Zwölf Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -25,6 +25,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-light-card` | Licht als eine Zeile; Regler, Farbrad und Effekte klappen aus |
 | `onyx-camera-card` | Kamera mit Livebild, Bewegung, Licht und Türöffner |
 | `onyx-lock-card` | Schloss: schieben zum Entriegeln, mit Tür- und Akkustand |
+| `onyx-status-card` | Mehrere Zustände in einer Karte, aus Bausteinen und Vorlagen |
 
 ## Installation über HACS
 
@@ -685,6 +686,81 @@ spannen, einmal auslösen, nach drei Sekunden ist er wieder entspannt.
 **Während geschlossen oder geöffnet wird** verschwindet die Bedienung und die
 Karte zeigt nur „Verriegelt …". Das Schloss pulsiert dabei leise.
 
+### onyx-status-card
+
+![Status-Karte mit Kopf, Zeilen und Chips](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/status-card.png)
+
+Mehrere Zustände in einer Karte — statt einer Markdown-Karte voller Emoji-Zeilen.
+Oben steht gross, was am meisten zählt, darunter je eine schmale Zeile pro Sache,
+ganz unten die Kleinigkeiten als Chips. **Was nichts zu melden hat, fällt weg**:
+die Karte wird kürzer statt leerer.
+
+```yaml
+type: custom:onyx-status-card
+title: Haus
+head:
+  module: presence
+  people: [person.tobias_jordi, person.sarah_jordi]
+rows:
+  - module: vacuum
+    entity: vacuum.x50_master
+    room: sensor.x50_master_current_room
+    done: input_boolean.haus_geputzt_heute
+  - module: mower
+    entity: lawn_mower.goat
+  - module: car
+    name: Skoda
+    entity: sensor.skoda_enyaq_batteriestand
+    charging: sensor.skoda_enyaq_ladestatus
+    power: sensor.skoda_enyaq_ladeleistung
+    remaining: sensor.skoda_enyaq_verbleibende_ladezeit
+    cable: binary_sensor.skoda_enyaq_ladekabel
+    climate: climate.skoda_enyaq_klimaanlage
+chips:
+  - entity: input_boolean.wachtermodus
+    name: Wächtermodus
+    icon: mdi:shield-home
+    color: gelb
+    hide: '{{ is_state("input_boolean.wachtermodus","off") }}'
+  - name: >-
+      {{ "Privatmodus" if is_state("input_boolean.storen_manuell_ost","on")
+         else states("input_select.storen_ost") }}
+    icon: mdi:weather-sunny
+    color: gelb
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `head` | — | Ein Eintrag, der gross oben steht |
+| `rows` | — | Die schmalen Zeilen darunter |
+| `chips` | — | Kleinigkeiten als Pillen ganz unten |
+| `title` | — | Überschrift; ohne Titel entfällt der Kopf |
+| `subtitle` | „x Meldungen" | Eigener Text, oder `false` zum Ausblenden |
+| `color` | `blau` | Palette der Karte, wie bei der Raum-Karte |
+
+**Bausteine für das Bekannte.** Ein Eintrag mit `module:` weiss selbst, was er zeigt:
+
+| `module` | Braucht | Zeigt |
+|---|---|---|
+| `presence` | `people: [person.…]` | Wer da ist, mit einem Köpfchen je Person |
+| `vacuum` | `entity`, optional `room`, `done` | Putzt (mit Fortschritt), kehrt zurück, pausiert, klemmt, heute geputzt |
+| `mower` | `entity` | Mäht, kehrt zurück, pausiert, klemmt — angedockt fällt die Zeile weg |
+| `car` | `entity` (Akku), optional `charging`, `power`, `remaining`, `cable`, `climate` | Ladestand als Balken, dazu Ladeleistung, Restzeit, Kabel, Klima |
+
+**Vorlagen für alles Übrige.** Jedes der Felder `name`, `detail`, `value`, `percent`,
+`icon`, `color` und `hide` darf statt eines festen Werts eine Jinja-Vorlage sein. Die
+Karte lässt sie von Home Assistant rendern und zeichnet nur — dieselbe Technik, die
+auch hinter der Markdown-Karte steckt. Ist das Ergebnis von `hide` wahr, verschwindet
+der Eintrag. Was in der Konfiguration steht, schlägt dabei immer den Baustein: ein
+eigenes `name:` an einem `module: vacuum` gewinnt.
+
+**Eine Störung wandert nach oben.** Klemmt der Staubsauger oder der Mäher, rückt seine
+Zeile in den Kopf und färbt ihn rot; was vorher im Kopf stand, rutscht als erste Zeile
+nach unten. Man muss nicht suchen, was los ist.
+
+**Ein Tipp auf eine Zeile** öffnet das Detailfenster der Entität dahinter — bei Zeilen
+aus reinen Vorlagen, die keine Entität nennen, passiert nichts.
+
 ## Visueller Editor
 
 Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
@@ -832,6 +908,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.14.0** — Neue Status-Karte: Kopf, Zeilen und Chips aus Bausteinen und Jinja-Vorlagen
 **2.13.0** — Chips als Pillen mit eigener Farbe je Aktion, vier Bauarten über `chip_style`
 **2.12.0** — Neue Schloss-Karte: schieben zum Entriegeln, Zustandsfarbe, Riegel-Knopf
 **2.11.0** — Raum-Karte bleibt auch im Ruhezustand in ihrer Farbe, nur gedämpft

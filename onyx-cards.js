@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.13.0
+ * Version 2.14.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -14,6 +14,7 @@
  *   custom:onyx-light-card   – Licht als eine Zeile, ausklappbar
  *   custom:onyx-camera-card  – Kamera mit Livebild, Bewegung und Türöffner
  *   custom:onyx-lock-card    – Schloss: schieben zum Entriegeln
+ *   custom:onyx-status-card  – mehrere Zustände in einer Karte
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -150,6 +151,28 @@ const STRINGS = {
     'ed.h.show_open': 'Nur bei Schlössern, die den Riegel selbst zurückziehen können',
     'ed.h.door_entity_lock': 'Ein binary_sensor an der Tür; zeigt offen oder zu',
     'ed.h.lockColor': 'Ohne eigene Farbe färbt sich die Karte nach dem Zustand: grün verriegelt, orange entriegelt, rot klemmt.',
+    st: 'Status',
+    'st.home': 'Zuhause',
+    'st.allHome': 'alle da',
+    'st.nobody': 'niemand da',
+    'st.cleaning': 'putzt',
+    'st.cleanedToday': 'heute geputzt',
+    'st.notYetCleaned': 'heute noch nicht geputzt',
+    'st.mowing': 'mäht gerade',
+    'st.charging': 'lädt',
+    'st.stillMin': 'noch {n} Min',
+    'st.pluggedIn': 'angesteckt',
+    'st.climateOn': 'Klima läuft',
+    'st.quiet': 'Nichts zu melden',
+    'st.nMessages': '{n} Meldungen',
+    'err.needRows': 'Bitte "rows:", "chips:" oder "head:" angeben.',
+    'card.status': 'Onyx Status-Karte',
+    'card.status.d': 'Mehrere Zustände in einer Karte, mit Bausteinen und Vorlagen',
+    'log.template': 'Vorlage liess sich nicht auswerten:',
+    'ed.rows': 'Zeilen',
+    'ed.chips': 'Chips',
+    'ed.h.status': 'Zeilen, Chips und der Kopf werden im Code-Editor gepflegt — '
+      + 'Bausteine mit module:, alles Übrige mit Vorlagen.',
     'card.weather': 'Onyx Wetter-Karte',
     'card.weather.d': 'Gezeichnete Wetterszene, Messwerte und Vorhersage',
     'ed.forecast': 'Vorhersage',
@@ -429,6 +452,28 @@ const STRINGS = {
     'ed.h.show_open': 'Only for locks that can pull back the latch themselves',
     'ed.h.door_entity_lock': 'A binary_sensor on the door; shows open or closed',
     'ed.h.lockColor': 'Without a color of your own the card follows the state: green locked, orange unlocked, red jammed.',
+    st: 'Status',
+    'st.home': 'Home',
+    'st.allHome': 'everyone in',
+    'st.nobody': 'nobody in',
+    'st.cleaning': 'cleaning',
+    'st.cleanedToday': 'cleaned today',
+    'st.notYetCleaned': 'not cleaned yet today',
+    'st.mowing': 'mowing',
+    'st.charging': 'charging',
+    'st.stillMin': '{n} min left',
+    'st.pluggedIn': 'plugged in',
+    'st.climateOn': 'climate running',
+    'st.quiet': 'Nothing to report',
+    'st.nMessages': '{n} messages',
+    'err.needRows': 'Please set "rows:", "chips:" or "head:".',
+    'card.status': 'Onyx Status Card',
+    'card.status.d': 'Several states in one card, from modules and templates',
+    'log.template': 'Could not render the template:',
+    'ed.rows': 'Rows',
+    'ed.chips': 'Chips',
+    'ed.h.status': 'Rows, chips and the head are edited in the code editor — '
+      + 'modules with module:, everything else with templates.',
     'card.weather': 'Onyx Weather Card',
     'card.weather.d': 'Drawn weather scene, readings and forecast',
     'ed.forecast': 'Forecast',
@@ -5229,6 +5274,479 @@ class OnyxLockCard extends OnyxBase {
   getCardSize() { return this._config.show_open === false ? 5 : 6; }
 }
 
+/* ================================================================== *
+ * 12) STATUS-KARTE
+ * ================================================================== */
+
+/** Sieht eine Angabe nach Jinja aus? */
+const isTpl = (v) => typeof v === 'string' && (v.indexOf('{{') >= 0 || v.indexOf('{%') >= 0);
+
+/** Die Felder eines Eintrags, die eine Vorlage sein dürfen */
+const ST_FIELDS = ['name', 'detail', 'value', 'percent', 'icon', 'color', 'hide'];
+
+/** Vorgegebene Farben der Bausteine */
+const ST_C = {
+  gruen: '#7fe0ab', blau: '#4fb0f0', gelb: '#f0b429', violett: '#9b7bf5',
+  rot: '#ef5f68', grau: '#8ea3b5', orange: '#f0913c', indigo: '#6b7cf5'
+};
+
+/**
+ * Aus einem Text ein Kürzel machen: "Tobias Jordi" → "T". Für die
+ * Köpfchen der Anwesenheit, wo kein Platz für Namen ist.
+ */
+const initial = (s) => String(s || '?').trim().charAt(0).toUpperCase();
+
+class OnyxStatusCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      padding:14px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09); box-shadow:none; overflow:hidden;
+      container-type:inline-size;
+      background:linear-gradient(to right bottom,
+        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+    }
+    /* Auf einer halben Spalte drängen die Köpfchen den Namen aus dem
+       Kopf heraus. Dass jemand da ist, sagt dort die Farbe. */
+    @container (max-width: 240px){
+      .head{ padding:10px; gap:10px; }
+      .head .i{ width:34px; height:34px; --mdc-icon-size:19px; }
+      .head .who{ display:none; }
+      .head .n{ font-size:13.5px; }
+      .r .who{ display:none; }
+    }
+    .ftitle{ font-size:15px; font-weight:600; color:#dbe6f0; }
+    .fsub{ font-size:11.5px; color:#6f8497; }
+    .fhead{ margin-bottom:12px; }
+
+    /* Der Kopf: was gerade am meisten zählt, oder eine Störung */
+    .head{ display:flex; align-items:center; gap:12px; padding:12px;
+           border-radius:18px; margin-bottom:11px; cursor:pointer;
+           background:color-mix(in srgb, var(--t) 14%, transparent);
+           border:1px solid color-mix(in srgb, var(--t) 24%, transparent); }
+    .head .i{ width:40px; height:40px; border-radius:13px; flex:none; display:grid;
+              place-items:center; --mdc-icon-size:22px; color:#fff;
+              background:color-mix(in srgb, var(--t) 40%, transparent); }
+    .head .tx{ flex:1; min-width:0; }
+    .head .n{ font-size:15px; font-weight:600; color:#fff; line-height:20px;
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .head .d{ font-size:12px; color:rgba(255,255,255,.68);
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .head .v{ font-size:15px; font-weight:700; color:#fff; flex:none;
+              font-variant-numeric:tabular-nums; }
+
+    /* Die Zeilen darunter */
+    .rows{ display:flex; flex-direction:column; }
+    .r{ display:flex; align-items:center; gap:10px; min-height:34px;
+        padding:3px 0; cursor:pointer; }
+    .r .i{ width:26px; height:26px; border-radius:8px; flex:none; display:grid;
+           place-items:center; --mdc-icon-size:15px; color:var(--t);
+           background:color-mix(in srgb, var(--t) 18%, transparent); }
+    .r .tx{ flex:1; min-width:0; }
+    .r .n{ font-size:12.5px; color:#c3ccd6; line-height:16px;
+           overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .r .d{ font-size:11px; color:#6f8497; line-height:14px;
+           overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .r .v{ font-size:12.5px; font-weight:600; color:var(--t); flex:none;
+           font-variant-numeric:tabular-nums; }
+    .r .bar{ height:3px; border-radius:99px; background:rgba(255,255,255,.09);
+             margin-top:5px; overflow:hidden; }
+    .r .bar i{ display:block; height:100%; border-radius:99px; background:var(--t);
+               transition:width .3s ease; }
+
+    /* Köpfchen für die Anwesenheit */
+    .who{ display:flex; gap:5px; flex:none; }
+    .who span{ width:26px; height:26px; border-radius:50%; display:grid;
+               place-items:center; font-size:10.5px; font-weight:700; color:#0b0d10;
+               background:var(--t); }
+    .who span.weg{ background:rgba(255,255,255,.08); color:#66798a; }
+
+    .divide{ height:1px; background:rgba(255,255,255,.07); margin:9px 0; }
+    .chips{ display:flex; gap:6px; flex-wrap:wrap; }
+    .chip{ display:flex; align-items:center; gap:6px; height:30px; padding:0 11px 0 7px;
+           border-radius:99px; font-size:11.5px; font-weight:600; color:#c3ccd6;
+           cursor:pointer; --mdc-icon-size:14px; min-width:0; max-width:100%;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+           transition:transform .12s ease; }
+    .chip .ci{ color:var(--t); display:grid; place-items:center; flex:none; }
+    .chip .cl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .chip.held, .r.held, .head.held{ transform:scale(.98); }
+    .empty{ font-size:12.5px; color:#6f8497; text-align:center; padding:10px 0; }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    const p = firstEntity(hass, 'person');
+    return {
+      type: 'custom:onyx-status-card',
+      title: t('st'),
+      head: p ? { module: 'presence', people: [p] } : undefined,
+      rows: [{ entity: firstEntity(hass, ['vacuum', 'light']) }]
+    };
+  }
+
+  setConfig(config) {
+    const rows = config.rows || [];
+    const chips = config.chips || [];
+    if (!config.head && !rows.length && !chips.length) {
+      throw new Error(t('err.needRows'));
+    }
+    super.setConfig(config);
+    // Die Vorlagen stehen fest, sobald die Konfiguration steht — also
+    // hier einsammeln und nicht bei jedem Zustandswechsel neu.
+    this._collectTemplates();
+    if (this._hass) this._subscribe();
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this._hass && this._tplList && this._tplList.length && !this._subs) this._subscribe();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._unsubscribe();
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    super.hass = hass;
+    if (first) this._subscribe();
+  }
+  get hass() { return this._hass; }
+
+  /** Alle Felder durchgehen und merken, welche eine Vorlage sind */
+  _collectTemplates() {
+    const list = [];
+    const walk = (entry, prefix) => {
+      if (!entry || typeof entry !== 'object') return;
+      for (const f of ST_FIELDS) {
+        if (isTpl(entry[f])) list.push({ key: prefix + ':' + f, template: entry[f] });
+      }
+    };
+    walk(this._config.head, 'h');
+    (this._config.rows || []).forEach((e, i) => walk(e, 'r' + i));
+    (this._config.chips || []).forEach((e, i) => walk(e, 'c' + i));
+    this._tplList = list;
+    this._tpl = {};
+  }
+
+  _subscribe() {
+    this._unsubscribe();
+    const conn = this._hass && this._hass.connection;
+    if (!conn || !conn.subscribeMessage || !this._tplList.length) return;
+    this._subs = this._tplList.map(({ key, template }) =>
+      conn.subscribeMessage(
+        (msg) => {
+          const v = msg && msg.result != null ? String(msg.result) : '';
+          if (this._tpl[key] === v) return;
+          this._tpl[key] = v;
+          this._repaint();
+        },
+        { type: 'render_template', template, report_errors: false }
+      ).catch((err) => {
+        console.warn('[onyx-cards] ' + t('log.template'), template, err);
+        return null;
+      }));
+  }
+
+  _unsubscribe() {
+    if (!this._subs) return;
+    for (const p of this._subs) {
+      Promise.resolve(p).then((u) => { if (typeof u === 'function') u(); }).catch(() => {});
+    }
+    this._subs = null;
+  }
+
+  /** Ein Feld auflösen: Vorlage, fester Text oder nichts */
+  _field(entry, field, key) {
+    const raw = entry[field];
+    if (raw == null) return null;
+    if (isTpl(raw)) {
+      const v = this._tpl[key + ':' + field];
+      return v == null ? null : v;
+    }
+    return String(raw);
+  }
+
+  /* ---------------- Bausteine ---------------- */
+
+  _modPresence(e) {
+    const hass = this._hass;
+    const ids = (e.people || []).filter(Boolean);
+    const heim = ids.filter((id) => {
+      const st = hass.states[id];
+      return st && st.state === 'home';
+    });
+    const namen = heim.map((id) => nameOf(hass, id).split(' ')[0]);
+    const detail = !ids.length ? ''
+      : heim.length === ids.length && ids.length > 1 ? t('st.allHome')
+      : heim.length ? namen.join(', ')
+      : t('st.nobody');
+    return {
+      icon: heim.length ? 'mdi:home-account' : 'mdi:home-export-outline',
+      name: e.name || t('st.home'),
+      detail,
+      color: heim.length ? ST_C.gruen : ST_C.grau,
+      who: ids.map((id) => ({
+        k: initial(nameOf(hass, id)),
+        da: !!(hass.states[id] && hass.states[id].state === 'home')
+      })),
+      id: ids[0] || null
+    };
+  }
+
+  _modVacuum(e) {
+    const hass = this._hass;
+    const st = hass.states[e.entity];
+    if (!st) return null;
+    const s = st.state;
+    const room = e.room && hass.states[e.room] ? hass.states[e.room].state : '';
+    const raum = ['unknown', 'unavailable', ''].includes(room) ? '' : room;
+    const pct = st.attributes.cleaning_progress;
+    const done = e.done && isOn(hass.states[e.done]);
+    const name = e.name || nameOf(hass, e.entity);
+
+    if (s === 'error') {
+      return { icon: 'mdi:alert', name, detail: st.attributes.error || t('vac.error'),
+        color: ST_C.rot, alarm: true, id: e.entity };
+    }
+    if (s === 'cleaning') {
+      return { icon: 'mdi:robot-vacuum', name,
+        detail: t('st.cleaning') + (raum ? ' · ' + raum : ''),
+        color: ST_C.violett, percent: pct == null ? null : Number(pct),
+        value: pct == null ? '' : nfmt(Number(pct), 0) + ' %', id: e.entity };
+    }
+    if (s === 'returning') {
+      return { icon: 'mdi:robot-vacuum', name, detail: t('vac.returning'),
+        color: ST_C.violett, id: e.entity };
+    }
+    if (s === 'paused') {
+      return { icon: 'mdi:robot-vacuum', name, detail: t('vac.paused'),
+        color: ST_C.orange, id: e.entity };
+    }
+    if (done) {
+      return { icon: 'mdi:check-circle', name, detail: t('st.cleanedToday'),
+        color: ST_C.gruen, id: e.entity };
+    }
+    return { icon: 'mdi:robot-vacuum', name, detail: t('st.notYetCleaned'),
+      color: ST_C.grau, id: e.entity };
+  }
+
+  _modMower(e) {
+    const hass = this._hass;
+    const st = hass.states[e.entity];
+    if (!st) return null;
+    const s = st.state;
+    const name = e.name || nameOf(hass, e.entity);
+    if (s === 'error') {
+      return { icon: 'mdi:alert', name, detail: t('vac.error'),
+        color: ST_C.rot, alarm: true, id: e.entity };
+    }
+    if (s === 'mowing') {
+      return { icon: 'mdi:robot-mower', name, detail: t('st.mowing'),
+        color: ST_C.gruen, id: e.entity };
+    }
+    if (s === 'returning') {
+      return { icon: 'mdi:robot-mower', name, detail: t('vac.returning'),
+        color: ST_C.gruen, id: e.entity };
+    }
+    if (s === 'paused') {
+      return { icon: 'mdi:robot-mower', name, detail: t('vac.paused'),
+        color: ST_C.orange, id: e.entity };
+    }
+    // Angedockt hat nichts zu melden — die Zeile fällt weg
+    return null;
+  }
+
+  _modCar(e) {
+    const hass = this._hass;
+    const st = hass.states[e.entity];
+    if (!st) return null;
+    const num = (id) => {
+      const s = id && hass.states[id];
+      if (!s || isDead(s)) return null;
+      const n = Number(s.state);
+      return isNaN(n) ? null : n;
+    };
+    const bat = num(e.entity);
+    const laedt = e.charging && hass.states[e.charging]
+      && hass.states[e.charging].state === 'charging';
+    const kabel = e.cable && isOn(hass.states[e.cable]);
+    const klima = e.climate && hass.states[e.climate]
+      && !['off', 'unavailable', 'unknown'].includes(hass.states[e.climate].state);
+
+    const bits = [];
+    if (laedt) {
+      const kw = num(e.power), min = num(e.remaining);
+      let s = t('st.charging');
+      if (kw != null) s += ' · ' + nfmt(kw, kw % 1 ? 1 : 0) + ' kW';
+      if (min != null) s += ' · ' + t('st.stillMin', { n: nfmt(min, 0) });
+      bits.push(s);
+    } else if (kabel) {
+      bits.push(t('st.pluggedIn'));
+    }
+    if (klima) bits.push(t('st.climateOn'));
+
+    return {
+      icon: laedt ? 'mdi:battery-charging' : 'mdi:car-electric',
+      name: e.name || nameOf(hass, e.entity),
+      detail: bits.join(' · '),
+      color: laedt ? ST_C.gruen : ST_C.blau,
+      percent: bat, value: bat == null ? '' : nfmt(bat, 0) + ' %',
+      id: e.entity
+    };
+  }
+
+  /** Ein einfacher Eintrag: Entität, Vorlagen, oder beides gemischt */
+  _plain(e, key) {
+    const hass = this._hass;
+    const st = e.entity ? hass.states[e.entity] : null;
+    const name = this._field(e, 'name', key)
+      || (e.entity ? nameOf(hass, e.entity) : '');
+    let detail = this._field(e, 'detail', key);
+    if (detail == null && st) detail = st.state;
+    const pctRaw = this._field(e, 'percent', key);
+    const pct = pctRaw == null || pctRaw === '' ? null : Number(pctRaw);
+    const col = this._field(e, 'color', key);
+    return {
+      icon: this._field(e, 'icon', key)
+        || (st && st.attributes.icon) || 'mdi:information-outline',
+      name,
+      detail: detail || '',
+      value: this._field(e, 'value', key) || '',
+      percent: pct == null || isNaN(pct) ? null : pct,
+      color: (col && (ST_C[col] || col)) || (st && isOn(st) ? ST_C.blau : ST_C.grau),
+      id: e.entity || null
+    };
+  }
+
+  /**
+   * Ein Eintrag wird zur Zeile — oder zu nichts. Weggelassen wird, was
+   * ein `hide` wahr macht, was ein Baustein für unnötig hält, und was
+   * ohne Entität und ohne Text dasteht.
+   */
+  _entry(e, key) {
+    if (!e) return null;
+    const hide = this._field(e, 'hide', key);
+    if (hide != null && ['true', 'True', 'on', '1'].includes(hide.trim())) return null;
+
+    let out = null;
+    if (e.module === 'presence') out = this._modPresence(e);
+    else if (e.module === 'vacuum') out = this._modVacuum(e);
+    else if (e.module === 'mower') out = this._modMower(e);
+    else if (e.module === 'car') out = this._modCar(e);
+    else out = this._plain(e, key);
+    if (!out) return null;
+
+    // Was ausdrücklich in der Konfiguration steht, schlägt den Baustein
+    for (const f of ['name', 'detail', 'value', 'icon']) {
+      const v = this._field(e, f, key);
+      if (v != null && v !== '') out[f] = v;
+    }
+    const col = this._field(e, 'color', key);
+    if (col) out.color = ST_C[col] || col;
+
+    if (!out.name && !out.detail) return null;
+    return out;
+  }
+
+  _model() {
+    const cfg = this._config;
+    const rows = (cfg.rows || []).map((e, i) => this._entry(e, 'r' + i)).filter(Boolean);
+    const chips = (cfg.chips || []).map((e, i) => this._entry(e, 'c' + i)).filter(Boolean);
+    let head = cfg.head ? this._entry(cfg.head, 'h') : null;
+
+    // Eine Störung ist wichtiger als alles andere und wandert nach oben
+    const alarmAt = rows.findIndex((r) => r.alarm);
+    if (alarmAt >= 0) {
+      const [alarm] = rows.splice(alarmAt, 1);
+      if (head) rows.unshift(head);
+      head = alarm;
+    }
+
+    // Über einer leeren Karte steht keine Zeile "0 Meldungen"
+    const n = rows.length + chips.length + (head ? 1 : 0);
+    return {
+      title: cfg.title || null,
+      subtitle: cfg.subtitle === false ? null
+        : (cfg.subtitle || (n ? t('st.nMessages', { n }) : null)),
+      head, rows, chips
+    };
+  }
+
+  _who(o) {
+    if (!o.who || !o.who.length) return '';
+    return `<span class="who">${o.who.map((w) => `
+      <span class="${w.da ? '' : 'weg'}">${esc(w.k)}</span>`).join('')}</span>`;
+  }
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(this._config.color || null);
+
+    const head = m.head ? `
+      <div class="head" style="--t:${esc(m.head.color)}" data-e="${esc(m.head.id || '')}">
+        <span class="i"><ha-icon icon="${esc(m.head.icon)}"></ha-icon></span>
+        <span class="tx">
+          <div class="n">${esc(m.head.name)}</div>
+          ${m.head.detail ? `<div class="d">${esc(m.head.detail)}</div>` : ''}
+        </span>
+        ${this._who(m.head) || (m.head.value ? `<span class="v">${esc(m.head.value)}</span>` : '')}
+      </div>` : '';
+
+    const rows = m.rows.map((r) => `
+      <div class="r" style="--t:${esc(r.color)}" data-e="${esc(r.id || '')}">
+        <span class="i"><ha-icon icon="${esc(r.icon)}"></ha-icon></span>
+        <span class="tx">
+          <div class="n">${esc(r.name)}${r.detail ? ' · ' + esc(r.detail) : ''}</div>
+          ${r.percent != null
+            ? `<div class="bar"><i style="width:${clamp(r.percent, 0, 100)}%"></i></div>` : ''}
+        </span>
+        ${this._who(r) || (r.value ? `<span class="v">${esc(r.value)}</span>` : '')}
+      </div>`).join('');
+
+    const chips = m.chips.length ? `
+      ${m.rows.length || head ? '<div class="divide"></div>' : ''}
+      <div class="chips">
+        ${m.chips.map((c) => `
+          <span class="chip" style="--t:${esc(c.color)}" data-e="${esc(c.id || '')}">
+            <i class="ci"><ha-icon icon="${esc(c.icon)}"></ha-icon></i
+            ><span class="cl">${esc(c.name)}</span>
+          </span>`).join('')}
+      </div>` : '';
+
+    const title = m.title ? `
+      <div class="fhead">
+        <div class="ftitle">${esc(m.title)}</div>
+        ${m.subtitle ? `<div class="fsub">${esc(m.subtitle)}</div>` : ''}
+      </div>` : '';
+
+    const leer = !head && !m.rows.length && !m.chips.length
+      ? `<div class="empty">${esc(t('st.quiet'))}</div>` : '';
+
+    return `<ha-card class="${cls.trim()}"${style}>
+      ${title}${head}<div class="rows">${rows}</div>${chips}${leer}
+    </ha-card>`;
+  }
+
+  _bind() {
+    this.shadowRoot.querySelectorAll('[data-e]').forEach((el) => {
+      const id = el.dataset.e;
+      if (!id) return;
+      const go = () => fireMoreInfo(this, id);
+      this._press(el, { onTap: go, onHold: go });
+    });
+  }
+
+  getCardSize() {
+    try {
+      const m = this._model();
+      return 1 + (m.head ? 2 : 0) + Math.ceil(m.rows.length * 0.8)
+        + (m.chips.length ? 1 : 0);
+    } catch (e) { return 3; }
+  }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -6230,6 +6748,33 @@ class OnyxLockEditor extends OnyxEditor {
   }
 }
 
+class OnyxStatusEditor extends OnyxEditor {
+  _helpKey(name) { return ED_HELP_KEY[name] || ''; }
+
+  _schema() {
+    return [
+      fieldText('title'),
+      grid(fieldText('subtitle'), fieldColor())
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      title: c.title || '',
+      subtitle: typeof c.subtitle === 'string' ? c.subtitle : '',
+      color: c.color || ''
+    };
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent = t('ed.h.status');
+    root.appendChild(this._note);
+  }
+}
+
 class OnyxWeatherEditor extends OnyxEditor {
   static get DEFAULTS() { return { forecast: 'daily', forecast_count: 5 }; }
 
@@ -6341,6 +6886,7 @@ defineEditor('onyx-weather-card-editor', OnyxWeatherEditor);
 defineEditor('onyx-light-card-editor', OnyxLightEditor);
 defineEditor('onyx-camera-card-editor', OnyxCameraEditor);
 defineEditor('onyx-lock-card-editor', OnyxLockEditor);
+defineEditor('onyx-status-card-editor', OnyxStatusEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -6356,7 +6902,8 @@ const EDITOR_OF = [
   [OnyxWeatherCard, 'onyx-weather-card-editor'],
   [OnyxLightCard, 'onyx-light-card-editor'],
   [OnyxCameraCard, 'onyx-camera-card-editor'],
-  [OnyxLockCard, 'onyx-lock-card-editor']
+  [OnyxLockCard, 'onyx-lock-card-editor'],
+  [OnyxStatusCard, 'onyx-status-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -6393,6 +6940,7 @@ defineCard('onyx-weather-card', OnyxWeatherCard);
 defineCard('onyx-light-card', OnyxLightCard);
 defineCard('onyx-camera-card', OnyxCameraCard);
 defineCard('onyx-lock-card', OnyxLockCard);
+defineCard('onyx-status-card', OnyxStatusCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -6461,11 +7009,17 @@ window.customCards.push(
     name: t('card.lock'),
     description: t('card.lock.d'),
     preview: false
+  },
+  {
+    type: 'onyx-status-card',
+    name: t('card.status'),
+    description: t('card.status.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
   OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard,
-  OnyxLightCard, OnyxCameraCard, OnyxLockCard
+  OnyxLightCard, OnyxCameraCard, OnyxLockCard, OnyxStatusCard
 };
