@@ -1,7 +1,7 @@
 # Lavendel Cards
 
-Sechs Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
-Verlaufs-Akzente von Türkis über Violett nach Pink, für die Bedienung am Handy gebaut.
+Sechs Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
 über den **visuellen Editor** einrichten.
@@ -161,6 +161,7 @@ grid_options: { columns: 3, rows: 3 }
 | `entity` | — | **Pflicht.** `light.*` oder `cover.*` |
 | `name` | Gerätename | Beschriftung unter dem Regler |
 | `icon` | automatisch | Glühbirne bzw. Store |
+| `color` | `blau` | Farbe der Füllung. Gleiche Werte wie bei der Raum-Karte |
 | `show_name` | `true` | Auf `false` setzen, wenn der Name stört |
 
 Ziehen setzt den Wert, Tippen schaltet um, Halten öffnet das Detailfenster.
@@ -178,6 +179,7 @@ lock_entity: binary_sensor.windwaechter
 |---|---|---|
 | `entity` | — | **Pflicht.** `cover.*` |
 | `name` | Gerätename | Steht klein oben rechts |
+| `color` | `blau` | Farbe des Tageslichts im Fenster und der Tasten |
 | `lock_entity` | — | Binärsensor des Windwächters. Ist er `on`, wird die Karte gesperrt dargestellt und nimmt keine Befehle mehr an |
 | `lock_label` | `Windwächter aktiv` | Text im Sperr-Hinweis |
 
@@ -264,6 +266,7 @@ actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 | `subtitle` | „x von y aktiv" | Eigener Text, oder `false` zum Ausblenden |
 | `shape` | `squares`, ab 9 Einträgen `chips` | `squares` · `chips` · `tiles` · `rail` |
 | `columns` | `4` | Spalten bei `squares` |
+| `color` | `blau` | Farbe der aktiven Knöpfe. Gleiche Werte wie bei der Raum-Karte |
 | `tap_action` | — | Pro Eintrag: `trigger` löst eine Automation aus statt sie umzuschalten |
 
 **Auslöser und Schalter werden unterschieden.** Szenen, Skripte und Buttons haben
@@ -365,9 +368,7 @@ Dashboard → ⋮ → **Raw-Konfigurationseditor**, dann Bereichs-IDs und Entit�
 
 ## Was noch fehlt
 
-**Die Gestaltung wird gerade umgestellt.** Raum-Karte und Media-Karte tragen das neue
-dunkle Design. Regler-, Storen- und Schnellzugriff-Karte folgen — sie funktionieren
-weiter, sehen aber noch nach der hellen Fassung aus.
+Alle sechs Karten tragen jetzt dasselbe dunkle Design.
 
 Noch nicht gebaut: Klima-Ring, Energie-Card und die Statusleiste.
 
@@ -403,6 +404,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.3.0** — Regler, Storen und Schnellzugriffe im dunklen Design; Farbwahl auch dort
 **1.2.0** — Visueller Editor für alle sechs Karten; brauchbare Startkonfiguration aus der Kartenauswahl
 **1.1.0** — Neue Diagramm-Karte
 **1.0.0** — Masse am Vorbild nachgemessen: Radius 24, Glasknöpfe, Coverblende

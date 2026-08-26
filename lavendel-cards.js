@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 1.2.0
+ * Version 1.3.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -17,7 +17,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '1.2.0';
+const LAV_VERSION = '1.3.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -210,16 +210,27 @@ class LavBase extends HTMLElement {
     try {
       model = this._model();
     } catch (err) {
-      this.shadowRoot.innerHTML =
-        `<style>${BASE_CSS}</style><ha-card><div style="color:#c0392b;font-size:13px">
-         Lavendel: ${esc(err.message)}</div></ha-card>`;
+      this._error(err);
       return;
     }
     const sig = JSON.stringify(model);
     if (sig === this._sig) return;
     this._sig = sig;
-    this.shadowRoot.innerHTML = `<style>${BASE_CSS}${this.constructor.CSS || ''}</style>${this._html(model)}`;
-    this._bind(model);
+    try {
+      this.shadowRoot.innerHTML =
+        `<style>${BASE_CSS}${this.constructor.CSS || ''}</style>${this._html(model)}`;
+      this._bind(model);
+    } catch (err) {
+      this._sig = null;
+      this._error(err);
+    }
+  }
+
+  /** Freundliche Fehlerkarte statt einer weissen Fläche */
+  _error(err) {
+    this.shadowRoot.innerHTML =
+      `<style>${BASE_CSS}</style><ha-card><div style="color:#c0392b;font-size:13px">
+       Lavendel: ${esc(err.message)}</div></ha-card>`;
   }
 
   /** erzwingt Neuaufbau nach lokaler Zustandsänderung (Auf-/Zuklappen) */
@@ -787,21 +798,38 @@ class LavendelRoomCard extends LavBase {
  * ================================================================== */
 class LavendelSliderCard extends LavBase {
   static get CSS() {
-    return `
-    ha-card{ padding:0; background:none; box-shadow:none; }
-    .sl{ width:100%; height:160px; border-radius:22px; background:var(--flat);
+    return PAL_CSS + `
+    ha-card{ padding:0; background:none; border:none; box-shadow:none; overflow:visible; }
+    .sl{ width:100%; height:168px; border-radius:var(--lav-r,24px);
+         border:1px solid rgba(255,255,255,.09);
+         background:linear-gradient(to right bottom,
+           var(--lav-cold-1,#141419) 0%, var(--lav-cold-2,#17171d) 100%);
          position:relative; overflow:hidden; display:flex; flex-direction:column;
-         justify-content:space-between; align-items:center; padding:12px 0;
+         justify-content:space-between; align-items:center; padding:13px 0 12px;
          cursor:pointer; touch-action:pan-x; }
-    .fill{ position:absolute; left:0; right:0; bottom:0; background:var(--grad);
-           transition:height .12s linear; }
-    .pct{ position:relative; font-size:13px; font-weight:500; color:var(--ink2); }
-    .pct.light{ color:#fff; }
-    .sico{ position:relative; color:var(--ink2); --mdc-icon-size:20px; }
-    .sico.light{ color:#fff; }
-    .grip{ position:absolute; left:50%; transform:translateX(-50%); width:22px; height:3px;
-           border-radius:99px; background:rgba(255,255,255,.8); z-index:2; }
-    .nm{ text-align:center; font-size:12px; color:var(--ink2); margin-top:7px;
+    /* Der Füllstand ist die Kartenfarbe, nach oben hin dünner. So bleibt der
+       Wert lesbar und der Regler wird nicht zum Farbbalken. */
+    .fill{ position:absolute; left:0; right:0; bottom:0; transition:height .12s linear;
+           background:linear-gradient(to top,
+             color-mix(in srgb, var(--btn) 66%, transparent) 0%,
+             color-mix(in srgb, var(--btn) 28%, transparent) 100%); }
+    .pct{ position:relative; font-size:13px; font-weight:600; color:#7d8fa0;
+          font-variant-numeric:tabular-nums; }
+    .sl.on .pct{ color:#fff; }
+    /* Der Griff liegt unter dem Symbol: bei kleinen Werten kreuzen sie sich,
+       und eine Linie quer durchs Symbol sieht nach Fehler aus. */
+    .grip{ position:absolute; left:50%; transform:translateX(-50%); width:24px; height:2.5px;
+           border-radius:9px; background:rgba(255,255,255,.55); z-index:1; }
+    .sico{ position:relative; z-index:2; width:34px; height:34px; border-radius:50%;
+           display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px;
+           background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+           -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+           border:1px solid rgba(255,255,255,.11);
+           transition:background .18s ease; }
+    .sl.on .sico{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                  border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .sl.dead{ opacity:.45; }
+    .nm{ text-align:center; font-size:12px; color:#72879a; margin-top:8px;
          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     `;
   }
@@ -825,19 +853,21 @@ class LavendelSliderCard extends LavBase {
       icon: this._config.icon || (this._config.entity.startsWith('cover.') ? 'mdi:window-shutter' : 'mdi:lightbulb'),
       pct: pct < 0 ? 0 : pct,
       dead: isDead(st),
+      color: this._config.color || null,
       domain: this._config.entity.split('.')[0]
     };
   }
 
   _html(m) {
-    const light = m.pct > 78;
+    const { cls, style } = paletteAttrs(m.color);
+    const on = !m.dead && m.pct > 0;
     return `
-    <ha-card>
-      <div class="sl" id="sl" style="${m.dead ? 'opacity:.5' : ''}">
+    <ha-card class="${cls.trim()}"${style}>
+      <div class="sl${on ? ' on' : ''}${m.dead ? ' dead' : ''}" id="sl">
         <div class="fill" style="height:${m.pct}%"></div>
-        <div class="pct ${light ? 'light' : ''}" id="pct">${m.dead ? '–' : m.pct + ' %'}</div>
-        ${m.pct > 0 && m.pct < 100 ? `<div class="grip" id="grip" style="bottom:calc(${m.pct}% - 2px)"></div>` : ''}
-        <div class="sico ${m.pct > 12 ? 'light' : ''}"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="pct" id="pct">${m.dead ? '–' : m.pct + ' %'}</div>
+        ${m.pct > 0 && m.pct < 100 ? `<div class="grip" id="grip" style="bottom:calc(${m.pct}% - 1px)"></div>` : ''}
+        <div class="sico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
       </div>
       ${this._config.show_name === false ? '' : `<div class="nm">${esc(m.name)}</div>`}
     </ha-card>`;
@@ -859,7 +889,8 @@ class LavendelSliderCard extends LavBase {
       onDrag: (v) => {
         fill.style.height = v + '%';
         pct.textContent = v + ' %';
-        if (grip) grip.style.bottom = `calc(${v}% - 2px)`;
+        sl.classList.toggle('on', v > 0);
+        if (grip) grip.style.bottom = `calc(${v}% - 1px)`;
       },
       onDrop: (v) => {
         if (m.domain === 'cover') this.call('cover', 'set_cover_position', { entity_id: m.id, position: v });
@@ -875,43 +906,91 @@ class LavendelSliderCard extends LavBase {
 /* ================================================================== *
  * 3) STOREN-KARTE
  * ================================================================== */
+/* Lamellenregler: Knopfmitte von 6,5 px bis Breite minus 6,5 px */
+const KNOB_POS = (v) => `calc((100% - 13px) * ${v} / 100)`;
+const KNOB_FILL = (v) => `calc(6.5px + (100% - 13px) * ${v} / 100)`;
+
 class LavendelCoverCard extends LavBase {
   static get CSS() {
-    return `
-    .top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:11px; }
-    .pos{ text-align:right; font-size:12px; color:var(--ink3); line-height:1.35; }
-    .pos b{ display:block; font-size:17px; font-weight:500; color:var(--ink);
-            font-variant-numeric:tabular-nums; }
-    .win{ position:relative; height:86px; border-radius:12px; overflow:hidden; cursor:pointer;
-          background:linear-gradient(180deg,#dceefb 0%,#eef5fd 55%,#f4f0ea 100%);
-          touch-action:pan-x; }
-    .sun{ position:absolute; right:14px; top:12px; width:16px; height:16px; border-radius:50%;
-          background:#ffd9a0; box-shadow:0 0 12px 4px rgba(255,208,140,.7); }
-    .sill{ position:absolute; left:0; right:0; bottom:0; height:7px; background:#e2ded6; }
+    return PAL_CSS + `
+    ha-card{
+      padding:12px; border-radius:var(--lav-r,24px); border:1px solid rgba(255,255,255,.09);
+      box-shadow:none; overflow:hidden;
+      background:linear-gradient(to right bottom,
+        var(--lav-cold-1,#141419) 0%, var(--lav-cold-2,#17171d) 100%);
+    }
+    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+
+    .top{ display:flex; justify-content:space-between; align-items:center;
+          gap:11px; margin-bottom:11px; }
+    .cico{ width:34px;height:34px;border-radius:50%;flex:none; display:grid;place-items:center;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+           color:#8ea3b5; --mdc-icon-size:18px; }
+    ha-card.warm .cico{ background:color-mix(in srgb, var(--acc) 16%, transparent);
+                        border-color:color-mix(in srgb, var(--acc) 32%, transparent);
+                        color:var(--acc); }
+    .pos{ text-align:right; line-height:1.3; min-width:0; }
+    .pos b{ display:block; font-size:17px; font-weight:700; letter-spacing:-.02em;
+            color:#9fb0be; font-variant-numeric:tabular-nums; }
+    ha-card.warm .pos b{ color:var(--acc); }
+    .pos span{ display:block; font-size:11.5px; color:#72879a;
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .pos span{ color:var(--sub); }
+
+    /* Das Fenster von innen gesehen: draussen ist es hell, die Lamellen
+       liegen davor. Je weiter unten sie enden, desto mehr Licht kommt durch. */
+    .win{ position:relative; height:92px; border-radius:14px; overflow:hidden; cursor:pointer;
+          touch-action:pan-x; border:1px solid rgba(255,255,255,.07);
+          background:linear-gradient(180deg,
+            color-mix(in srgb, var(--acc) 44%, transparent) 0%,
+            color-mix(in srgb, var(--acc) 26%, transparent) 72%,
+            color-mix(in srgb, var(--acc) 15%, transparent) 100%); }
+    .glow{ position:absolute; right:15px; width:15px; height:15px; border-radius:50%;
+           background:#ffffff;
+           box-shadow:0 0 18px 6px color-mix(in srgb, var(--acc) 55%, transparent); }
+    .sill{ position:absolute; left:0; right:0; bottom:0; height:6px;
+           background:rgba(255,255,255,.12); }
+    /* Verdeckt gegen offen muss auf einen Blick zu sehen sein. Deshalb sind
+       die Lamellen kräftig dunkel; geöffnet lassen sie Licht durch die Spalten. */
     .slats{ position:absolute; left:0; right:0; top:0; transition:height .12s linear; }
-    .slats.zu{ background:repeating-linear-gradient(180deg,#bfc0d0 0 6px,#d5d6e1 6px 7px); }
-    .slats.offen{ background:repeating-linear-gradient(180deg,#bfc0d0 0 3px,rgba(0,0,0,0) 3px 9px); }
-    .kasten{ position:absolute; left:0; right:0; top:0; height:9px; background:#aeafc0;
+    .slats.zu{ background:repeating-linear-gradient(180deg,
+                 rgba(16,19,24,.97) 0 6px, rgba(41,47,57,.97) 6px 7px); }
+    .slats.offen{ background:repeating-linear-gradient(180deg,
+                    rgba(16,19,24,.94) 0 4px, rgba(16,19,24,.18) 4px 9px); }
+    .kasten{ position:absolute; left:0; right:0; top:0; height:8px; background:#39404b;
              border-radius:0 0 3px 3px; }
-    .btns{ display:flex; gap:7px; margin-top:11px; }
-    .btn{ flex:1; height:38px; border-radius:12px; background:var(--surface-on);
-          display:grid; place-items:center; color:var(--ink2); box-shadow:var(--soft);
-          cursor:pointer; --mdc-icon-size:18px; transition:transform .12s ease; }
-    .btn.act{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .btn.dim{ opacity:.4; }
-    .lam{ display:flex; align-items:center; gap:9px; margin-top:10px; }
-    .lam-lbl{ font-size:11px; color:var(--ink3); white-space:nowrap; }
+
+    .lam{ display:flex; align-items:center; gap:10px; margin-top:11px; }
+    .lam-lbl{ font-size:11px; color:#6f8497; white-space:nowrap; }
     .lam-track{ flex:1; height:16px; display:flex; align-items:center; cursor:pointer;
                 position:relative; touch-action:pan-y; }
     .lam-track .bg{ position:absolute; left:0; right:0; height:6px; border-radius:99px;
-                    background:var(--flat); }
-    .lam-track .on{ position:absolute; left:0; height:6px; border-radius:99px; background:var(--grad); }
-    .lam-track .knob{ position:absolute; width:14px; height:14px; border-radius:50%;
-                      background:#fff; box-shadow:0 2px 6px rgba(70,55,140,.3);
-                      transform:translateX(-50%); }
-    .lock{ display:inline-flex; align-items:center; gap:6px; background:rgba(240,160,104,.16);
-           color:#9a5f22; border-radius:99px; padding:4px 10px; font-size:11.5px;
-           font-weight:500; margin-top:10px; --mdc-icon-size:13px; }
+                    background:rgba(255,255,255,.09); }
+    .lam-track .on{ position:absolute; left:0; height:6px; border-radius:99px;
+                    background:color-mix(in srgb, var(--btn) 72%, transparent); }
+    /* Der Knopf bleibt ganz in der Schiene — sonst ragt er bei 0 % in die
+       Beschriftung und bei 100 % über den Kartenrand hinaus. */
+    .lam-track .knob{ position:absolute; width:13px; height:13px; border-radius:50%;
+                      background:#fff; box-shadow:0 2px 7px rgba(0,0,0,.5); }
+
+    .lock{ display:inline-flex; align-items:center; gap:6px; margin-top:11px;
+           background:rgba(240,172,116,.14); border:1px solid rgba(240,172,116,.28);
+           color:#f0ac74; border-radius:99px; padding:4px 11px; font-size:11.5px;
+           font-weight:500; --mdc-icon-size:13px; }
+
+    .btns{ display:flex; gap:8px; margin-top:11px; }
+    .cbtn{ flex:1; height:40px; border-radius:13px; display:grid; place-items:center;
+           color:#fff; --mdc-icon-size:17px; cursor:pointer;
+           background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+           -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+           border:1px solid rgba(255,255,255,.11);
+           transition:transform .12s ease, background .18s ease; }
+    .cbtn.act{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+               border-color:color-mix(in srgb, var(--btn) 78%, transparent);
+               box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
+                          0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
+    .cbtn.dim{ opacity:.36; }
+    .cbtn.held{ transform:scale(.94); }
     `;
   }
 
@@ -942,6 +1021,7 @@ class LavendelCoverCard extends LavBase {
       moving: st.state === 'opening' || st.state === 'closing',
       dir: st.state === 'opening' ? 'auf' : st.state === 'closing' ? 'zu' : null,
       dead: isDead(st),
+      color: this._config.color || null,
       locked: !!(lockSt && lockSt.state === 'on'),
       lockLabel: this._config.lock_label || 'Windwächter aktiv'
     };
@@ -951,21 +1031,22 @@ class LavendelCoverCard extends LavBase {
     const closed = 100 - m.pos;              // Anteil, den die Store verdeckt
     const slatClass = m.tilt != null && m.tilt < 35 ? 'zu' : 'offen';
     const showTilt = m.canTilt && m.pos < 98;
+    const { cls, style } = paletteAttrs(m.color);
+    const warm = m.pos > 0 && !m.locked && !m.dead;
 
     return `
-    <ha-card class="${m.pos > 0 ? 'on' : ''}" style="${m.locked ? 'opacity:.72' : ''}">
+    <ha-card class="${(cls + (warm ? ' warm' : '')).trim()}"${style}>
       <div class="top">
-        <div class="ico ${m.pos > 0 && !m.locked ? 'grad' : 'flat'}">
-          <ha-icon icon="mdi:window-shutter"></ha-icon>
-        </div>
+        <div class="cico"><ha-icon icon="mdi:window-shutter"></ha-icon></div>
         <div class="pos">
           <b>${m.dead ? '–' : m.pos >= 98 ? 'Offen' : m.pos <= 2 ? 'Zu' : m.pos + ' %'}</b>
-          ${m.moving ? 'fährt ' + m.dir : m.tilt != null ? 'Lamellen ' + Math.round(m.tilt * 0.9) + '°' : esc(m.name)}
+          <span>${m.moving ? 'fährt ' + m.dir
+            : m.tilt != null ? 'Lamellen ' + Math.round(m.tilt * 0.9) + '°' : esc(m.name)}</span>
         </div>
       </div>
 
-      <div class="win" id="win">
-        ${m.pos > 30 ? `<div class="sun" style="top:calc(${closed}% + 10px)"></div>` : ''}
+      <div class="win" id="win" style="${m.locked ? 'opacity:.7' : ''}">
+        ${m.pos > 30 ? `<div class="glow" style="top:calc(${closed}% + 11px)"></div>` : ''}
         <div class="slats ${slatClass}" style="height:${closed}%"></div>
         <div class="kasten"></div>
         <div class="sill"></div>
@@ -976,17 +1057,17 @@ class LavendelCoverCard extends LavBase {
         <span class="lam-lbl">Lamellen</span>
         <div class="lam-track" id="lam">
           <div class="bg"></div>
-          <div class="on" style="width:${m.tilt || 0}%"></div>
-          <div class="knob" style="left:${m.tilt || 0}%"></div>
+          <div class="on" style="width:${KNOB_FILL(m.tilt || 0)}"></div>
+          <div class="knob" style="left:${KNOB_POS(m.tilt || 0)}"></div>
         </div>
       </div>` : ''}
 
       ${m.locked ? `<div class="lock"><ha-icon icon="mdi:lock"></ha-icon>${esc(m.lockLabel)}</div>` : ''}
 
       <div class="btns" style="${m.locked ? 'opacity:.35' : ''}">
-        <div class="btn ${m.moving ? 'dim' : ''}" id="up"><ha-icon icon="mdi:triangle"></ha-icon></div>
-        <div class="btn ${m.moving ? 'act' : ''}" id="stop"><ha-icon icon="mdi:square"></ha-icon></div>
-        <div class="btn ${m.moving ? 'dim' : ''}" id="down"><ha-icon icon="mdi:triangle-down"></ha-icon></div>
+        <div class="cbtn ${m.moving ? 'dim' : ''}" id="up"><ha-icon icon="mdi:triangle"></ha-icon></div>
+        <div class="cbtn ${m.moving ? 'act' : ''}" id="stop"><ha-icon icon="mdi:square"></ha-icon></div>
+        <div class="cbtn ${m.moving ? 'dim' : ''}" id="down"><ha-icon icon="mdi:triangle-down"></ha-icon></div>
       </div>
     </ha-card>`;
   }
@@ -1017,7 +1098,9 @@ class LavendelCoverCard extends LavBase {
         axis: 'x',
         onTap: guard(() => this.call('cover', 'set_cover_tilt_position',
           { entity_id: m.id, tilt_position: m.tilt > 50 ? 0 : 100 })),
-        onDrag: m.locked ? null : (v) => { on.style.width = v + '%'; knob.style.left = v + '%'; },
+        onDrag: m.locked ? null : (v) => {
+          on.style.width = KNOB_FILL(v); knob.style.left = KNOB_POS(v);
+        },
         onDrop: m.locked ? null : (v) =>
           this.call('cover', 'set_cover_tilt_position', { entity_id: m.id, tilt_position: v })
       });
@@ -1348,71 +1431,101 @@ const TRIGGER_DOMAINS = ['scene', 'script', 'button', 'input_button'];
 
 class LavendelActionsCard extends LavBase {
   static get CSS() {
-    return `
+    return PAL_CSS + `
+    ha-card{
+      padding:14px; border-radius:var(--lav-r,24px); border:1px solid rgba(255,255,255,.09);
+      box-shadow:none; overflow:hidden;
+      background:linear-gradient(to right bottom,
+        var(--lav-cold-1,#141419) 0%, var(--lav-cold-2,#17171d) 100%);
+    }
     .fhead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:13px; }
-    .ftitle{ font-size:15px; font-weight:600; }
-    .fsub{ font-size:11.5px; color:var(--ink3); }
-    .flabel{ font-size:11.5px; color:var(--ink3); margin-bottom:9px; }
-    .fsep{ height:1px; background:var(--line); margin:14px 0 12px; }
+    .ftitle{ font-size:15px; font-weight:600; color:#dbe6f0; }
+    .fsub{ font-size:11.5px; color:#6f8497; }
+    .flabel{ font-size:11px; color:#6f8497; margin-bottom:9px; }
+    .fsep{ height:1px; background:rgba(255,255,255,.09); margin:14px 0 12px; }
+
+    /* Glas ist der Ruhezustand. Gefüllt in der Kartenfarbe ist nur, was
+       gerade läuft — so bleibt die Fläche ruhig und das Aktive springt heraus. */
 
     /* Quadrate */
     .grid{ display:grid; gap:12px; }
     .sq{ text-align:center; cursor:pointer; }
     .sq .box{ position:relative; width:100%; aspect-ratio:1; max-width:76px; margin:0 auto 8px;
-              border-radius:20px; background:var(--surface-on); display:grid; place-items:center;
-              color:var(--ink2); box-shadow:var(--soft); --mdc-icon-size:26px;
+              border-radius:20px; display:grid; place-items:center; color:#c8d8e6;
+              --mdc-icon-size:25px;
+              background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+              -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+              border:1px solid rgba(255,255,255,.11);
               transition:transform .12s ease, background .18s ease; }
-    .sq.on .box{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .sq.off .box{ opacity:.55; box-shadow:none; color:var(--ink3); }
-    .sq.dead .box{ background:var(--flat); color:var(--ink3); box-shadow:none; opacity:.5; }
+    .sq.on .box{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                 border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff;
+                 box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
+                            0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
+    .sq.off .box{ color:#7b8fa0; }
+    .sq.dead .box{ opacity:.45; color:#7b8fa0; }
     .sq.held .box{ transform:scale(.94); }
-    .sq span{ font-size:11px; color:var(--ink2); display:block; line-height:1.3; }
-    .sq.off span, .sq.dead span{ color:var(--ink3); }
-    .dot{ position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%;
-          background:var(--grad); box-shadow:0 0 0 2px var(--surface-on); }
-    .dot.hollow{ background:none; border:1.5px solid var(--ink3); box-shadow:none; }
+    .sq span{ font-size:11px; color:#a8bccd; display:block; line-height:1.3; }
+    .sq.off span{ color:#7b8fa0; }
+    .sq.dead span{ color:#7b8fa0; opacity:.7; }
+    .dot{ position:absolute; top:9px; right:9px; width:7px; height:7px; border-radius:50%;
+          background:var(--btn); box-shadow:0 0 0 2px rgba(0,0,0,.3); }
+    .dot.hollow{ background:none; border:1.5px solid rgba(255,255,255,.38); box-shadow:none; }
     .slash{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
-    .slash::after{ content:""; width:60%; height:1.5px; background:var(--ink3);
+    .slash::after{ content:""; width:58%; height:1.5px; background:rgba(255,255,255,.38);
                    transform:rotate(-45deg); }
     @keyframes lavpulse{ 0%,100%{opacity:1} 50%{opacity:.45} }
     .sq.run .box{ animation:lavpulse 1.1s ease-in-out infinite; }
 
     /* Chips */
     .chips{ display:flex; flex-wrap:wrap; gap:8px; }
-    .chip{ display:flex; align-items:center; gap:9px; height:40px; padding:0 14px 0 10px;
-           border-radius:14px; background:var(--surface-on); box-shadow:var(--soft);
-           font-size:13px; font-weight:500; color:var(--ink2); cursor:pointer;
-           transition:transform .12s ease; }
-    .chip .ci{ width:24px; height:24px; border-radius:8px; background:var(--flat);
-               display:grid; place-items:center; color:var(--ink3); flex:none; --mdc-icon-size:15px; }
-    .chip.on{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .chip.on .ci{ background:rgba(255,255,255,.25); color:#fff; }
-    .chip.off{ opacity:.55; }
-    .chip.dead{ opacity:.5; }
+    .chip{ display:flex; align-items:center; gap:9px; height:40px; padding:0 14px 0 7px;
+           border-radius:14px; font-size:13px; font-weight:500; color:#c8d8e6; cursor:pointer;
+           background:linear-gradient(rgba(255,255,255,.11), rgba(255,255,255,.035));
+           -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+           border:1px solid rgba(255,255,255,.10);
+           transition:transform .12s ease, background .18s ease; }
+    .chip .ci{ width:26px; height:26px; border-radius:9px; display:grid; place-items:center;
+               background:rgba(255,255,255,.08); color:#8ea3b5; flex:none; --mdc-icon-size:15px; }
+    .chip.on{ background:color-mix(in srgb, var(--btn) 55%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 74%, transparent); color:#fff; }
+    .chip.on .ci{ background:rgba(255,255,255,.22); color:#fff; }
+    .chip.off{ color:#8ea3b5; }
+    .chip.dead{ opacity:.45; }
     .chip.held{ transform:scale(.96); }
 
     /* Kacheln */
-    .tile{ background:var(--surface-on); border-radius:18px; padding:13px; box-shadow:var(--soft);
-           cursor:pointer; transition:transform .12s ease; }
-    .tile.on{ background:linear-gradient(150deg,rgba(123,107,240,.14),transparent 62%),var(--surface-on); }
-    .tile.dead{ opacity:.5; }
+    .tile{ border-radius:18px; padding:13px; cursor:pointer;
+           background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.07);
+           transition:transform .12s ease, background .18s ease; }
+    .tile.on{ background:linear-gradient(150deg,
+                color-mix(in srgb, var(--btn) 24%, transparent) 0%, rgba(255,255,255,.05) 62%);
+              border-color:color-mix(in srgb, var(--btn) 30%, transparent); }
+    .tile.dead{ opacity:.45; }
     .tile.held{ transform:scale(.97); }
-    .tico{ width:34px; height:34px; border-radius:11px; background:var(--flat); display:grid;
-           place-items:center; color:var(--ink3); --mdc-icon-size:19px; }
-    .tile.on .tico{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .tname{ font-size:13px; font-weight:500; margin-top:12px; }
-    .tstate{ font-size:11.5px; color:var(--ink3); }
-    .tstate.hot{ background:var(--grad); -webkit-background-clip:text; background-clip:text;
-                 color:transparent; font-weight:500; }
+    .tico{ width:34px; height:34px; border-radius:11px; display:grid; place-items:center;
+           color:#8ea3b5; --mdc-icon-size:19px;
+           background:linear-gradient(rgba(255,255,255,.12), rgba(255,255,255,.04));
+           border:1px solid rgba(255,255,255,.10); }
+    .tile.on .tico{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                    border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .tname{ font-size:13px; font-weight:600; margin-top:12px; color:#c8d8e6; }
+    .tstate{ font-size:11.5px; color:#72879a; }
+    .tstate.hot{ color:var(--acc); font-weight:500; }
 
     /* Leiste */
-    .rail{ display:flex; justify-content:space-between; background:var(--flat);
+    .rail{ display:flex; justify-content:space-between; gap:8px;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07);
            border-radius:16px; padding:9px 12px; }
-    .rail .r{ width:38px; height:38px; border-radius:50%; background:var(--surface-on);
-              display:grid; place-items:center; color:var(--ink2); box-shadow:var(--soft);
-              cursor:pointer; --mdc-icon-size:19px; transition:transform .12s ease; }
-    .rail .r.on{ background:var(--grad); color:#fff; box-shadow:var(--glow); }
-    .rail .r.dead{ opacity:.5; }
+    .rail .r{ width:38px; height:38px; border-radius:50%; display:grid; place-items:center;
+              color:#c8d8e6; cursor:pointer; --mdc-icon-size:19px; flex:none;
+              background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+              -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+              border:1px solid rgba(255,255,255,.11);
+              transition:transform .12s ease, background .18s ease; }
+    .rail .r.on{ background:color-mix(in srgb, var(--btn) 60%, transparent);
+                 border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .rail .r.off{ color:#8ea3b5; }
+    .rail .r.dead{ opacity:.45; }
     .rail .r.held{ transform:scale(.92); }
     `;
   }
@@ -1488,6 +1601,7 @@ class LavendelActionsCard extends LavBase {
             ? `${switches.filter((i) => i.on).length} von ${switches.length} aktiv` : null)),
       shape: cfg.shape || (all.length > 8 ? 'chips' : 'squares'),
       columns: cfg.columns || 4,
+      color: cfg.color || null,
       groups,
       flash: this._flash || null
     };
@@ -1550,7 +1664,8 @@ class LavendelActionsCard extends LavBase {
         </div>
       </div>` : '';
 
-    return `<ha-card>${head}${body}</ha-card>`;
+    const { cls, style } = paletteAttrs(m.color);
+    return `<ha-card class="${cls.trim()}"${style}>${head}${body}</ha-card>`;
   }
 
   _bind(m) {
@@ -2210,6 +2325,7 @@ class LavendelSliderEditor extends LavEditor {
     return [
       fieldEntity('entity', ['light', 'cover', 'media_player']),
       grid(fieldText('name'), fieldIcon('icon')),
+      fieldColor(),
       fieldBool('show_name')
     ];
   }
@@ -2219,6 +2335,7 @@ class LavendelSliderEditor extends LavEditor {
       entity: c.entity || '',
       name: c.name || '',
       icon: c.icon || '',
+      color: c.color || '',
       show_name: c.show_name !== false
     };
   }
@@ -2231,7 +2348,7 @@ class LavendelCoverEditor extends LavEditor {
   _schema() {
     return [
       fieldEntity('entity', 'cover'),
-      fieldText('name'),
+      grid(fieldText('name'), fieldColor()),
       fieldEntity('lock_entity', ['binary_sensor', 'input_boolean', 'switch']),
       fieldText('lock_label')
     ];
@@ -2241,6 +2358,7 @@ class LavendelCoverEditor extends LavEditor {
     return {
       entity: c.entity || '',
       name: c.name || '',
+      color: c.color || '',
       lock_entity: c.lock_entity || '',
       lock_label: c.lock_label || ''
     };
@@ -2466,6 +2584,7 @@ class LavendelActionsEditor extends LavEditor {
         },
         { name: 'columns', selector: { number: { min: 2, max: 6, mode: 'box' } } }
       ),
+      fieldColor(),
       fieldBool('grouped')
     ];
   }
@@ -2518,6 +2637,7 @@ class LavendelActionsEditor extends LavEditor {
       title: this._config.title || '',
       shape: this._config.shape || 'squares',
       columns: this._config.columns || 4,
+      color: this._config.color || '',
       grouped: st.grouped
     };
   }
@@ -2540,7 +2660,8 @@ class LavendelActionsEditor extends LavEditor {
     const cfg = Object.assign({}, this._config, {
       title: data.title,
       shape: data.shape,
-      columns: data.columns
+      columns: data.columns,
+      color: data.color
     });
     delete cfg.grouped;
     // shape NICHT weglassen, wenn es "squares" ist: die Karte schaltet ab
