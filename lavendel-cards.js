@@ -1,6 +1,6 @@
 /*!
  * Lavendel Cards für Home Assistant
- * Version 1.1.0
+ * Version 1.2.0
  *
  * Enthält:
  *   custom:lavendel-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -17,7 +17,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const LAV_VERSION = '1.1.0';
+const LAV_VERSION = '1.2.0';
 
 console.info(
   `%c LAVENDEL-CARDS %c ${LAV_VERSION} `,
@@ -353,6 +353,20 @@ function paletteAttrs(color) {
   if (!key) throw new Error(
     `Farbe "${color}" gibt es nicht. Möglich: ` + [...new Set(Object.values(PALETTES))].join(', '));
   return { cls: key === 'blau' ? '' : ' p-' + key, style: '' };
+}
+
+/** Erste Entität einer Domain — für die Startkonfiguration aus der Kartenauswahl */
+function firstEntity(hass, domains, extra) {
+  const list = Array.isArray(domains) ? domains : [domains];
+  const ids = Object.keys((hass && hass.states) || {});
+  for (const d of list) {
+    for (const id of ids) {
+      if (id.slice(0, d.length + 1) !== d + '.') continue;
+      if (extra && !extra(hass.states[id])) continue;
+      return id;
+    }
+  }
+  return '';
 }
 
 /** Kurzschreibweisen im YAML → Domain */
@@ -792,7 +806,9 @@ class LavendelSliderCard extends LavBase {
     `;
   }
 
-  static getStubConfig() { return { type: 'custom:lavendel-slider-card', entity: '' }; }
+  static getStubConfig(hass) {
+    return { type: 'custom:lavendel-slider-card', entity: firstEntity(hass, ['light', 'cover']) };
+  }
 
   setConfig(config) {
     if (!config.entity) throw new Error('Bitte "entity" angeben.');
@@ -899,7 +915,9 @@ class LavendelCoverCard extends LavBase {
     `;
   }
 
-  static getStubConfig() { return { type: 'custom:lavendel-cover-card', entity: '' }; }
+  static getStubConfig(hass) {
+    return { type: 'custom:lavendel-cover-card', entity: firstEntity(hass, 'cover') };
+  }
 
   setConfig(config) {
     if (!config.entity) throw new Error('Bitte "entity" angeben.');
@@ -1123,7 +1141,9 @@ class LavendelMediaCard extends LavBase {
     `;
   }
 
-  static getStubConfig() { return { type: 'custom:lavendel-media-card', entity: '' }; }
+  static getStubConfig(hass) {
+    return { type: 'custom:lavendel-media-card', entity: firstEntity(hass, 'media_player') };
+  }
 
   setConfig(config) {
     if (!config.entity) throw new Error('Bitte "entity" angeben.');
@@ -1397,8 +1417,12 @@ class LavendelActionsCard extends LavBase {
     `;
   }
 
-  static getStubConfig() {
-    return { type: 'custom:lavendel-actions-card', title: 'Schnellzugriff', actions: [] };
+  static getStubConfig(hass) {
+    const first = firstEntity(hass, ['scene', 'script', 'automation', 'input_boolean']);
+    return {
+      type: 'custom:lavendel-actions-card', title: 'Schnellzugriff',
+      actions: first ? [first] : []
+    };
   }
 
   setConfig(config) {
@@ -1674,8 +1698,14 @@ class LavendelChartCard extends LavBase {
     `;
   }
 
-  static getStubConfig() {
-    return { type: 'custom:lavendel-chart-card', title: 'Energie', entities: [] };
+  static getStubConfig(hass) {
+    // Nur Sensoren mit Zahl und Einheit — ein Textsensor gäbe eine leere Kurve.
+    const first = firstEntity(hass, 'sensor', (st) =>
+      st.attributes.unit_of_measurement && !isNaN(parseFloat(st.state)));
+    return {
+      type: 'custom:lavendel-chart-card', title: 'Verlauf',
+      entities: first ? [first] : []
+    };
   }
 
   setConfig(config) {
@@ -1885,6 +1915,801 @@ class LavendelChartCard extends LavBase {
   }
 
   getCardSize() { return 4; }
+}
+
+/* ==================================================================== *
+ * Visuelle Editoren
+ *
+ * Home Assistant fragt eine Karte über `static getConfigElement()` nach
+ * ihrem Editor. Wir liefern ein Element, das im Kern <ha-form> ist: das
+ * Formularelement des Frontends, das Entitäten-Picker, Bereichs-Picker,
+ * Symbolwahl und Schalter selbst rendert. Wir beschreiben nur, welche
+ * Felder es geben soll.
+ * ==================================================================== */
+
+/**
+ * <ha-form> und die Picker stecken im Editor-Bündel des Frontends. Das
+ * wird erst nachgeladen, wenn schon einmal irgendein eingebauter
+ * Karten-Editor offen war. Ohne dieses Vorladen bleibt unser Editor beim
+ * allerersten Öffnen leer — ein Fehler, den man nur einmal sieht und dann
+ * nie wieder reproduziert. Also erzwingen wir das Nachladen selbst.
+ */
+let _formReady = null;
+function ensureFormLoaded() {
+  if (_formReady) return _formReady;
+  _formReady = (async () => {
+    if (customElements.get('ha-form')) return;
+    try {
+      const helpers = await window.loadCardHelpers();
+      await helpers.createCardElement({ type: 'entities', entities: [] });
+      await customElements.whenDefined('hui-entities-card');
+      const cls = customElements.get('hui-entities-card');
+      if (cls && cls.getConfigElement) await cls.getConfigElement();
+    } catch (err) {
+      console.warn('[lavendel-cards] Editor-Bündel liess sich nicht vorladen:', err);
+    }
+    // Auch wenn der Umweg oben scheitert: warten, bis ha-form da ist.
+    await Promise.race([
+      customElements.whenDefined('ha-form'),
+      new Promise((r) => setTimeout(r, 3000))
+    ]);
+  })();
+  return _formReady;
+}
+
+const ED_LABELS = {
+  entity: 'Entität',
+  entities: 'Entitäten',
+  area: 'Bereich',
+  name: 'Name',
+  label: 'Beschriftung',
+  icon: 'Symbol',
+  color: 'Farbe',
+  title: 'Titel',
+  shape: 'Form',
+  columns: 'Spalten',
+  period: 'Zeitraum',
+  temperature: 'Temperatur-Sensor',
+  humidity: 'Feuchte-Sensor',
+  navigation_path: 'Ziel des Pfeils',
+  groups: 'Sichtbare Gruppen',
+  lights: 'Lampen',
+  covers: 'Storen',
+  media: 'Medienspieler',
+  climate: 'Heizung',
+  lock_entity: 'Sperre',
+  lock_label: 'Text bei Sperre',
+  show_name: 'Namen anzeigen',
+  show_art: 'Cover anzeigen',
+  show_volume: 'Lautstärke anzeigen',
+  tinted: 'Fläche einfärben',
+  grouped: 'In Gruppen aufteilen'
+};
+
+const ED_HELP = {
+  color: 'Blau, Grün, Gelb, Orange, Rot, Violett, Rosa — oder ein eigener Hexwert wie #00b3a4',
+  area: 'Ohne Listen unten zeigt die Karte alle Geräte dieses Bereichs',
+  navigation_path: 'z. B. /lovelace/wohnzimmer',
+  lock_entity: 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
+  temperature: 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
+  humidity: 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
+  entities: 'Ein bis drei Messwerte',
+  columns: 'Gilt nicht für Kacheln und Leiste'
+};
+
+const ED_CSS = `
+  .ed{ display:flex; flex-direction:column; gap:16px; }
+  .sec{ font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+        color:var(--secondary-text-color); margin-bottom:-6px; }
+  .hint{ font-size:12px; line-height:1.5; color:var(--secondary-text-color); }
+  .warn{ font-size:12px; line-height:1.5; color:var(--error-color, #db4437); }
+  .grp{ border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius:12px;
+        padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .grp .ghead{ display:flex; align-items:center; gap:8px; }
+  .grp .ghead ha-form{ flex:1; }
+  .row{ display:flex; align-items:flex-start; gap:6px; }
+  .row ha-form{ flex:1; min-width:0; }
+  .btn{ font:inherit; font-size:13px; cursor:pointer; border-radius:9px;
+        border:1px solid var(--divider-color, rgba(127,127,127,.3));
+        background:none; color:var(--primary-text-color); padding:7px 12px;
+        display:inline-flex; align-items:center; gap:6px; --mdc-icon-size:17px; }
+  .btn:hover{ background:var(--secondary-background-color, rgba(127,127,127,.12)); }
+  .btn.x{ border:none; padding:6px; margin-top:6px; color:var(--secondary-text-color); }
+  .btn.x:hover{ color:var(--error-color, #db4437); background:none; }
+  .adds{ display:flex; gap:8px; flex-wrap:wrap; }
+`;
+
+const ED_COLORS = ['blau', 'gruen', 'gelb', 'orange', 'rot', 'violett', 'rosa'];
+const ED_COLOR_LABEL = {
+  blau: 'Blau', gruen: 'Grün', gelb: 'Gelb', orange: 'Orange',
+  rot: 'Rot', violett: 'Violett', rosa: 'Rosa'
+};
+
+/** Feld für die Kartenfarbe — die sieben Paletten plus freier Hexwert */
+function fieldColor() {
+  return {
+    name: 'color',
+    selector: {
+      select: {
+        mode: 'dropdown',
+        custom_value: true,
+        options: ED_COLORS.map((v) => ({ value: v, label: ED_COLOR_LABEL[v] }))
+      }
+    }
+  };
+}
+
+const fieldText = (name) => ({ name, selector: { text: {} } });
+const fieldIcon = (name) => ({ name, selector: { icon: {} } });
+const fieldBool = (name) => ({ name, selector: { boolean: {} } });
+const fieldEntity = (name, domain, multiple) => ({
+  name,
+  selector: { entity: Object.assign({}, multiple ? { multiple: true } : null,
+    domain ? { filter: { domain } } : null) }
+});
+const grid = (...schema) => ({ type: 'grid', name: '', schema });
+
+/**
+ * Aus dem Formular zurück in die Konfiguration. Leere Felder fliegen raus,
+ * damit die YAML nicht mit `name: ""` zuwächst, und Schalter, die ohnehin
+ * auf ihrem Normalwert stehen, ebenso.
+ */
+function tidyConfig(cfg, defaults) {
+  const out = {};
+  for (const key of Object.keys(cfg)) {
+    const v = cfg[key];
+    if (v === '' || v === null || v === undefined) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    if (defaults && Object.prototype.hasOwnProperty.call(defaults, key) && v === defaults[key]) continue;
+    out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * Eine Geräteliste zurückschreiben. Wer im YAML `{entity: …, name: …,
+ * icon: …}` geschrieben hat, soll das nicht verlieren, bloss weil er im
+ * Editor eine Lampe dazugenommen hat. Also: neue Reihenfolge aus dem
+ * Picker, alte Feinheiten aus der bisherigen Liste.
+ */
+function mergeList(ids, previous) {
+  const old = {};
+  for (const e of normList(previous) || []) old[e.entity] = e;
+  return (ids || []).map((id) => {
+    const kept = old[id];
+    if (kept && (kept.name || kept.icon)) return Object.assign({}, kept);
+    return id;
+  });
+}
+
+/**
+ * Vergleichbare Fassung eines Objekts: Schlüssel sortiert, damit ein
+ * zurückgereichtes `config` auch dann als "unsere eigene" erkannt wird,
+ * wenn Home Assistant die Reihenfolge unterwegs ändert.
+ */
+function stableJson(v) {
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  if (v && typeof v === 'object') {
+    return '{' + Object.keys(v).sort()
+      .map((k) => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+  }
+  return JSON.stringify(v);
+}
+
+/** Eine einzelne Aktion so knapp wie möglich schreiben */
+function packItem(it) {
+  if (!it || !it.entity) return null;
+  if (it.name || it.icon) {
+    const o = { entity: it.entity };
+    if (it.name) o.name = it.name;
+    if (it.icon) o.icon = it.icon;
+    return o;
+  }
+  return it.entity;
+}
+
+/* ------------------------------------------------------------------ *
+ * Basisklasse
+ * ------------------------------------------------------------------ */
+class LavEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+  }
+
+  setConfig(config) {
+    const incoming = stableJson(config);
+    // Kommt die Konfiguration von aussen (YAML-Editor, anderes Fenster),
+    // verwerfen wir unseren Zwischenstand. Kommt sie von uns selbst
+    // zurück, behalten wir ihn — sonst verschwinden halbfertige Zeilen.
+    if (incoming !== this._echo) this._state = null;
+    this._config = Object.assign({}, config);
+    this._render();
+  }
+
+  set hass(hass) { this._hass = hass; this._render(); }
+  get hass() { return this._hass; }
+
+  connectedCallback() {
+    ensureFormLoaded().then(() => this._render());
+    this._render();
+  }
+
+  /* --- von den Unterklassen zu füllen --- */
+  static get DEFAULTS() { return null; }
+  _schema() { return []; }
+  _toForm(cfg) { return cfg; }
+  _fromForm(data) { return Object.assign({}, this._config, data); }
+  _extra() {}
+
+  _emit(cfg) {
+    const clean = tidyConfig(cfg, this.constructor.DEFAULTS);
+    clean.type = cfg.type || this._config.type;
+    this._config = clean;
+    this._echo = stableJson(clean);
+    this.dispatchEvent(new CustomEvent('config-changed', {
+      detail: { config: clean }, bubbles: true, composed: true
+    }));
+    this._render();
+  }
+
+  _root() {
+    if (this._rootEl) return this._rootEl;
+    const style = document.createElement('style');
+    style.textContent = ED_CSS;
+    this._rootEl = document.createElement('div');
+    this._rootEl.className = 'ed';
+    this.shadowRoot.append(style, this._rootEl);
+    return this._rootEl;
+  }
+
+  _makeForm(onChange) {
+    const f = document.createElement('ha-form');
+    f.computeLabel = (s) => ED_LABELS[s.name] || s.name;
+    f.computeHelper = (s) => ED_HELP[s.name] || '';
+    f.addEventListener('value-changed', (ev) => {
+      ev.stopPropagation();
+      onChange(ev.detail.value);
+    });
+    return f;
+  }
+
+  /**
+   * Formular auffrischen, ohne es neu zu bauen — sonst springt bei jedem
+   * Zustandswechsel im Haus der Textcursor aus dem Feld.
+   */
+  _fillForm(form, schema, data) {
+    const sig = JSON.stringify(schema);
+    if (sig !== form.__lavSchema) {
+      form.schema = schema;
+      form.__lavSchema = sig;
+    }
+    form.hass = this._hass;
+    form.data = data;
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    const root = this._root();
+    if (!this._form) {
+      this._form = this._makeForm((d) => this._emit(this._fromForm(d)));
+      root.appendChild(this._form);
+    }
+    this._fillForm(this._form, this._schema(), this._toForm(this._config));
+    this._extra(root);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Zieh-Regler
+ * ------------------------------------------------------------------ */
+class LavendelSliderEditor extends LavEditor {
+  static get DEFAULTS() { return { show_name: true }; }
+
+  _schema() {
+    return [
+      fieldEntity('entity', ['light', 'cover', 'media_player']),
+      grid(fieldText('name'), fieldIcon('icon')),
+      fieldBool('show_name')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      icon: c.icon || '',
+      show_name: c.show_name !== false
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Storen
+ * ------------------------------------------------------------------ */
+class LavendelCoverEditor extends LavEditor {
+  _schema() {
+    return [
+      fieldEntity('entity', 'cover'),
+      fieldText('name'),
+      fieldEntity('lock_entity', ['binary_sensor', 'input_boolean', 'switch']),
+      fieldText('lock_label')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      lock_entity: c.lock_entity || '',
+      lock_label: c.lock_label || ''
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Medienspieler
+ * ------------------------------------------------------------------ */
+class LavendelMediaEditor extends LavEditor {
+  static get DEFAULTS() { return { show_art: true, show_volume: true }; }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'media_player'),
+      grid(fieldText('name'), fieldText('label')),
+      fieldColor(),
+      grid(fieldBool('show_art'), fieldBool('show_volume'))
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      label: c.label || '',
+      color: c.color || '',
+      show_art: c.show_art !== false,
+      show_volume: c.show_volume !== false
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Diagramm
+ * ------------------------------------------------------------------ */
+class LavendelChartEditor extends LavEditor {
+  static get DEFAULTS() { return { tinted: false }; }
+
+  _schema() {
+    return [
+      fieldEntity('entities', ['sensor', 'counter', 'input_number', 'number'], true),
+      grid(fieldText('title'), fieldText('label')),
+      grid(fieldIcon('icon'), fieldColor()),
+      grid(
+        {
+          name: 'period',
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: [
+                { value: 'tag', label: 'Tag' },
+                { value: 'woche', label: 'Woche' },
+                { value: 'monat', label: 'Monat' },
+                { value: 'jahr', label: 'Jahr' }
+              ]
+            }
+          }
+        },
+        fieldBool('tinted')
+      )
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entities: (normList(c.entities) || []).map((e) => e.entity),
+      title: c.title || '',
+      label: c.label || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      period: PERIOD_ALIAS[String(c.period || 'tag').toLowerCase()] || 'tag',
+      tinted: c.tinted === true
+    };
+  }
+
+  _fromForm(data) {
+    const cfg = Object.assign({}, this._config, data);
+    // Die Karte verträgt höchstens drei — lieber hier abschneiden als
+    // eine Konfiguration speichern, die beim Laden auf einen Fehler läuft.
+    const ids = (data.entities || []).slice(0, 3);
+    this._tooMany = (data.entities || []).length > 3;
+    cfg.entities = mergeList(ids, this._config.entities);
+    return cfg;
+  }
+
+  _extra(root) {
+    if (!this._note) {
+      this._note = document.createElement('p');
+      this._note.className = 'warn';
+      root.appendChild(this._note);
+    }
+    this._note.textContent = this._tooMany
+      ? 'Höchstens drei Messwerte — die überzähligen wurden verworfen.'
+      : '';
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Raum
+ * ------------------------------------------------------------------ */
+const ROOM_LISTS = [
+  { field: 'lights', domain: 'light' },
+  { field: 'covers', domain: 'cover' },
+  { field: 'media', domain: 'media_player' },
+  { field: 'climate', domain: 'climate' }
+];
+
+class LavendelRoomEditor extends LavEditor {
+  _schema() {
+    return [
+      { name: 'area', selector: { area: {} } },
+      grid(fieldText('name'), fieldText('label')),
+      grid(fieldIcon('icon'), fieldColor()),
+      grid(
+        fieldEntity('temperature', 'sensor'),
+        fieldEntity('humidity', 'sensor')
+      ),
+      fieldText('navigation_path'),
+      {
+        name: 'groups',
+        selector: {
+          select: {
+            multiple: true,
+            options: [
+              { value: 'light', label: 'Lampen' },
+              { value: 'cover', label: 'Storen' },
+              { value: 'media_player', label: 'Medienspieler' },
+              { value: 'climate', label: 'Heizung' }
+            ]
+          }
+        }
+      },
+      fieldEntity('lights', 'light', true),
+      fieldEntity('covers', 'cover', true),
+      fieldEntity('media', 'media_player', true),
+      fieldEntity('climate', 'climate', true)
+    ];
+  }
+
+  _toForm(c) {
+    const out = {
+      area: c.area || '',
+      name: c.name || '',
+      label: c.label || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      temperature: c.temperature || '',
+      humidity: c.humidity || '',
+      navigation_path: c.navigation_path || '',
+      groups: c.groups || ['light', 'cover', 'media_player', 'climate']
+    };
+    for (const { field, domain } of ROOM_LISTS) {
+      const list = normList(LavendelRoomCard._listFor(c, domain)) || [];
+      out[field] = list.map((e) => e.entity);
+    }
+    return out;
+  }
+
+  _fromForm(data) {
+    const cfg = Object.assign({}, this._config, data);
+    for (const { field, domain } of ROOM_LISTS) {
+      // In welchen Schlüssel geschrieben wird, entscheidet der Bestand:
+      // wer `storen:` geschrieben hat, behält `storen:`.
+      let key = field;
+      for (const k of GROUP_KEYS[domain]) {
+        if (this._config[k]) { key = k; break; }
+      }
+      for (const k of GROUP_KEYS[domain]) delete cfg[k];
+      delete cfg[field];
+      const ids = data[field] || [];
+      if (ids.length) {
+        cfg[key] = mergeList(ids, LavendelRoomCard._listFor(this._config, domain));
+      }
+    }
+    // Alle vier Gruppen sichtbar ist der Normalfall — dann muss es nicht
+    // in der YAML stehen.
+    if (cfg.groups && cfg.groups.length === 4) delete cfg.groups;
+    return cfg;
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent =
+      'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte des '
+      + 'Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
+      + 'Code-Editor — der Editor hier lässt sie unangetastet.';
+    root.appendChild(this._note);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Schnellzugriffe
+ *
+ * Hier reicht ein Schema nicht: Gruppen mit je mehreren Aktionen, jede
+ * mit eigenem Namen und Symbol, dazu Hinzufügen und Entfernen. Das bauen
+ * wir selbst — die einzelnen Felder bleiben aber <ha-form>, damit die
+ * Picker dieselben sind wie überall sonst.
+ * ------------------------------------------------------------------ */
+const ACT_DOMAINS = ['scene', 'script', 'automation', 'button', 'input_button',
+  'switch', 'input_boolean'];
+
+class LavendelActionsEditor extends LavEditor {
+  _schema() {
+    return [
+      fieldText('title'),
+      grid(
+        {
+          name: 'shape',
+          selector: {
+            select: {
+              mode: 'dropdown',
+              options: [
+                { value: 'squares', label: 'Quadrate' },
+                { value: 'chips', label: 'Chips' },
+                { value: 'tiles', label: 'Kacheln' },
+                { value: 'rail', label: 'Leiste' }
+              ]
+            }
+          }
+        },
+        { name: 'columns', selector: { number: { min: 2, max: 6, mode: 'box' } } }
+      ),
+      fieldBool('grouped')
+    ];
+  }
+
+  /** Konfiguration → einheitliches Arbeitsmodell */
+  _model() {
+    if (this._state) return this._state;
+    const c = this._config;
+    if (c.groups && c.groups.length) {
+      this._state = {
+        grouped: true,
+        groups: c.groups.map((g) => ({
+          label: g.label || '',
+          actions: normList(g.actions) || []
+        }))
+      };
+    } else {
+      this._state = {
+        grouped: false,
+        groups: [{ label: '', actions: normList(c.actions) || [] }]
+      };
+    }
+    return this._state;
+  }
+
+  /** Arbeitsmodell → Konfiguration */
+  _commit() {
+    const st = this._state;
+    const cfg = Object.assign({}, this._config);
+    delete cfg.actions;
+    delete cfg.groups;
+    if (st.grouped) {
+      cfg.groups = st.groups.map((g) => {
+        const o = {};
+        if (g.label) o.label = g.label;
+        o.actions = g.actions.map(packItem).filter(Boolean);
+        return o;
+      });
+    } else {
+      const first = st.groups[0] || { actions: [] };
+      cfg.actions = first.actions.map(packItem).filter(Boolean);
+    }
+    this._emit(cfg);
+    this._render();
+  }
+
+  _toForm() {
+    const st = this._model();
+    return {
+      title: this._config.title || '',
+      shape: this._config.shape || 'squares',
+      columns: this._config.columns || 4,
+      grouped: st.grouped
+    };
+  }
+
+  _fromForm(data) {
+    const st = this._model();
+    if (data.grouped !== st.grouped) {
+      if (data.grouped) {
+        // Flach → eine Gruppe, die der Nutzer gleich benennen kann
+        st.grouped = true;
+        st.groups = [{ label: 'Szenen', actions: st.groups[0] ? st.groups[0].actions : [] }];
+      } else {
+        // Gruppen → alles in eine Liste, nichts geht verloren
+        st.grouped = false;
+        const all = [];
+        for (const g of st.groups) all.push(...g.actions);
+        st.groups = [{ label: '', actions: all }];
+      }
+    }
+    const cfg = Object.assign({}, this._config, {
+      title: data.title,
+      shape: data.shape,
+      columns: data.columns
+    });
+    delete cfg.grouped;
+    // shape NICHT weglassen, wenn es "squares" ist: die Karte schaltet ab
+    // neun Aktionen von selbst auf Chips um. Wer im Editor bewusst
+    // Quadrate wählt, soll Quadrate bekommen.
+    if (cfg.columns === 4) delete cfg.columns;
+    // Die Listen kommen aus dem Arbeitsmodell, nicht aus dem Formular
+    delete cfg.actions;
+    delete cfg.groups;
+    if (st.grouped) {
+      cfg.groups = st.groups.map((g) => {
+        const o = {};
+        if (g.label) o.label = g.label;
+        o.actions = g.actions.map(packItem).filter(Boolean);
+        return o;
+      });
+    } else {
+      cfg.actions = (st.groups[0] ? st.groups[0].actions : []).map(packItem).filter(Boolean);
+    }
+    return cfg;
+  }
+
+  _rowSchema() {
+    return [
+      fieldEntity('entity', ACT_DOMAINS),
+      grid(fieldText('name'), fieldIcon('icon'))
+    ];
+  }
+
+  _btn(icon, text, onClick, cls) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (cls ? ' ' + cls : '');
+    b.type = 'button';
+    b.innerHTML = `<ha-icon icon="${icon}"></ha-icon>${text ? '<span></span>' : ''}`;
+    if (text) b.querySelector('span').textContent = text;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  _extra(root) {
+    const st = this._model();
+    const sig = st.grouped + '|' + st.groups.map((g) => g.actions.length).join(',');
+
+    if (!this._list) {
+      this._list = document.createElement('div');
+      this._list.className = 'ed';
+      root.appendChild(this._list);
+    }
+
+    // Nur neu bauen, wenn sich die Struktur ändert. Sonst würde jeder
+    // Tastendruck das Feld unter dem Cursor wegreissen.
+    if (sig !== this._listSig) {
+      this._listSig = sig;
+      this._forms = [];
+      this._list.textContent = '';
+
+      st.groups.forEach((g, gi) => {
+        const box = document.createElement('div');
+        box.className = 'grp';
+
+        if (st.grouped) {
+          const head = document.createElement('div');
+          head.className = 'ghead';
+          const lf = this._makeForm((d) => {
+            st.groups[gi].label = d.label || '';
+            this._commit();
+          });
+          lf.schema = [fieldText('label')];
+          lf.__lavSchema = 'label';
+          this._forms.push({ form: lf, data: () => ({ label: st.groups[gi].label }) });
+          head.appendChild(lf);
+          head.appendChild(this._btn('mdi:delete-outline', '', () => {
+            st.groups.splice(gi, 1);
+            if (!st.groups.length) st.groups.push({ label: '', actions: [] });
+            this._listSig = null;
+            this._commit();
+          }, 'x'));
+          box.appendChild(head);
+        }
+
+        g.actions.forEach((_, ai) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const rf = this._makeForm((d) => {
+            st.groups[gi].actions[ai] = {
+              entity: d.entity || '',
+              name: d.name || '',
+              icon: d.icon || ''
+            };
+            this._commit();
+          });
+          this._forms.push({
+            form: rf,
+            schema: this._rowSchema(),
+            data: () => {
+              const it = st.groups[gi].actions[ai] || {};
+              return { entity: it.entity || '', name: it.name || '', icon: it.icon || '' };
+            }
+          });
+          row.appendChild(rf);
+          row.appendChild(this._btn('mdi:close', '', () => {
+            st.groups[gi].actions.splice(ai, 1);
+            this._listSig = null;
+            this._commit();
+          }, 'x'));
+          box.appendChild(row);
+        });
+
+        const adds = document.createElement('div');
+        adds.className = 'adds';
+        adds.appendChild(this._btn('mdi:plus', 'Aktion', () => {
+          st.groups[gi].actions.push({ entity: '', name: '', icon: '' });
+          this._listSig = null;
+          this._render();
+        }));
+        box.appendChild(adds);
+        this._list.appendChild(box);
+      });
+
+      if (st.grouped) {
+        const adds = document.createElement('div');
+        adds.className = 'adds';
+        adds.appendChild(this._btn('mdi:plus', 'Gruppe', () => {
+          st.groups.push({ label: '', actions: [] });
+          this._listSig = null;
+          this._render();
+        }));
+        this._list.appendChild(adds);
+      }
+    }
+
+    for (const f of this._forms) {
+      if (f.schema) this._fillForm(f.form, f.schema, f.data());
+      else { f.form.hass = this._hass; f.form.data = f.data(); }
+      f.form.computeLabel = (s) => ED_LABELS[s.name] || s.name;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Registrierung der Editoren
+ * ------------------------------------------------------------------ */
+function defineEditor(tag, cls) {
+  if (!customElements.get(tag)) customElements.define(tag, cls);
+}
+
+defineEditor('lavendel-room-card-editor', LavendelRoomEditor);
+defineEditor('lavendel-slider-card-editor', LavendelSliderEditor);
+defineEditor('lavendel-cover-card-editor', LavendelCoverEditor);
+defineEditor('lavendel-media-card-editor', LavendelMediaEditor);
+defineEditor('lavendel-actions-card-editor', LavendelActionsEditor);
+defineEditor('lavendel-chart-card-editor', LavendelChartEditor);
+
+/* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
+   statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
+   einem Block und die Kartenklassen darüber unberührt. */
+const EDITOR_OF = [
+  [LavendelRoomCard, 'lavendel-room-card-editor'],
+  [LavendelSliderCard, 'lavendel-slider-card-editor'],
+  [LavendelCoverCard, 'lavendel-cover-card-editor'],
+  [LavendelMediaCard, 'lavendel-media-card-editor'],
+  [LavendelActionsCard, 'lavendel-actions-card-editor'],
+  [LavendelChartCard, 'lavendel-chart-card-editor']
+];
+for (const [cls, tag] of EDITOR_OF) {
+  cls.getConfigElement = async () => {
+    await ensureFormLoaded();
+    return document.createElement(tag);
+  };
 }
 
 /* ------------------------------------------------------------------ *

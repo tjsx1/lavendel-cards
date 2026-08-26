@@ -3,7 +3,8 @@
 Sechs Lovelace-Karten für Home Assistant im Lavendel-Look: weiche helle Flächen,
 Verlaufs-Akzente von Türkis über Violett nach Pink, für die Bedienung am Handy gebaut.
 
-Keine Abhängigkeiten — weder button-card noch card-mod nötig.
+Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
+über den **visuellen Editor** einrichten.
 
 | Karte | Was sie kann |
 |---|---|
@@ -335,6 +336,27 @@ sie auf die Historie zurück.
 > über lange Zeiträume nichts — dann hilft nur, die Entität mit `state_class:
 > measurement` zu versehen.
 
+## Visueller Editor
+
+Alle sechs Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
+**Karte hinzufügen** oder beim Klick auf den Stift öffnet sich ein Formular statt der
+YAML — mit Entitäten-Picker, Bereichs-Picker, Symbolwahl und Farbliste.
+
+Was der Editor nicht kann, und warum:
+
+- **Eigene Namen und Symbole je Gerät** in den Listen der Raum-Karte
+  (`lights: [{entity: …, name: …, icon: …}]`) gibt es nur im Code-Editor. Der visuelle
+  Editor **lässt sie unangetastet** — wer eine Lampe dazunimmt, verliert die Feinheiten
+  der anderen nicht. Bei den Schnellzugriffen sind Name und Symbol dagegen pro Aktion
+  direkt im Formular.
+- **Umschalten zwischen `actions:` und `groups:`** macht der Schalter *In Gruppen
+  aufteilen*. Beim Ausschalten wandern alle Aktionen in eine Liste, es geht nichts
+  verloren.
+
+Zwischen Formular und YAML kann jederzeit hin- und hergewechselt werden. Der Editor
+schreibt nur, was vom Standard abweicht — leere Felder und Schalter auf ihrem
+Normalwert landen nicht in der Konfiguration.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -381,6 +403,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.2.0** — Visueller Editor für alle sechs Karten; brauchbare Startkonfiguration aus der Kartenauswahl
 **1.1.0** — Neue Diagramm-Karte
 **1.0.0** — Masse am Vorbild nachgemessen: Radius 24, Glasknöpfe, Coverblende
 **0.9.0** — Raumname neben das Icon, Karte kompakter
