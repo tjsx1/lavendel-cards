@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Zehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Elf Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -24,6 +24,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
 | `onyx-light-card` | Licht als eine Zeile; Regler, Farbrad und Effekte klappen aus |
 | `onyx-camera-card` | Kamera mit Livebild, Bewegung, Licht und Türöffner |
+| `onyx-lock-card` | Schloss: schieben zum Entriegeln, mit Tür- und Akkustand |
 
 ## Installation über HACS
 
@@ -621,6 +622,47 @@ blinkt das Dashboard alle zwei Minuten rot.
 fallen Knöpfe und zweite Zeile von selbst weg; übrig bleibt, was eine Vorschau
 ausmacht: der Name und ob gerade etwas los ist.
 
+### onyx-lock-card
+
+![Schloss-Karte, verriegelt und entriegelt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/lock-card.png)
+
+Ein Schloss gross in der Mitte, darunter der Riegel: **geschoben wird nur zum
+Entriegeln**. Ein Fehlgriff auf dem Handy soll nicht die Haustür aufsperren —
+zurücksperren dagegen ist harmlos und geht mit einem Tipp.
+
+```yaml
+type: custom:onyx-lock-card
+entity: lock.haustuer
+door_entity: binary_sensor.haustuer_kontakt
+battery_entity: sensor.haustuer_akku
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entity` | — | Pflicht. Muss aus der Domäne `lock` kommen |
+| `name` | Gerätename | Beschriftung |
+| `icon` | nach Zustand | Sonst `mdi:lock`, `mdi:lock-open-variant`, `mdi:lock-alert` |
+| `color` | nach Zustand | Feste Palette statt der Zustandsfarbe |
+| `door_entity` | — | `binary_sensor` an der Tür; zeigt „Tür offen" oder „Tür zu" |
+| `battery_entity` | — | `sensor`; der Stand steht oben rechts |
+| `show_open` | `true` | Blendet den Riegel-Knopf aus |
+
+**Die Farbe sagt den Zustand:** grün verriegelt, orange entriegelt, rot klemmt.
+Eine eigene `color` überschreibt das — dann bleibt die Karte immer in ihrer Palette.
+
+**Der Riegel** muss über neun Zehntel der Schiene gezogen werden. Wer vorher
+loslässt, bekommt den Griff zurückgefedert und es passiert nichts. Antippen allein
+tut nichts; Halten öffnet das Detailfenster.
+
+**„Riegel zurückziehen"** erscheint nur bei Schlössern, die das können
+(`supported_features` enthält `OPEN`). Entriegeln und Öffnen sind zweierlei: das
+eine gibt die Klinke frei, das andere zieht den Riegel wirklich zurück. Weil das
+der folgenreichste Griff auf der Karte ist, braucht er zwei Tipper — einmal
+spannen, einmal auslösen, nach drei Sekunden ist er wieder entspannt.
+
+**Während geschlossen oder geöffnet wird** verschwindet die Bedienung und die
+Karte zeigt nur „Verriegelt …". Das Schloss pulsiert dabei leise.
+
 ## Visueller Editor
 
 Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
@@ -768,6 +810,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.12.0** — Neue Schloss-Karte: schieben zum Entriegeln, Zustandsfarbe, Riegel-Knopf
 **2.11.0** — Raum-Karte bleibt auch im Ruhezustand in ihrer Farbe, nur gedämpft
 **2.10.0** — Raum-Karte: Gruppen in der Reihenfolge Licht, Storen, Musik, Klima; der Knopf zur Raumseite entfällt
 **2.9.0** — Farbrad statt Farbfeld; Knöpfe und Zeilen glühen in der Farbe der Lampe

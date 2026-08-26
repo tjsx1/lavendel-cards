@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.11.0
+ * Version 2.12.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -13,6 +13,7 @@
  *   custom:onyx-weather-card – Wetter mit gezeichneter Szene und Vorhersage
  *   custom:onyx-light-card   – Licht als eine Zeile, ausklappbar
  *   custom:onyx-camera-card  – Kamera mit Livebild, Bewegung und Türöffner
+ *   custom:onyx-lock-card    – Schloss: schieben zum Entriegeln
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -127,6 +128,28 @@ const STRINGS = {
     'ed.h.door_entity': 'Schloss, Schalter oder Knopf — der Knopf braucht zwei Tipper',
     'ed.h.footer': 'Symbol, Name und Zustand unter das Bild statt darüber',
     'ed.h.aspect_ratio': 'Zum Beispiel 16/9, 4/3 oder 1/1',
+    lock: 'Schloss',
+    'lk.locked': 'Verriegelt',
+    'lk.unlocked': 'Entriegelt',
+    'lk.locking': 'Verriegelt …',
+    'lk.unlocking': 'Entriegelt …',
+    'lk.opening': 'Öffnet …',
+    'lk.jammed': 'Klemmt',
+    'lk.slide': 'Zum Entriegeln schieben',
+    'lk.slideShort': 'Entriegeln',
+    'lk.lock': 'Verriegeln',
+    'lk.openDoor': 'Riegel zurückziehen',
+    'lk.openShort': 'Riegel',
+    'lk.sure': 'Sicher?',
+    'lk.doorOpen': 'Tür offen',
+    'lk.doorShut': 'Tür zu',
+    'err.needLock': 'Die Entität muss aus der Domäne "lock" kommen.',
+    'card.lock': 'Onyx Schloss-Karte',
+    'card.lock.d': 'Schieben zum Entriegeln, mit Tür- und Akkustand',
+    'ed.show_open': 'Riegel-Knopf zeigen',
+    'ed.h.show_open': 'Nur bei Schlössern, die den Riegel selbst zurückziehen können',
+    'ed.h.door_entity_lock': 'Ein binary_sensor an der Tür; zeigt offen oder zu',
+    'ed.h.lockColor': 'Ohne eigene Farbe färbt sich die Karte nach dem Zustand: grün verriegelt, orange entriegelt, rot klemmt.',
     'card.weather': 'Onyx Wetter-Karte',
     'card.weather.d': 'Gezeichnete Wetterszene, Messwerte und Vorhersage',
     'ed.forecast': 'Vorhersage',
@@ -378,6 +401,28 @@ const STRINGS = {
     'ed.h.door_entity': 'Lock, switch or button — the button needs two taps',
     'ed.h.footer': 'Icon, name and state below the picture instead of over it',
     'ed.h.aspect_ratio': 'For example 16/9, 4/3 or 1/1',
+    lock: 'Lock',
+    'lk.locked': 'Locked',
+    'lk.unlocked': 'Unlocked',
+    'lk.locking': 'Locking …',
+    'lk.unlocking': 'Unlocking …',
+    'lk.opening': 'Opening …',
+    'lk.jammed': 'Jammed',
+    'lk.slide': 'Slide to unlock',
+    'lk.slideShort': 'Unlock',
+    'lk.lock': 'Lock',
+    'lk.openDoor': 'Pull back the latch',
+    'lk.openShort': 'Latch',
+    'lk.sure': 'Sure?',
+    'lk.doorOpen': 'Door open',
+    'lk.doorShut': 'Door closed',
+    'err.needLock': 'The entity must come from the "lock" domain.',
+    'card.lock': 'Onyx Lock Card',
+    'card.lock.d': 'Slide to unlock, with door and battery state',
+    'ed.show_open': 'Show latch button',
+    'ed.h.show_open': 'Only for locks that can pull back the latch themselves',
+    'ed.h.door_entity_lock': 'A binary_sensor on the door; shows open or closed',
+    'ed.h.lockColor': 'Without a color of your own the card follows the state: green locked, orange unlocked, red jammed.',
     'card.weather': 'Onyx Weather Card',
     'card.weather.d': 'Drawn weather scene, readings and forecast',
     'ed.forecast': 'Forecast',
@@ -4801,6 +4846,284 @@ class OnyxCameraCard extends OnyxBase {
   }
 }
 
+/* ================================================================== *
+ * 11) SCHLOSS-KARTE
+ * ================================================================== */
+
+/** Wie weit der Griff wandern muss, damit es als Entriegeln zählt */
+const LK_TRIP = 86;
+/** Der Griff bleibt in der Schiene: 46 px sind Knopfbreite plus Luft */
+const LK_POS = (v) => `calc((100% - 50px) * ${clamp(v, 0, 100)} / 100)`;
+
+class OnyxLockCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      padding:14px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09);
+      display:flex; flex-direction:column; gap:12px; overflow:hidden;
+      box-shadow:none; container-type:inline-size;
+      background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%);
+    }
+    ha-card.off{ opacity:.55; }
+
+    .hd{ display:flex; align-items:center; gap:11px; cursor:pointer; }
+    .hico{ width:38px; height:38px; border-radius:50%; flex:none; display:grid;
+           place-items:center; --mdc-icon-size:19px; color:var(--acc);
+           border:1.5px solid color-mix(in srgb, var(--acc) 45%, transparent);
+           background:color-mix(in srgb, var(--acc) 12%, transparent); }
+    .txt{ flex:1; min-width:0; }
+    .lab{ font-size:11px; line-height:14px; color:var(--lab); }
+    .nm{ font-size:14px; font-weight:600; line-height:19px; color:#e9f1f8;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .meta{ text-align:right; line-height:1.35; flex:none; }
+    .meta .d{ font-size:12px; color:var(--sub); white-space:nowrap; }
+    .meta .b{ font-size:11px; color:var(--lab); font-variant-numeric:tabular-nums; }
+
+    /* Die Bühne: das Schloss gross in der Mitte, dahinter zwei Höfe, die
+       den Zustand tragen. Zugesperrt sind sie ruhig, offen leuchten sie. */
+    .stage{ position:relative; height:132px; display:grid; place-items:center; }
+    .halo{ position:absolute; border-radius:50%; }
+    .h1{ width:126px; height:126px;
+         background:color-mix(in srgb, var(--acc) 7%, transparent); }
+    .h2{ width:92px; height:92px;
+         background:color-mix(in srgb, var(--acc) 11%, transparent); }
+    .big{ position:relative; width:62px; height:62px; border-radius:50%;
+          display:grid; place-items:center; --mdc-icon-size:30px; color:#fff;
+          background:color-mix(in srgb, var(--acc) 26%, transparent);
+          border:1.5px solid color-mix(in srgb, var(--acc) 55%, transparent);
+          box-shadow:0 0 34px color-mix(in srgb, var(--acc) 26%, transparent); }
+    ha-card.busy .big{ animation:onyxPulse 1.1s ease-in-out infinite; }
+    @keyframes onyxPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(.93); } }
+
+    /* Der Riegel: schieben, nicht tippen. Ein Fehlgriff auf dem Handy
+       soll nicht die Haustür aufsperren. */
+    .slide{ position:relative; height:50px; border-radius:99px; overflow:hidden;
+            cursor:pointer; touch-action:pan-y;
+            background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.10); }
+    .trail{ position:absolute; left:0; top:0; bottom:0; width:0;
+            background:color-mix(in srgb, var(--btn) 30%, transparent); }
+    .cap{ position:absolute; inset:0; display:grid; place-items:center;
+          font-size:13px; font-weight:600; color:var(--acc);
+          padding:0 54px; text-align:center; pointer-events:none;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .knob{ position:absolute; top:4px; width:42px; height:42px; border-radius:50%;
+           display:grid; place-items:center; color:#fff; --mdc-icon-size:20px;
+           margin-left:4px; z-index:2;
+           background:color-mix(in srgb, var(--btn) 72%, transparent);
+           border:1px solid color-mix(in srgb, var(--btn) 90%, transparent);
+           box-shadow:0 4px 14px rgba(0,0,0,.35); }
+
+    /* Zurücksperren ist harmlos — dafür genügt ein Knopf. */
+    .btn{ height:46px; border-radius:14px; display:flex; align-items:center;
+          justify-content:center; gap:8px; cursor:pointer;
+          font-size:13px; font-weight:600; color:#fff; --mdc-icon-size:18px;
+          background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+          -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+          border:1px solid rgba(255,255,255,.11);
+          transition:transform .12s ease, background .18s ease; }
+    .btn.hot{ background:color-mix(in srgb, var(--btn) 58%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 76%, transparent); }
+    .btn.armed{ box-shadow:0 0 0 2px rgba(255,255,255,.85),
+                           0 0 0 4px color-mix(in srgb, var(--btn) 45%, transparent); }
+    .btn.held{ transform:scale(.97); }
+    .btn.slim{ height:40px; font-size:12.5px; }
+    .btn span, .cap span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .kurz{ display:none; }
+
+    .note{ font-size:12px; line-height:1.45; color:var(--lab); text-align:center; }
+
+    /* Auf einer halben Spalte schrumpft die Bühne, damit die Karte nicht
+       zur Säule wird. */
+    @container (max-width: 240px){
+      .stage{ height:96px; }
+      .h1{ width:92px; height:92px; }
+      .h2{ width:70px; height:70px; }
+      .big{ width:50px; height:50px; --mdc-icon-size:24px; }
+      .meta{ display:none; }
+      .cap{ font-size:12px; padding:0 12px 0 50px; }
+      .lang{ display:none; }
+      .kurz{ display:inline; }
+    }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return { type: 'custom:onyx-lock-card', entity: firstEntity(hass, 'lock') };
+  }
+
+  setConfig(config) {
+    if (!config.entity) throw new Error(t('err.needEntity'));
+    if (config.entity.split('.')[0] !== 'lock') throw new Error(t('err.needLock'));
+    this._armed = false;
+    super.setConfig(config);
+  }
+
+  _readout(id, kind) {
+    const st = id && this._hass.states[id];
+    if (!st || isDead(st)) return null;
+    if (kind === 'door') return isOn(st) ? t('lk.doorOpen') : t('lk.doorShut');
+    const n = Number(st.state);
+    return isNaN(n) ? null : nfmt(n, 0) + ' %';
+  }
+
+  _model() {
+    const cfg = this._config;
+    const st = this._hass.states[cfg.entity];
+    if (!st) throw new Error(t('err.entity', { id: cfg.entity }));
+
+    const state = st.state;
+    const dead = isDead(st);
+    const busy = state === 'locking' || state === 'unlocking' || state === 'opening';
+    const locked = state === 'locked';
+    const jammed = state === 'jammed';
+
+    // Die Farbe sagt den Zustand: zu ist grün, offen ist orange, klemmt
+    // ist rot. Wer eine eigene Farbe setzt, überschreibt das.
+    const auto = jammed ? 'rot' : locked ? 'gruen' : 'orange';
+
+    const feat = st.attributes.supported_features || 0;
+    return {
+      id: cfg.entity,
+      name: cfg.name || nameOf(this._hass, cfg.entity),
+      icon: cfg.icon || (jammed ? 'mdi:lock-alert'
+        : locked ? 'mdi:lock' : 'mdi:lock-open-variant'),
+      label: dead ? t('unavailable') : t('lk.' + (busy ? state : jammed ? 'jammed'
+        : locked ? 'locked' : 'unlocked')),
+      color: cfg.color || auto,
+      state, dead, busy, locked, jammed,
+      door: this._readout(cfg.door_entity, 'door'),
+      battery: this._readout(cfg.battery_entity),
+      // Manche Schlösser können den Riegel zurückziehen, also wirklich
+      // öffnen. Das ist etwas anderes als entriegeln.
+      canOpen: cfg.show_open !== false && (feat & 1) !== 0,
+      armed: this._armed
+    };
+  }
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+    const klass = (cls + (m.dead ? ' off' : '') + (m.busy ? ' busy' : '')).trim();
+
+    let control = '';
+    if (m.dead) {
+      control = `<div class="note">${esc(t('unavailable'))}</div>`;
+    } else if (m.busy) {
+      control = `<div class="note">${esc(m.label)}</div>`;
+    } else if (m.locked || m.jammed) {
+      control = `
+        <div class="slide" id="slide">
+          <div class="trail" id="trail"></div>
+          <div class="cap" id="cap"><span class="lang">${esc(t('lk.slide'))}</span
+            ><span class="kurz">${esc(t('lk.slideShort'))}</span></div>
+          <div class="knob" id="knob" style="left:${LK_POS(0)}">
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+          </div>
+        </div>`;
+    } else {
+      control = `
+        <div class="btn hot" id="lock">
+          <ha-icon icon="mdi:lock"></ha-icon><span>${esc(t('lk.lock'))}</span>
+        </div>`;
+    }
+
+    const meta = (m.door || m.battery) ? `
+      <div class="meta">
+        ${m.door ? `<div class="d">${esc(m.door)}</div>` : ''}
+        ${m.battery ? `<div class="b">${esc(m.battery)}</div>` : ''}
+      </div>` : '';
+
+    return `
+    <ha-card class="${klass}"${style}>
+      <div class="hd" id="hd">
+        <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+        <div class="txt">
+          <div class="lab">${esc(m.label)}</div>
+          <div class="nm">${esc(m.name)}</div>
+        </div>
+        ${meta}
+      </div>
+
+      <div class="stage">
+        <div class="halo h1"></div>
+        <div class="halo h2"></div>
+        <div class="big"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+      </div>
+
+      ${control}
+
+      ${m.canOpen && !m.dead && !m.busy ? `
+        <div class="btn slim ${m.armed ? 'hot armed' : ''}" id="open">
+          <ha-icon icon="mdi:door-open"></ha-icon>${m.armed
+            ? `<span>${esc(t('lk.sure'))}</span>`
+            : `<span class="lang">${esc(t('lk.openDoor'))}</span>` +
+              `<span class="kurz">${esc(t('lk.openShort'))}</span>`}
+        </div>` : ''}
+    </ha-card>`;
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    const more = () => fireMoreInfo(this, m.id);
+    this._press(root.getElementById('hd'), { onTap: more, onHold: more });
+
+    const slide = root.getElementById('slide');
+    if (slide) {
+      const knob = root.getElementById('knob');
+      const trail = root.getElementById('trail');
+      const cap = root.getElementById('cap');
+      this._press(slide, {
+        axis: 'x',
+        // Antippen tut nichts: der Riegel geht nur auf, wer ihn zieht.
+        onHold: more,
+        onDrag: (v) => {
+          knob.style.left = LK_POS(v);
+          trail.style.width = v + '%';
+          cap.style.opacity = String(clamp(1 - v / 70, 0, 1));
+        },
+        onDrop: (v) => {
+          if (v >= LK_TRIP) this.call('lock', 'unlock', { entity_id: m.id });
+          // Darunter federt der Griff zurück — das erledigt der Neuaufbau.
+          this._repaint();
+        }
+      });
+    }
+
+    const lock = root.getElementById('lock');
+    if (lock) {
+      this._press(lock, {
+        onTap: () => this.call('lock', 'lock', { entity_id: m.id }),
+        onHold: more
+      });
+    }
+
+    // Der Riegel ganz zurückziehen ist der folgenreichste Griff auf der
+    // Karte: einmal tippen spannt, das zweite Mal öffnet.
+    const open = root.getElementById('open');
+    if (open) {
+      this._press(open, {
+        onTap: () => {
+          if (!this._armed) {
+            this._armed = true;
+            clearTimeout(this._armTimer);
+            this._armTimer = setTimeout(() => { this._armed = false; this._repaint(); }, 3000);
+            this._repaint();
+            return;
+          }
+          this._armed = false;
+          clearTimeout(this._armTimer);
+          this.call('lock', 'open', { entity_id: m.id });
+          this._repaint();
+        },
+        onHold: more
+      });
+    }
+  }
+
+  getCardSize() { return this._config.show_open === false ? 5 : 6; }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -5737,6 +6060,47 @@ class OnyxCameraEditor extends OnyxEditor {
   }
 }
 
+class OnyxLockEditor extends OnyxEditor {
+  static get DEFAULTS() { return { show_open: true }; }
+
+  _helpKey(name) {
+    if (name === 'door_entity') return 'ed.h.door_entity_lock';
+    if (name === 'show_open') return 'ed.h.show_open';
+    return ED_HELP_KEY[name] || '';
+  }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'lock'),
+      grid(fieldText('name'), fieldIcon('icon')),
+      fieldColor(),
+      grid(fieldEntity('door_entity', 'binary_sensor'),
+           fieldEntity('battery_entity', 'sensor')),
+      fieldBool('show_open')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      door_entity: c.door_entity || '',
+      battery_entity: c.battery_entity || '',
+      show_open: c.show_open !== false
+    };
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent = t('ed.h.lockColor');
+    root.appendChild(this._note);
+  }
+}
+
 class OnyxWeatherEditor extends OnyxEditor {
   static get DEFAULTS() { return { forecast: 'daily', forecast_count: 5 }; }
 
@@ -5847,6 +6211,7 @@ defineEditor('onyx-vacuum-card-editor', OnyxVacuumEditor);
 defineEditor('onyx-weather-card-editor', OnyxWeatherEditor);
 defineEditor('onyx-light-card-editor', OnyxLightEditor);
 defineEditor('onyx-camera-card-editor', OnyxCameraEditor);
+defineEditor('onyx-lock-card-editor', OnyxLockEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -5861,7 +6226,8 @@ const EDITOR_OF = [
   [OnyxVacuumCard, 'onyx-vacuum-card-editor'],
   [OnyxWeatherCard, 'onyx-weather-card-editor'],
   [OnyxLightCard, 'onyx-light-card-editor'],
-  [OnyxCameraCard, 'onyx-camera-card-editor']
+  [OnyxCameraCard, 'onyx-camera-card-editor'],
+  [OnyxLockCard, 'onyx-lock-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -5897,6 +6263,7 @@ defineCard('onyx-vacuum-card', OnyxVacuumCard);
 defineCard('onyx-weather-card', OnyxWeatherCard);
 defineCard('onyx-light-card', OnyxLightCard);
 defineCard('onyx-camera-card', OnyxCameraCard);
+defineCard('onyx-lock-card', OnyxLockCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -5959,11 +6326,17 @@ window.customCards.push(
     name: t('card.camera'),
     description: t('card.camera.d'),
     preview: false
+  },
+  {
+    type: 'onyx-lock-card',
+    name: t('card.lock'),
+    description: t('card.lock.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
   OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard,
-  OnyxLightCard, OnyxCameraCard
+  OnyxLightCard, OnyxCameraCard, OnyxLockCard
 };
