@@ -1,6 +1,6 @@
 # Onyx Cards
 
-Sieben Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Acht Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut. Deutsch und Englisch, je nach
 Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 
@@ -11,6 +11,7 @@ Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 - **Schnellzugriffe** — Szenen, Skripte und Automationen in vier Formen
 - **Diagramm-Karte** — bis zu drei Messwerte, einer davon als Verlauf
 - **Saugroboter-Karte** — Akkuring, Raumauswahl, Verbrauchsteile
+- **Wetter-Karte** — gezeichnete Wetterszene, Messwerte, Vorhersage
 
 Alle sind über den visuellen Editor einzurichten.
 

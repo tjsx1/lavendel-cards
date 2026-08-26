@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.1.0
+ * Version 2.2.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -10,6 +10,7 @@
  *   custom:onyx-actions-card – Schnellzugriffe für Szenen, Skripte, Automationen
  *   custom:onyx-chart-card   – bis zu drei Messwerte, einer davon als Verlauf
  *   custom:onyx-vacuum-card  – Saugroboter mit Akkuring, Räumen, Verbrauchsteilen
+ *   custom:onyx-weather-card – Wetter mit gezeichneter Szene und Vorhersage
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -18,7 +19,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.1.0';
+const ONYX_VERSION = '2.2.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -58,6 +59,50 @@ const STRINGS = {
   de: {
     room: 'Raum',
     vac: 'Saugroboter',
+    w: 'Wetter',
+    'w.temp': 'Temperatur',
+    'w.wind': 'Wind',
+    'w.lux': 'Licht',
+    'w.hum': 'Feuchte',
+    'w.daily': 'Tage',
+    'w.hourly': 'Stunden',
+    'w.today': 'Heute',
+    'w.noForecast': 'Keine Vorhersage verfügbar',
+    'w.tapPeriod': 'Antippen wechselt Tage und Stunden',
+    'w.dirs': 'N,NNO,NO,ONO,O,OSO,SO,SSO,S,SSW,SW,WSW,W,WNW,NW,NNW',
+    'cond.sunny': 'Sonnig',
+    'cond.clear-night': 'Klar',
+    'cond.partlycloudy': 'Teils bewölkt',
+    'cond.cloudy': 'Bewölkt',
+    'cond.rainy': 'Regen',
+    'cond.pouring': 'Starkregen',
+    'cond.snowy': 'Schnee',
+    'cond.snowy-rainy': 'Schneeregen',
+    'cond.fog': 'Nebel',
+    'cond.hail': 'Hagel',
+    'cond.lightning': 'Gewitter',
+    'cond.lightning-rainy': 'Gewitter mit Regen',
+    'cond.windy': 'Windig',
+    'cond.windy-variant': 'Windig',
+    'cond.exceptional': 'Unwetter',
+    'cond.unavailable': 'Nicht erreichbar',
+    'cond.unknown': 'Unbekannt',
+    'err.needWeather': 'Die Entität muss aus der Domäne "weather" kommen.',
+    'err.forecast': 'forecast muss daily, hourly oder none sein.',
+    'card.weather': 'Onyx Wetter-Karte',
+    'card.weather.d': 'Gezeichnete Wetterszene, Messwerte und Vorhersage',
+    'ed.forecast': 'Vorhersage',
+    'ed.forecast_count': 'Anzahl Spalten',
+    'ed.illuminance': 'Beleuchtungsstärke',
+    'ed.wind': 'Wind',
+    'ed.sun': 'Sonnenstand',
+    'ed.h.forecast': 'Tage, Stunden oder ausblenden',
+    'ed.h.station': 'Aus der eigenen Wetterstation; leer lassen für die Werte des Dienstes',
+    'ed.h.illuminance': 'Nur aus der eigenen Station — Wetterdienste liefern das nicht',
+    'ed.h.sun': 'Entscheidet, ob nachts der Mond gezeichnet wird',
+    'ed.fc.daily': 'Tage',
+    'ed.fc.hourly': 'Stunden',
+    'ed.fc.none': 'Keine',
     'vac.cleaning': 'saugt',
     'vac.paused': 'pausiert',
     'vac.returning': 'kehrt zurück',
@@ -229,6 +274,50 @@ const STRINGS = {
   en: {
     room: 'Room',
     vac: 'Vacuum',
+    w: 'Weather',
+    'w.temp': 'Temperature',
+    'w.wind': 'Wind',
+    'w.lux': 'Light',
+    'w.hum': 'Humidity',
+    'w.daily': 'Days',
+    'w.hourly': 'Hours',
+    'w.today': 'Today',
+    'w.noForecast': 'No forecast available',
+    'w.tapPeriod': 'Tap to switch days and hours',
+    'w.dirs': 'N,NNE,NE,ENE,E,ESE,SE,SSE,S,SSW,SW,WSW,W,WNW,NW,NNW',
+    'cond.sunny': 'Sunny',
+    'cond.clear-night': 'Clear',
+    'cond.partlycloudy': 'Partly cloudy',
+    'cond.cloudy': 'Cloudy',
+    'cond.rainy': 'Rain',
+    'cond.pouring': 'Heavy rain',
+    'cond.snowy': 'Snow',
+    'cond.snowy-rainy': 'Sleet',
+    'cond.fog': 'Fog',
+    'cond.hail': 'Hail',
+    'cond.lightning': 'Thunderstorm',
+    'cond.lightning-rainy': 'Thunderstorm with rain',
+    'cond.windy': 'Windy',
+    'cond.windy-variant': 'Windy',
+    'cond.exceptional': 'Severe weather',
+    'cond.unavailable': 'Unavailable',
+    'cond.unknown': 'Unknown',
+    'err.needWeather': 'The entity must come from the "weather" domain.',
+    'err.forecast': 'forecast must be daily, hourly or none.',
+    'card.weather': 'Onyx Weather Card',
+    'card.weather.d': 'Drawn weather scene, readings and forecast',
+    'ed.forecast': 'Forecast',
+    'ed.forecast_count': 'Columns',
+    'ed.illuminance': 'Illuminance',
+    'ed.wind': 'Wind',
+    'ed.sun': 'Sun position',
+    'ed.h.forecast': 'Days, hours or hidden',
+    'ed.h.station': 'From your own weather station; leave empty for the service values',
+    'ed.h.illuminance': 'Only from your own station — weather services do not provide it',
+    'ed.h.sun': 'Decides whether the moon is drawn at night',
+    'ed.fc.daily': 'Days',
+    'ed.fc.hourly': 'Hours',
+    'ed.fc.none': 'None',
     'vac.cleaning': 'cleaning',
     'vac.paused': 'paused',
     'vac.returning': 'returning',
@@ -3054,6 +3143,567 @@ class OnyxVacuumCard extends OnyxBase {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Wetterszenen
+ *
+ * Statt eines Symbols aus der Schriftart zeichnet die Wetterkarte eine
+ * kleine Szene: Sonne mit Strahlen, ziehende Wolken, fallende Tropfen.
+ * Alles als SVG im Dokument, damit es die Kartenfarbe annehmen kann und
+ * ohne Bilddatei auskommt — die Karten sollen weiter eine einzelne Datei
+ * ohne Abhängigkeiten bleiben.
+ *
+ * Die Verläufe brauchen IDs. Weil jede Karte in ihrem eigenen Schatten-
+ * baum steckt, können sich die nicht in die Quere kommen.
+ * ------------------------------------------------------------------ */
+
+const WX_CSS = `
+  @keyframes wxSpin{ to{ transform:rotate(360deg) } }
+  @keyframes wxDrift{ 0%,100%{ transform:translateX(-1.5px) } 50%{ transform:translateX(1.5px) } }
+  @keyframes wxFall{ 0%{ transform:translateY(-4px); opacity:0 }
+                     20%{ opacity:1 } 100%{ transform:translateY(12px); opacity:0 } }
+  @keyframes wxFlake{ 0%{ transform:translate(0,-3px); opacity:0 }
+                      25%{ opacity:1 }
+                      100%{ transform:translate(3px,12px); opacity:0 } }
+  @keyframes wxFlash{ 0%,88%,100%{ opacity:.35 } 92%{ opacity:1 } 95%{ opacity:.5 } }
+  @keyframes wxGust{ 0%{ transform:translateX(-4px); opacity:0 }
+                     30%{ opacity:.9 } 100%{ transform:translateX(6px); opacity:0 } }
+
+  .wx .sun{ transform-origin:32px 32px; animation:wxSpin 40s linear infinite; }
+  .wx .cloud{ animation:wxDrift 7s ease-in-out infinite; }
+  .wx .cloud2{ animation:wxDrift 9s ease-in-out infinite reverse; }
+  .wx .drop{ animation:wxFall 1.15s linear infinite; }
+  .wx .flake{ animation:wxFlake 2.6s linear infinite; }
+  .wx .bolt{ animation:wxFlash 3.2s ease-in-out infinite; }
+  .wx .gust{ animation:wxGust 3.4s ease-in-out infinite; }
+  /* Wer Bewegung im Betriebssystem abbestellt hat, bekommt ein Standbild. */
+  @media (prefers-reduced-motion: reduce){
+    .wx .sun, .wx .cloud, .wx .cloud2, .wx .drop,
+    .wx .flake, .wx .bolt, .wx .gust{ animation:none; }
+  }
+`;
+
+/** Sonne: Kern mit Schein, darum acht Strahlen */
+function wxSun(id, cx, cy, r) {
+  const rays = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4;
+    const x1 = cx + Math.cos(a) * (r + 3.5), y1 = cy + Math.sin(a) * (r + 3.5);
+    const x2 = cx + Math.cos(a) * (r + 8), y2 = cy + Math.sin(a) * (r + 8);
+    rays.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}"
+      x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`);
+  }
+  return `
+    <g class="sun" style="transform-origin:${cx}px ${cy}px">
+      <g stroke="url(#s${id})" stroke-width="2.6" stroke-linecap="round"
+         opacity=".85">${rays.join('')}</g>
+    </g>
+    <circle cx="${cx}" cy="${cy}" r="${r + 6}" fill="url(#g${id})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#s${id})"/>`;
+}
+
+/** Mond: eine Scheibe, aus der eine zweite ausgeschnitten wird */
+function wxMoon(id, cx, cy, r) {
+  return `
+    <mask id="m${id}">
+      <rect width="64" height="64" fill="#000"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff"/>
+      <circle cx="${cx + r * 0.55}" cy="${cy - r * 0.5}" r="${r * 0.88}" fill="#000"/>
+    </mask>
+    <circle cx="${cx}" cy="${cy}" r="${r + 6}" fill="url(#g${id})"/>
+    <g mask="url(#m${id})"><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#s${id})"/></g>`;
+}
+
+/** Wolke aus drei Kuppen auf einem Sockel */
+function wxCloud(cx, cy, s, cls, op) {
+  const f = `fill="url(#c)" opacity="${op == null ? 1 : op}"`;
+  return `
+    <g class="${cls || 'cloud'}">
+      <circle cx="${cx - 7 * s}" cy="${cy}" r="${6.5 * s}" ${f}/>
+      <circle cx="${cx + 1 * s}" cy="${cy - 4.5 * s}" r="${9 * s}" ${f}/>
+      <circle cx="${cx + 9 * s}" cy="${cy}" r="${7 * s}" ${f}/>
+      <rect x="${cx - 13.5 * s}" y="${cy}" width="${27 * s}" height="${7 * s}"
+            rx="${3.5 * s}" ${f}/>
+    </g>`;
+}
+
+const wxDrops = (n, y) => Array.from({ length: n }, (_, i) => {
+  const x = 20 + i * (24 / Math.max(1, n - 1));
+  return `<line class="drop" x1="${x}" y1="${y}" x2="${x - 2}" y2="${y + 6}"
+    stroke="url(#c)" stroke-width="2.4" stroke-linecap="round"
+    style="animation-delay:${(i * 0.28).toFixed(2)}s" opacity=".9"/>`;
+}).join('');
+
+const wxFlakes = (n, y) => Array.from({ length: n }, (_, i) => {
+  const x = 21 + i * (22 / Math.max(1, n - 1));
+  return `<circle class="flake" cx="${x}" cy="${y}" r="1.9" fill="url(#c)"
+    style="animation-delay:${(i * 0.55).toFixed(2)}s"/>`;
+}).join('');
+
+const wxGusts = (ys) => ys.map((y, i) => `
+  <path class="gust" d="M14 ${y}h20a3.4 3.4 0 1 0-3.4-3.4"
+    fill="none" stroke="url(#c)" stroke-width="2.4" stroke-linecap="round"
+    style="animation-delay:${(i * 0.5).toFixed(2)}s"/>`).join('');
+
+/**
+ * Eine Szene zur Wetterlage. `night` schaltet Sonne gegen Mond.
+ * Die Farben kommen aus den Verläufen, die Verläufe aus der Palette —
+ * so folgt die Szene der Karte.
+ */
+function wxScene(cond, night, id) {
+  const sunish = night ? wxMoon : wxSun;
+  const defs = `
+    <defs>
+      <radialGradient id="g${id}">
+        <stop offset="0%" stop-color="var(--wx-hot)" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="var(--wx-hot)" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="s${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--wx-hot2)"/>
+        <stop offset="100%" stop-color="var(--wx-hot)"/>
+      </linearGradient>
+      <linearGradient id="c" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--wx-cloud2)"/>
+        <stop offset="100%" stop-color="var(--wx-cloud)"/>
+      </linearGradient>
+    </defs>`;
+
+  let body;
+  switch (cond) {
+    case 'sunny':
+    case 'clear-night':
+      body = sunish(id, 32, 31, 11);
+      break;
+    case 'partlycloudy':
+      body = sunish(id, 25, 24, 9) + wxCloud(36, 38, 1, 'cloud');
+      break;
+    case 'cloudy':
+      body = wxCloud(26, 26, .78, 'cloud2', .45) + wxCloud(34, 36, 1, 'cloud');
+      break;
+    case 'rainy':
+    case 'snowy-rainy':
+      body = wxCloud(32, 26, 1, 'cloud')
+        + (cond === 'rainy' ? wxDrops(3, 38) : wxDrops(2, 38) + wxFlakes(2, 40));
+      break;
+    case 'pouring':
+      body = wxCloud(32, 25, 1.05, 'cloud') + wxDrops(5, 38);
+      break;
+    case 'snowy':
+      body = wxCloud(32, 26, 1, 'cloud') + wxFlakes(3, 40);
+      break;
+    case 'hail':
+      body = wxCloud(32, 26, 1, 'cloud') + wxFlakes(4, 39);
+      break;
+    case 'lightning':
+    case 'lightning-rainy':
+      body = wxCloud(32, 25, 1, 'cloud')
+        + (cond === 'lightning-rainy' ? wxDrops(2, 38) : '')
+        + `<path class="bolt" d="M33 33l-7 10h5l-2 9 9-12h-5l3-7z"
+             fill="#ffd85e"/>`;
+      break;
+    case 'fog':
+      body = wxCloud(30, 24, .9, 'cloud2', .5)
+        + [38, 44, 50].map((y, i) => `
+          <line class="cloud${i % 2 ? '2' : ''}" x1="${14 + i * 2}" y1="${y}"
+            x2="${50 - i * 2}" y2="${y}" stroke="var(--wx-cloud2)" stroke-width="3"
+            stroke-linecap="round" opacity="${(.8 - i * .16).toFixed(2)}"/>`).join('');
+      break;
+    case 'windy':
+    case 'windy-variant':
+      body = wxGusts([24, 33, 42]);
+      break;
+    case 'exceptional':
+      body = `<path d="M32 14l19 34H13z" fill="none" stroke="#ffcf6b"
+                stroke-width="3" stroke-linejoin="round"/>
+              <path d="M32 27v10" stroke="#ffcf6b" stroke-width="3.2"
+                stroke-linecap="round"/>
+              <circle cx="32" cy="42" r="1.9" fill="#ffd85e"/>`;
+      break;
+    default:
+      body = wxCloud(32, 30, 1, 'cloud');
+  }
+  return `<svg class="wx" viewBox="0 0 64 64" aria-hidden="true">${defs}${body}</svg>`;
+}
+
+/** Nachtfassung einer Lage: nur klar und teils bewölkt sehen nachts anders aus */
+const wxIsNight = (sun) => sun && sun.state === 'below_horizon';
+
+/* ================================================================== *
+ * 8) WETTER-KARTE
+ * ================================================================== */
+
+/**
+ * Wetterlage zur Palette. Bedeckt und neblig bekommen bewusst keine —
+ * die Karte bleibt dann grau, und das ist genau die Aussage.
+ */
+const WX_PALETTE = {
+  sunny: 'gelb',
+  'clear-night': 'violett',
+  partlycloudy: 'blau',
+  rainy: 'blau', pouring: 'blau', 'snowy-rainy': 'blau',
+  snowy: 'blau', hail: 'blau',
+  lightning: 'violett', 'lightning-rainy': 'violett',
+  exceptional: 'rot'
+};
+
+/** Vier Messwerte in fester Reihenfolge, jeder aus der Station oder dem Dienst */
+const WX_VALS = [
+  { key: 'temperature', icon: 'mdi:thermometer', lab: 'w.temp' },
+  { key: 'wind', icon: 'mdi:weather-windy', lab: 'w.wind' },
+  { key: 'illuminance', icon: 'mdi:white-balance-sunny', lab: 'w.lux' },
+  { key: 'humidity', icon: 'mdi:water-percent', lab: 'w.hum' }
+];
+
+/** Grad in eine Himmelsrichtung, 16 Sektoren */
+function wxBearing(deg) {
+  if (deg == null || isNaN(deg)) return '';
+  const dirs = t('w.dirs').split(',');
+  return dirs[Math.round((Number(deg) % 360) / 22.5) % 16];
+}
+
+class OnyxWeatherCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + WX_CSS + `
+    ha-card{
+      position:relative; padding:12px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09);
+      display:flex; flex-direction:column; gap:10px; overflow:hidden;
+      box-shadow:none;
+      background:linear-gradient(to right bottom,
+        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+      /* Die Sonne ist gelb, egal welche Farbe die Karte trägt. Nur der
+         Mond nimmt den Akzent an — sonst sähe eine Vollmondnacht aus
+         wie ein Sonnentag. */
+      --wx-hot:#f7b93f; --wx-hot2:#ffe9a8;
+      --wx-cloud:#7e93ab; --wx-cloud2:#dfe9f4;
+    }
+    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+    ha-card.night{ --wx-hot:var(--acc); --wx-hot2:#f3edff; }
+
+    .scene{ position:absolute; top:-8px; right:-10px; width:124px; height:124px;
+            pointer-events:none; opacity:.95; }
+    .scene svg{ width:100%; height:100%; display:block; }
+    .glow{ position:absolute; top:-46px; right:-46px; width:190px; height:190px;
+           border-radius:50%; pointer-events:none;
+           background:radial-gradient(closest-side,
+             color-mix(in srgb, var(--acc) 16%, transparent), transparent); }
+
+    .head{ position:relative; cursor:pointer; }
+    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
+    ha-card.warm .lab{ color:var(--lab); }
+    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+         max-width:calc(100% - 110px); }
+    ha-card.warm .nm{ color:#e9f1f8; }
+
+    .now{ position:relative; display:flex; align-items:flex-end; gap:12px;
+          margin-top:2px; }
+    .temp{ font-size:44px; font-weight:300; line-height:1; letter-spacing:-.03em;
+           color:#dbe6f0; font-variant-numeric:tabular-nums; }
+    ha-card.warm .temp{ color:#fff; }
+    .temp s{ text-decoration:none; font-size:26px; font-weight:300;
+             vertical-align:top; line-height:1.1; margin-left:1px; color:var(--acc); }
+    .cond{ padding-bottom:4px; min-width:0; }
+    .c1{ font-size:13px; font-weight:600; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .c1{ color:var(--acc); }
+    .c2{ font-size:12px; color:#72879a; font-variant-numeric:tabular-nums; }
+    ha-card.warm .c2{ color:var(--sub); }
+
+    /* Vier Messwerte. Ohne Station kommen sie vom Wetterdienst; was es
+       nirgends gibt — meist die Beleuchtungsstärke — fällt weg. */
+    .vals{ position:relative; display:grid; gap:8px; }
+    .v{ display:flex; align-items:center; gap:7px; min-width:0; }
+    .v .vi{ width:26px; height:26px; border-radius:50%; flex:none; display:grid;
+            place-items:center; color:#8ea3b5; --mdc-icon-size:15px;
+            background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10); }
+    ha-card.warm .v .vi{ background:color-mix(in srgb, var(--acc) 15%, transparent);
+                         border-color:color-mix(in srgb, var(--acc) 28%, transparent);
+                         color:var(--acc); }
+    .v .vt{ min-width:0; line-height:1.2; }
+    .v .vn{ font-size:13px; font-weight:600; color:#cddceb;
+            font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .v .vu{ font-size:10.5px; font-weight:500; color:#7d8fa0; margin-left:2px; }
+    .v .vl{ font-size:10px; color:#6f8497; overflow:hidden;
+            text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .v .vl{ color:var(--lab); }
+
+    .divide{ height:1px; background:rgba(255,255,255,.09); }
+
+    /* Vorhersage: eine Spalte je Tag oder Stunde */
+    .fc{ position:relative; display:grid; gap:6px; }
+    .d{ text-align:center; cursor:pointer; padding:2px 0; border-radius:10px; }
+    .d.held{ background:rgba(255,255,255,.05); }
+    .d .dd{ font-size:10.5px; color:#6f8497; white-space:nowrap; }
+    ha-card.warm .d .dd{ color:var(--lab); }
+    .d .ds{ width:34px; height:34px; margin:1px auto 0; }
+    .d .ds svg{ width:100%; height:100%; display:block; }
+    .d .dt{ font-size:12.5px; font-weight:600; color:#cddceb;
+            font-variant-numeric:tabular-nums; }
+    .d .dl{ font-size:11.5px; color:#72879a; font-variant-numeric:tabular-nums; }
+    .d .dp{ font-size:10px; color:var(--acc); font-variant-numeric:tabular-nums; }
+
+    .foot{ position:relative; display:flex; align-items:center;
+           justify-content:space-between; }
+    .per{ font-size:10.5px; color:#6f8497; cursor:pointer; padding:2px 8px;
+          border-radius:9px; border:1px solid rgba(255,255,255,.10);
+          background:linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.03)); }
+    .per.held{ opacity:.6; }
+    .hint{ font-size:10px; color:#4f5c69; }
+    .empty{ position:relative; height:60px; display:grid; place-items:center;
+            font-size:12px; color:#5d6b7a; }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return { type: 'custom:onyx-weather-card', entity: firstEntity(hass, 'weather') };
+  }
+
+  setConfig(config) {
+    if (!config.entity) throw new Error(t('err.needEntity'));
+    if (config.entity.split('.')[0] !== 'weather') throw new Error(t('err.needWeather'));
+    const f = String(config.forecast == null ? 'daily' : config.forecast).toLowerCase();
+    if (!['daily', 'hourly', 'none', 'false'].includes(f)) {
+      throw new Error(t('err.forecast'));
+    }
+    this._fcType = this._fcType || (f === 'daily' || f === 'hourly' ? f : 'daily');
+    this._fcOff = f === 'none' || f === 'false';
+    super.setConfig(config);
+    this._subscribe();
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    this._hass = hass;
+    applyLocale(hass);
+    if (first) this._subscribe();
+    this._tryRender();
+  }
+  get hass() { return this._hass; }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._alive = true;
+    this._subscribe();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._alive = false;
+    this._unsub();
+  }
+
+  _unsub() {
+    if (this._unsubFn) { try { this._unsubFn(); } catch (err) { /* egal */ } }
+    this._unsubFn = null;
+    this._subKey = null;
+  }
+
+  /**
+   * Seit 2024 stehen die Vorhersagen nicht mehr in den Attributen, sondern
+   * kommen über ein Abonnement. Ältere Installationen liefern weiter das
+   * Attribut — deshalb beides.
+   */
+  _subscribe() {
+    if (!this._hass || !this._config || this._fcOff) return;
+    const key = this._config.entity + '|' + this._fcType;
+    if (this._subKey === key) return;
+    this._unsub();
+    this._subKey = key;
+
+    const conn = this._hass.connection;
+    if (!conn || !conn.subscribeMessage) return;
+    conn.subscribeMessage(
+      (ev) => {
+        this._forecast = (ev && ev.forecast) || [];
+        this._repaint();
+      },
+      { type: 'weather/subscribe_forecast', forecast_type: this._fcType,
+        entity_id: this._config.entity }
+    ).then((un) => {
+      // Zwischen Anfrage und Antwort kann die Karte längst weg sein.
+      if (this._alive === false || this._subKey !== key) { try { un(); } catch (e) { /* egal */ } }
+      else this._unsubFn = un;
+    }).catch(() => {
+      this._forecast = null;
+      this._repaint();
+    });
+  }
+
+  /** Einen der vier Messwerte holen: erst die Station, dann der Dienst */
+  _value(kind, a) {
+    const id = this._config[kind];
+    if (id) {
+      const st = this._hass.states[id];
+      if (!st || isDead(st)) return null;
+      const n = Number(st.state);
+      return {
+        num: isNaN(n) ? null : n,
+        text: isNaN(n) ? st.state : nfmt(n, Math.abs(n) >= 100 ? 0 : 1),
+        unit: st.attributes.unit_of_measurement || ''
+      };
+    }
+    if (kind === 'temperature' && a.temperature != null) {
+      return { num: a.temperature, text: nfmt(a.temperature, 1),
+        unit: a.temperature_unit || '°C' };
+    }
+    if (kind === 'humidity' && a.humidity != null) {
+      return { num: a.humidity, text: nfmt(a.humidity, 0), unit: '%' };
+    }
+    if (kind === 'wind' && a.wind_speed != null) {
+      return { num: a.wind_speed, text: nfmt(a.wind_speed, 0),
+        unit: a.wind_speed_unit || 'km/h', extra: wxBearing(a.wind_bearing) };
+    }
+    // Beleuchtungsstärke kennt kein Wetterdienst — die gibt es nur aus der Station.
+    return null;
+  }
+
+  _model() {
+    const st = this._hass.states[this._config.entity];
+    if (!st) throw new Error(t('err.entity', { id: this._config.entity }));
+    const a = st.attributes;
+    const cond = st.state;
+
+    const sunId = this._config.sun || 'sun.sun';
+    const night = cond === 'clear-night'
+      || (['partlycloudy', 'cloudy'].includes(cond) && wxIsNight(this._hass.states[sunId]));
+
+    const vals = WX_VALS.map((v) => {
+      const got = this._value(v.key, a);
+      return got && { key: v.key, icon: v.icon, lab: t(v.lab),
+        text: got.text, unit: got.unit, extra: got.extra || '' };
+    }).filter(Boolean);
+
+    const raw = this._forecast != null ? this._forecast : (a.forecast || []);
+    const count = clamp(Number(this._config.forecast_count) || 5, 2, 8);
+    const fc = this._fcOff ? [] : raw.slice(0, count).map((f, i) => {
+      const d = new Date(f.datetime);
+      return {
+        when: this._fcType === 'hourly' ? fmtTime(d)
+          : i === 0 ? t('w.today') : fmtDate(d, { weekday: 'short' }),
+        cond: f.condition || 'cloudy',
+        night: f.condition === 'clear-night',
+        hi: f.temperature != null ? Math.round(f.temperature) : null,
+        lo: f.templow != null ? Math.round(f.templow) : null,
+        pop: f.precipitation_probability != null
+          ? Math.round(f.precipitation_probability) : null
+      };
+    });
+
+    // Steht eine Stationstemperatur zur Verfügung, gilt die auch oben.
+    // Sonst stünden zwei verschiedene Ist-Temperaturen auf derselben Karte.
+    const tnum = this._config.temperature ? this._value('temperature', a) : null;
+
+    return {
+      id: this._config.entity,
+      name: this._config.name || nameOf(this._hass, this._config.entity),
+      label: this._config.label || t('w'),
+      color: this._config.color || null,
+      cond, night,
+      dead: isDead(st),
+      temp: tnum && tnum.num != null ? Math.round(tnum.num)
+        : a.temperature != null ? Math.round(a.temperature) : null,
+      unit: tnum && tnum.num != null ? (tnum.unit || '°C') : (a.temperature_unit || '°C'),
+      // Hoch und Tief gibt es nur bei der Tagesvorhersage — eine Stunde
+      // hat kein Tagestief, da stünde sonst "12° / –".
+      hi: this._fcType === 'daily' && raw[0] && raw[0].temperature != null
+        ? Math.round(raw[0].temperature) : null,
+      lo: this._fcType === 'daily' && raw[0] && raw[0].templow != null
+        ? Math.round(raw[0].templow) : null,
+      vals, fc,
+      fcType: this._fcType,
+      fcOff: this._fcOff,
+      noForecast: !this._fcOff && raw.length === 0
+    };
+  }
+
+  _html(m) {
+    // "auto" (die Vorgabe) leitet die Farbe aus der Wetterlage ab. Bedeckt
+    // und neblig bleiben absichtlich ohne — eine graue Karte an einem
+    // grauen Tag sagt mehr als jede Farbe.
+    const auto = !m.color || m.color === 'auto';
+    const pal = auto ? WX_PALETTE[m.cond] : m.color;
+    const { cls, style } = paletteAttrs(pal || null);
+    const warm = !!pal && !m.dead;
+
+    const cells = m.vals.map((v) => `
+      <div class="v">
+        <div class="vi"><ha-icon icon="${esc(v.icon)}"></ha-icon></div>
+        <div class="vt">
+          <div class="vn">${esc(v.text)}<span class="vu">${esc(v.unit)}</span>${
+            v.extra ? `<span class="vu">${esc(v.extra)}</span>` : ''}</div>
+          <div class="vl">${esc(v.lab)}</div>
+        </div>
+      </div>`).join('');
+
+    const days = m.fc.map((d, i) => `
+      <div class="d" data-day="${i}">
+        <div class="dd">${esc(d.when)}</div>
+        <div class="ds">${wxScene(d.cond, d.night, 'f' + i)}</div>
+        <div class="dt">${d.hi == null ? '–' : d.hi + '°'}</div>
+        ${d.lo != null ? `<div class="dl">${d.lo}°</div>` : ''}
+        ${d.pop ? `<div class="dp">${d.pop} %</div>` : ''}
+      </div>`).join('');
+
+    return `
+    <ha-card class="${(cls + (warm ? ' warm' : '') + (m.night ? ' night' : '')).trim()}"${style}>
+      <div class="glow"></div>
+      <div class="scene">${wxScene(m.cond, m.night, 'm')}</div>
+
+      <div class="head" id="hd">
+        <div class="lab">${esc(m.label)}</div>
+        <div class="nm">${esc(m.name)}</div>
+        <div class="now">
+          <div class="temp">${m.temp == null ? '–' : m.temp}<s>${esc(m.unit)}</s></div>
+          <div class="cond">
+            <div class="c1">${esc(t('cond.' + m.cond))}</div>
+            ${m.hi != null && m.lo != null
+              ? `<div class="c2">${m.hi}° / ${m.lo}°</div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      ${m.vals.length ? `<div class="vals"
+        style="grid-template-columns:repeat(${Math.min(m.vals.length, 2)},1fr)">${cells}</div>` : ''}
+
+      ${m.fcOff ? '' : `
+        <div class="divide"></div>
+        ${m.noForecast
+          ? `<div class="empty">${esc(t('w.noForecast'))}</div>`
+          : `<div class="fc" style="grid-template-columns:repeat(${m.fc.length},1fr)">${days}</div>`}
+        <div class="foot">
+          <div class="per" id="per">${esc(t('w.' + m.fcType))}</div>
+          <div class="hint">${esc(t('w.tapPeriod'))}</div>
+        </div>`}
+    </ha-card>`;
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    this._press(root.getElementById('hd'), {
+      onTap: () => fireMoreInfo(this, m.id),
+      onHold: () => fireMoreInfo(this, m.id)
+    });
+
+    const per = root.getElementById('per');
+    if (per) {
+      this._press(per, {
+        onTap: () => {
+          this._fcType = this._fcType === 'daily' ? 'hourly' : 'daily';
+          this._forecast = null;
+          this._subscribe();
+          this._repaint();
+        }
+      });
+    }
+
+    root.querySelectorAll('[data-day]').forEach((el) => {
+      this._press(el, { onTap: () => fireMoreInfo(this, m.id) });
+    });
+  }
+
+  getCardSize() { return this._fcOff ? 3 : 5; }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -3240,6 +3890,8 @@ class OnyxEditor extends HTMLElement {
 
   /* --- von den Unterklassen zu füllen --- */
   static get DEFAULTS() { return null; }
+  /** Hilfetext-Schlüssel eines Feldes; Unterklassen dürfen übersteuern */
+  _helpKey(name) { return ED_HELP_KEY[name] || ''; }
   _schema() { return []; }
   _toForm(cfg) { return cfg; }
   _fromForm(data) { return Object.assign({}, this._config, data); }
@@ -3269,7 +3921,10 @@ class OnyxEditor extends HTMLElement {
   _makeForm(onChange) {
     const f = document.createElement('ha-form');
     f.computeLabel = (x) => (x.name ? t('ed.' + x.name) : '');
-    f.computeHelper = (x) => (ED_HELP_KEY[x.name] ? t(ED_HELP_KEY[x.name]) : '');
+    f.computeHelper = (x) => {
+      const key = this._helpKey(x.name);
+      return key ? t(key) : '';
+    };
     f.addEventListener('value-changed', (ev) => {
       ev.stopPropagation();
       onChange(ev.detail.value);
@@ -3923,6 +4578,60 @@ class OnyxVacuumEditor extends OnyxEditor {
 }
 
 /* ------------------------------------------------------------------ *
+ * Wetter
+ * ------------------------------------------------------------------ */
+const WX_HELP = {
+  forecast: 'ed.h.forecast', temperature: 'ed.h.station', humidity: 'ed.h.station',
+  wind: 'ed.h.station', illuminance: 'ed.h.illuminance', sun: 'ed.h.sun',
+  color: 'ed.h.color'
+};
+
+class OnyxWeatherEditor extends OnyxEditor {
+  static get DEFAULTS() { return { forecast: 'daily', forecast_count: 5 }; }
+
+  _helpKey(name) { return WX_HELP[name] || ED_HELP_KEY[name] || ''; }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'weather'),
+      grid(fieldText('name'), fieldText('label')),
+      grid(fieldColor(),
+        { name: 'forecast', selector: { select: { mode: 'dropdown',
+          options: ['daily', 'hourly', 'none']
+            .map((v) => ({ value: v, label: t('ed.fc.' + v) })) } } }),
+      { name: 'forecast_count', selector: { number: { min: 2, max: 8, mode: 'box' } } },
+      grid(fieldEntity('temperature', 'sensor'), fieldEntity('humidity', 'sensor')),
+      grid(fieldEntity('wind', 'sensor'), fieldEntity('illuminance', 'sensor')),
+      fieldEntity('sun', 'sun')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      label: c.label || '',
+      color: c.color || '',
+      forecast: ['daily', 'hourly', 'none'].includes(c.forecast) ? c.forecast : 'daily',
+      forecast_count: c.forecast_count || 5,
+      temperature: c.temperature || '',
+      humidity: c.humidity || '',
+      wind: c.wind || '',
+      illuminance: c.illuminance || '',
+      sun: c.sun || ''
+    };
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent = t('ed.h.station');
+    root.appendChild(this._note);
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Registrierung der Editoren
  * ------------------------------------------------------------------ */
 function defineEditor(tag, cls) {
@@ -3936,6 +4645,7 @@ defineEditor('onyx-media-card-editor', OnyxMediaEditor);
 defineEditor('onyx-actions-card-editor', OnyxActionsEditor);
 defineEditor('onyx-chart-card-editor', OnyxChartEditor);
 defineEditor('onyx-vacuum-card-editor', OnyxVacuumEditor);
+defineEditor('onyx-weather-card-editor', OnyxWeatherEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -3947,7 +4657,8 @@ const EDITOR_OF = [
   [OnyxMediaCard, 'onyx-media-card-editor'],
   [OnyxActionsCard, 'onyx-actions-card-editor'],
   [OnyxChartCard, 'onyx-chart-card-editor'],
-  [OnyxVacuumCard, 'onyx-vacuum-card-editor']
+  [OnyxVacuumCard, 'onyx-vacuum-card-editor'],
+  [OnyxWeatherCard, 'onyx-weather-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -3980,6 +4691,7 @@ defineCard('onyx-media-card', OnyxMediaCard);
 defineCard('onyx-actions-card', OnyxActionsCard);
 defineCard('onyx-chart-card', OnyxChartCard);
 defineCard('onyx-vacuum-card', OnyxVacuumCard);
+defineCard('onyx-weather-card', OnyxWeatherCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -4024,10 +4736,16 @@ window.customCards.push(
     name: t('card.vacuum'),
     description: t('card.vacuum.d'),
     preview: false
+  },
+  {
+    type: 'onyx-weather-card',
+    name: t('card.weather'),
+    description: t('card.weather.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
-  OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard
+  OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard
 };

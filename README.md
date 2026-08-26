@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Sieben Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Acht Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -19,6 +19,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
 | `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
+| `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
 
 ## Installation über HACS
 
@@ -474,6 +475,65 @@ Herstellers — bei Roborock in der Kartenverwaltung, wenn man einen Raum antipp
 Reststunden, gib mit `max:` den vollen Wert an, dann rechnet die Karte um. Unter 10 %
 wird die Zeile rot.
 
+### onyx-weather-card
+
+```yaml
+type: custom:onyx-weather-card
+entity: weather.home
+name: Zürich
+forecast: daily        # daily · hourly · none
+forecast_count: 5
+# Optional: eigene Wetterstation statt der Werte des Dienstes
+temperature: sensor.station_temperatur
+humidity: sensor.station_feuchte
+wind: sensor.station_wind
+illuminance: sensor.station_lux
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entity` | — | Pflicht. Muss aus der Domäne `weather` kommen |
+| `name` | Gerätename | Überschrift |
+| `label` | Wetter | Die kleine Zeile darüber |
+| `color` | `auto` | `auto` leitet die Farbe aus der Wetterlage ab; sonst wie bei der Raum-Karte |
+| `forecast` | `daily` | `daily` · `hourly` · `none` |
+| `forecast_count` | 5 | Zwei bis acht Spalten |
+| `temperature` | vom Dienst | Sensor der eigenen Station |
+| `humidity` | vom Dienst | dito |
+| `wind` | vom Dienst | dito |
+| `illuminance` | — | **Nur** aus der eigenen Station — Wetterdienste liefern keine Beleuchtungsstärke |
+| `sun` | `sun.sun` | Entscheidet, ob nachts der Mond gezeichnet wird |
+
+**Die Szene ist gezeichnet, kein Symbol.** Sonne mit kreisenden Strahlen, ziehende
+Wolken, fallende Tropfen, blinkende Blitze — alles als SVG in der Datei. Damit bleibt
+die Sammlung weiterhin eine einzelne Datei ohne Abhängigkeiten, und die Szene kann die
+Farbe der Karte annehmen. Wer im Betriebssystem „Bewegung reduzieren" gesetzt hat,
+bekommt ein Standbild.
+
+Fünfzehn Lagen sind gezeichnet, dazu die Nachtfassungen von *klar* und *teils bewölkt*:
+Ob Sonne oder Mond erscheint, entscheidet der Stand von `sun.sun`. Die Sonne bleibt
+gelb, egal welche Farbe die Karte trägt — nur der Mond nimmt den Akzent an, sonst sähe
+eine Vollmondnacht aus wie ein Sonnentag.
+
+**Die Farbe folgt dem Wetter.** `auto` heisst: Sonnig wird gelb, Regen und Schnee blau,
+Gewitter violett, Unwetter rot. **Bedeckt und neblig bekommen bewusst keine Farbe** —
+eine graue Karte an einem grauen Tag sagt mehr als jede Palette. Wer das nicht will,
+setzt `color:` fest.
+
+**Die vier Messwerte** kommen vom Wetterdienst, solange keine eigenen Sensoren
+angegeben sind. Was es nirgends gibt, fällt weg — ohne Station bleibt die Karte also
+bei drei Werten, weil kein Dienst die Beleuchtungsstärke meldet. Ist eine
+Stationstemperatur eingetragen, gilt die **auch für die grosse Zahl oben**; sonst
+stünden zwei verschiedene Ist-Temperaturen auf derselben Karte.
+
+**Die Vorhersage** kommt seit Home Assistant 2024 nicht mehr aus den Attributen,
+sondern über ein Abonnement (`weather/subscribe_forecast`). Die Karte abonniert und
+fällt auf das alte Attribut zurück, falls der Dienst noch so arbeitet. Antippen des
+Chips unten links wechselt zwischen Tagen und Stunden.
+
+**Bedienung.** Tippen auf den Kopf oder eine Spalte öffnet das Detailfenster, tippen
+auf den Chip wechselt den Zeitraum.
+
 ## Beispiel-Dashboard
 
 `dashboard-beispiel.yaml` enthält eine Startseite aus Raum-Karten und eine
@@ -566,6 +626,7 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**2.2.0** — Neue Wetter-Karte mit gezeichneter Szene, Stationswerten und Vorhersage
 **2.1.0** — Neue Saugroboter-Karte mit Akkuring, Raumauswahl und Verbrauchsteilen
 **2.0.0** — Umbenannt: `lavendel-…` heisst jetzt `onyx-…`. Kein Rückwärtsbetrieb, siehe [Umstieg](#umstieg-von-lavendel-cards)
 **1.5.0** — Zweisprachig: Texte, Zahlen- und Zeitformat folgen den Einstellungen von Home Assistant
