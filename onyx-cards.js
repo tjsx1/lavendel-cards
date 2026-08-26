@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.14.0
+ * Version 2.15.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -23,7 +23,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.3.0';
+const ONYX_VERSION = '2.15.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -171,8 +171,46 @@ const STRINGS = {
     'log.template': 'Vorlage liess sich nicht auswerten:',
     'ed.rows': 'Zeilen',
     'ed.chips': 'Chips',
-    'ed.h.status': 'Zeilen, Chips und der Kopf werden im Code-Editor gepflegt — '
-      + 'Bausteine mit module:, alles Übrige mit Vorlagen.',
+    'ed.head': 'Kopf',
+    'ed.addHead': 'Kopf',
+    'ed.addRow': 'Zeile',
+    'ed.addChip': 'Chip',
+    'ed.up': 'Nach oben',
+    'ed.down': 'Nach unten',
+    'ed.remove': 'Entfernen',
+    'ed.module': 'Baustein',
+    'ed.detail': 'Zusatztext',
+    'ed.value': 'Wert rechts',
+    'ed.percent': 'Balken in Prozent',
+    'ed.hide': 'Ausblenden wenn',
+    'ed.people': 'Personen',
+    'ed.charging': 'Ladestatus',
+    'ed.power': 'Ladeleistung',
+    'ed.remaining': 'Restzeit',
+    'ed.cable': 'Ladekabel',
+    'ed.room': 'Raum-Sensor',
+    'ed.done': 'Heute erledigt',
+    'ed.chargeLevel': 'Ladestand',
+    'ed.standClimate': 'Standklima',
+    'ed.m.presence': 'Personen',
+    'ed.m.car': 'Elektroauto',
+    'ed.m.vacuum': 'Staubsauger',
+    'ed.m.mower': 'Rasenmäher',
+    'ed.m.battery': 'Batterie',
+    'ed.m.entity': 'Entität',
+    'ed.m.template': 'Vorlage',
+    'ed.h.module': 'Jeder Baustein weiss selbst, was er bei welchem Zustand zeigt',
+    'ed.h.hide': 'Vorlage, die "True" ergibt — dann fällt der Eintrag ganz weg',
+    'ed.h.detail': 'Die kleine Zeile darunter; leer lassen für den Text des Bausteins',
+    'ed.h.value': 'Steht rechts aussen, z. B. "67 %"',
+    'ed.h.percent': 'Zahl von 0 bis 100; zeichnet einen Balken unter den Namen',
+    'ed.h.people': 'Wer daheim ist, bekommt ein farbiges Köpfchen',
+    'ed.h.done': 'Ein Schalter, der auf "an" steht, wenn heute schon geputzt wurde',
+    'ed.h.charging': 'Steht diese Entität auf "charging" oder "an", wird geladen',
+    'ed.h.room': 'Sensor mit dem Raum, in dem gerade gesaugt wird',
+    'ed.h.status': 'Name, Zusatztext, Symbol, Farbe und "Ausblenden wenn" nehmen auch '
+      + 'Jinja entgegen, z. B. {{ states("input_select.storen_ost") }}. Leer lassen: '
+      + 'dann entscheidet der Baustein.',
     'card.weather': 'Onyx Wetter-Karte',
     'card.weather.d': 'Gezeichnete Wetterszene, Messwerte und Vorhersage',
     'ed.forecast': 'Vorhersage',
@@ -312,6 +350,7 @@ const STRINGS = {
     'ed.icon': 'Symbol',
     'ed.color': 'Farbe',
     'ed.title': 'Titel',
+    'ed.subtitle': 'Untertitel',
     'ed.shape': 'Form',
     'ed.columns': 'Spalten',
     'ed.period': 'Zeitraum',
@@ -472,8 +511,45 @@ const STRINGS = {
     'log.template': 'Could not render the template:',
     'ed.rows': 'Rows',
     'ed.chips': 'Chips',
-    'ed.h.status': 'Rows, chips and the head are edited in the code editor — '
-      + 'modules with module:, everything else with templates.',
+    'ed.head': 'Head',
+    'ed.addHead': 'Head',
+    'ed.addRow': 'Row',
+    'ed.addChip': 'Chip',
+    'ed.up': 'Move up',
+    'ed.down': 'Move down',
+    'ed.remove': 'Remove',
+    'ed.module': 'Module',
+    'ed.detail': 'Detail text',
+    'ed.value': 'Value on the right',
+    'ed.percent': 'Bar in percent',
+    'ed.hide': 'Hide when',
+    'ed.people': 'People',
+    'ed.charging': 'Charging state',
+    'ed.power': 'Charging power',
+    'ed.remaining': 'Time remaining',
+    'ed.cable': 'Charging cable',
+    'ed.room': 'Room sensor',
+    'ed.done': 'Done today',
+    'ed.chargeLevel': 'Charge level',
+    'ed.standClimate': 'Pre-conditioning',
+    'ed.m.presence': 'People',
+    'ed.m.car': 'Electric car',
+    'ed.m.vacuum': 'Vacuum',
+    'ed.m.mower': 'Lawn mower',
+    'ed.m.battery': 'Battery',
+    'ed.m.entity': 'Entity',
+    'ed.m.template': 'Template',
+    'ed.h.module': 'Every module knows on its own what to show in which state',
+    'ed.h.hide': 'A template returning "True" — then the entry disappears entirely',
+    'ed.h.detail': 'The small line below; leave empty for the module text',
+    'ed.h.value': 'Sits on the far right, e.g. "67 %"',
+    'ed.h.percent': 'Number from 0 to 100; draws a bar under the name',
+    'ed.h.people': 'Whoever is home gets a coloured badge',
+    'ed.h.done': 'A switch that is "on" once the house has been cleaned today',
+    'ed.h.charging': 'If this entity is "charging" or "on", the car is charging',
+    'ed.h.room': 'Sensor holding the room currently being cleaned',
+    'ed.h.status': 'Name, detail text, icon, colour and "Hide when" also accept Jinja, '
+      + 'e.g. {{ states("input_select.blinds_east") }}. Leave empty and the module decides.',
     'card.weather': 'Onyx Weather Card',
     'card.weather.d': 'Drawn weather scene, readings and forecast',
     'ed.forecast': 'Forecast',
@@ -612,6 +688,7 @@ const STRINGS = {
     'ed.icon': 'Icon',
     'ed.color': 'Color',
     'ed.title': 'Title',
+    'ed.subtitle': 'Subtitle',
     'ed.shape': 'Shape',
     'ed.columns': 'Columns',
     'ed.period': 'Period',
@@ -5284,6 +5361,80 @@ const isTpl = (v) => typeof v === 'string' && (v.indexOf('{{') >= 0 || v.indexOf
 /** Die Felder eines Eintrags, die eine Vorlage sein dürfen */
 const ST_FIELDS = ['name', 'detail', 'value', 'percent', 'icon', 'color', 'hide'];
 
+/**
+ * Die Bausteine der Status-Karte.
+ *
+ * Eine Tabelle für beide Seiten: die Karte liest hier nichts, aber der
+ * Editor baut daraus sein Klappmenü und die Felder je Baustein. Was ein
+ * Baustein an Entitäten braucht, steht in `fields`; `label` zeigt auf die
+ * Beschriftung, wenn der Feldname allein nicht reicht (`entity` heisst
+ * beim Auto "Ladestand", beim Staubsauger einfach "Entität").
+ */
+const ST_MODULES = {
+  presence: {
+    icon: 'mdi:home-account',
+    fields: [{ n: 'people', sel: 'entity', domain: 'person', multiple: true }]
+  },
+  car: {
+    icon: 'mdi:car-electric',
+    fields: [
+      { n: 'entity', sel: 'entity', domain: 'sensor', label: 'ed.chargeLevel' },
+      { n: 'charging', sel: 'entity' },
+      { n: 'power', sel: 'entity', domain: 'sensor' },
+      { n: 'remaining', sel: 'entity', domain: 'sensor' },
+      { n: 'cable', sel: 'entity', domain: 'binary_sensor' },
+      { n: 'climate', sel: 'entity', domain: 'climate', label: 'ed.standClimate' }
+    ]
+  },
+  vacuum: {
+    icon: 'mdi:robot-vacuum',
+    fields: [
+      { n: 'entity', sel: 'entity', domain: 'vacuum' },
+      { n: 'room', sel: 'entity', domain: 'sensor' },
+      { n: 'done', sel: 'entity', domain: ['input_boolean', 'binary_sensor'] }
+    ]
+  },
+  mower: {
+    icon: 'mdi:robot-mower',
+    fields: [{ n: 'entity', sel: 'entity', domain: 'lawn_mower' }]
+  },
+  battery: {
+    icon: 'mdi:battery-70',
+    fields: [
+      { n: 'entity', sel: 'entity', domain: 'sensor' },
+      { n: 'charging', sel: 'entity' }
+    ]
+  },
+  entity: {
+    icon: 'mdi:information-outline',
+    fields: [{ n: 'entity', sel: 'entity' }],
+    extra: [{ n: 'value', sel: 'text' }, { n: 'percent', sel: 'text' }]
+  },
+  template: {
+    icon: 'mdi:code-braces',
+    fields: [],
+    extra: [{ n: 'value', sel: 'text' }, { n: 'percent', sel: 'text' }]
+  }
+};
+
+/** Felder, die es bei jedem Baustein gibt */
+const ST_COMMON = [
+  { n: 'name', sel: 'text' }, { n: 'detail', sel: 'text' },
+  { n: 'icon', sel: 'icon' }, { n: 'color', sel: 'color' },
+  { n: 'hide', sel: 'text' }
+];
+
+const ST_MOD_KEYS = Object.keys(ST_MODULES);
+
+/**
+ * Welcher Baustein steckt in diesem Eintrag? Ohne `module:` entscheidet,
+ * ob eine Entität dabeisteht — so bleibt die YAML frei von `module: entity`.
+ */
+function stModuleOf(e) {
+  if (e && e.module && ST_MODULES[e.module]) return e.module;
+  return e && e.entity ? 'entity' : 'template';
+}
+
 /** Vorgegebene Farben der Bausteine */
 const ST_C = {
   gruen: '#7fe0ab', blau: '#4fb0f0', gelb: '#f0b429', violett: '#9b7bf5',
@@ -5598,6 +5749,26 @@ class OnyxStatusCard extends OnyxBase {
     };
   }
 
+  /** Ein Sensor in Prozent, als Balken. Grün, gelb, rot nach Füllstand. */
+  _modBattery(e) {
+    const hass = this._hass;
+    const st = hass.states[e.entity];
+    if (!st || isDead(st)) return null;
+    const n = Number(st.state);
+    if (isNaN(n)) return null;
+    const laedt = e.charging && (isOn(hass.states[e.charging])
+      || (hass.states[e.charging] && hass.states[e.charging].state === 'charging'));
+    return {
+      icon: laedt ? 'mdi:battery-charging'
+        : n <= 15 ? 'mdi:battery-alert' : 'mdi:battery-70',
+      name: e.name || nameOf(hass, e.entity),
+      detail: laedt ? t('st.charging') : '',
+      color: laedt ? ST_C.gruen : n <= 15 ? ST_C.rot : n <= 40 ? ST_C.orange : ST_C.gruen,
+      percent: n, value: nfmt(n, 0) + ' %',
+      id: e.entity
+    };
+  }
+
   /** Ein einfacher Eintrag: Entität, Vorlagen, oder beides gemischt */
   _plain(e, key) {
     const hass = this._hass;
@@ -5636,6 +5807,7 @@ class OnyxStatusCard extends OnyxBase {
     else if (e.module === 'vacuum') out = this._modVacuum(e);
     else if (e.module === 'mower') out = this._modMower(e);
     else if (e.module === 'car') out = this._modCar(e);
+    else if (e.module === 'battery') out = this._modBattery(e);
     else out = this._plain(e, key);
     if (!out) return null;
 
@@ -5798,6 +5970,13 @@ const ED_HELP_KEY = {
   consumables: 'ed.h.consumables'
 };
 
+/** Hilfetexte, die nur in der Status-Karte gelten */
+const ST_HELP = {
+  hide: 'ed.h.hide', detail: 'ed.h.detail', percent: 'ed.h.percent',
+  value: 'ed.h.value', people: 'ed.h.people', done: 'ed.h.done',
+  charging: 'ed.h.charging', room: 'ed.h.room', module: 'ed.h.module'
+};
+
 const ED_CSS = `
   .ed{ display:flex; flex-direction:column; gap:16px; }
   .sec{ font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
@@ -5818,6 +5997,34 @@ const ED_CSS = `
   .btn.x{ border:none; padding:6px; margin-top:6px; color:var(--secondary-text-color); }
   .btn.x:hover{ color:var(--error-color, #db4437); background:none; }
   .adds{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* Eingeklappte Einträge — ein Streifen je Zeile, Klick klappt auf */
+  .items{ display:flex; flex-direction:column; gap:8px; }
+  .item{ display:flex; flex-direction:column; }
+  .strip{ display:flex; align-items:center; gap:10px; padding:8px 6px 8px 11px;
+          border:1px solid var(--divider-color, rgba(127,127,127,.3));
+          border-radius:11px; cursor:pointer; }
+  .strip:hover{ background:var(--secondary-background-color, rgba(127,127,127,.08)); }
+  .item.on .strip{ border-color:var(--primary-color, #38a3f1);
+                   border-radius:11px 11px 0 0; }
+  .strip .ic{ width:26px; height:26px; border-radius:8px; flex:none; display:grid;
+              place-items:center; --mdc-icon-size:16px;
+              color:var(--primary-color, #38a3f1);
+              background:color-mix(in srgb, var(--primary-color, #38a3f1) 16%, transparent); }
+  .strip .tx{ flex:1; min-width:0; }
+  .strip .n{ display:block; font-size:13.5px; line-height:18px;
+             color:var(--primary-text-color);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .strip .d{ display:block; font-size:11.5px; line-height:15px;
+             color:var(--secondary-text-color);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .strip .d:empty{ display:none; }
+  .strip .tools{ display:flex; align-items:center; flex:none; }
+  .strip .tools .btn.x{ margin-top:0; }
+  .strip .btn.x[disabled]{ opacity:.3; cursor:default; }
+  .body{ border:1px solid var(--primary-color, #38a3f1); border-top:none;
+         border-radius:0 0 11px 11px; padding:12px;
+         display:flex; flex-direction:column; gap:10px; }
 `;
 
 const ED_COLORS = ['blau', 'gruen', 'gelb', 'orange', 'rot', 'violett', 'rosa'];
@@ -6748,8 +6955,17 @@ class OnyxLockEditor extends OnyxEditor {
   }
 }
 
+/**
+ * Status-Karte
+ *
+ * Der Kopf, die Zeilen und die Chips sind alle vom selben Schlag: ein
+ * Baustein plus seine Felder. Deshalb gibt es hier nur einen Bauplan für
+ * einen Eintrag, dreimal verwendet. Eingeklappt steht je Eintrag ein
+ * Streifen; erst ein Klick öffnet die Felder — sonst wird der Editor bei
+ * sechs Zeilen unbedienbar lang.
+ */
 class OnyxStatusEditor extends OnyxEditor {
-  _helpKey(name) { return ED_HELP_KEY[name] || ''; }
+  _helpKey(name) { return ST_HELP[name] || ED_HELP_KEY[name] || ''; }
 
   _schema() {
     return [
@@ -6766,12 +6982,324 @@ class OnyxStatusEditor extends OnyxEditor {
     };
   }
 
+  _fromForm(data) {
+    const cfg = Object.assign({}, this._config, data);
+    return this._packInto(cfg);
+  }
+
+  /* ---------------- Arbeitsmodell ---------------- */
+
+  _model() {
+    if (this._state) return this._state;
+    const c = this._config;
+    const cp = (e) => Object.assign({}, e);
+    this._state = {
+      head: c.head ? cp(c.head) : null,
+      rows: (c.rows || []).map(cp),
+      chips: (c.chips || []).map(cp),
+      open: null
+    };
+    return this._state;
+  }
+
+  /** Einen Eintrag auf die Felder seines Bausteins eindampfen */
+  _pack(e) {
+    const mod = stModuleOf(e);
+    const out = {};
+    if (mod !== 'entity' && mod !== 'template') out.module = mod;
+    const take = (f) => {
+      const v = e[f.n];
+      if (v === '' || v === null || v === undefined) return;
+      if (Array.isArray(v)) { if (v.length) out[f.n] = v.slice(); return; }
+      out[f.n] = v;
+    };
+    ST_MODULES[mod].fields.forEach(take);
+    (ST_MODULES[mod].extra || []).forEach(take);
+    ST_COMMON.forEach(take);
+    return out;
+  }
+
+  /** Kopf, Zeilen und Chips aus dem Arbeitsmodell in die Konfiguration */
+  _packInto(cfg) {
+    const st = this._model();
+    delete cfg.head; delete cfg.rows; delete cfg.chips;
+    if (st.head) cfg.head = this._pack(st.head);
+    const rows = st.rows.map((e) => this._pack(e));
+    const chips = st.chips.map((e) => this._pack(e));
+    if (rows.length) cfg.rows = rows;
+    if (chips.length) cfg.chips = chips;
+    return cfg;
+  }
+
+  _commit() {
+    this._emit(this._packInto(Object.assign({}, this._config)));
+  }
+
+  /* ---------------- Ein Eintrag als Formular ---------------- */
+
+  _entrySchema(mod) {
+    const m = ST_MODULES[mod];
+    const one = (f) => {
+      if (f.sel === 'entity') return fieldEntity(f.n, f.domain, f.multiple);
+      if (f.sel === 'icon') return fieldIcon(f.n);
+      if (f.sel === 'color') return fieldColor();
+      return fieldText(f.n);
+    };
+    const schema = [{
+      name: 'module',
+      selector: { select: { mode: 'dropdown',
+        options: ST_MOD_KEYS.map((v) => ({ value: v, label: t('ed.m.' + v) })) } }
+    }];
+    // Entitäten paarweise, damit die Liste beim Auto nicht ausufert
+    const fs = m.fields.slice();
+    if (fs.length === 1) schema.push(one(fs[0]));
+    else for (let i = 0; i < fs.length; i += 2) {
+      schema.push(fs[i + 1] ? grid(one(fs[i]), one(fs[i + 1])) : one(fs[i]));
+    }
+    schema.push(grid(fieldText('name'), fieldText('detail')));
+    const ex = m.extra || [];
+    if (ex.length === 2) schema.push(grid(one(ex[0]), one(ex[1])));
+    schema.push(grid(fieldIcon('icon'), fieldColor()));
+    schema.push(fieldText('hide'));
+    return schema;
+  }
+
+  _entryData(e) {
+    const mod = stModuleOf(e);
+    const out = { module: mod };
+    const take = (f) => {
+      const v = e[f.n];
+      out[f.n] = v == null ? (f.multiple ? [] : '') : v;
+    };
+    ST_MODULES[mod].fields.forEach(take);
+    (ST_MODULES[mod].extra || []).forEach(take);
+    ST_COMMON.forEach(take);
+    return out;
+  }
+
+  /** Was der Streifen zeigt, solange der Eintrag zu ist */
+  _entryLine(e) {
+    const mod = stModuleOf(e);
+    const hass = this._hass;
+    const nm = e.name && !isTpl(e.name) ? e.name : t('ed.m.' + mod);
+    let d = '';
+    if (mod === 'presence') d = (e.people || []).map((id) => nameOf(hass, id)).join(', ');
+    else if (e.entity) d = e.entity;
+    else if (isTpl(e.name)) d = e.name;
+    else if (isTpl(e.detail)) d = e.detail;
+    return { icon: e.icon && !isTpl(e.icon) ? e.icon : ST_MODULES[mod].icon,
+      name: nm, detail: d };
+  }
+
+  _btn(icon, text, onClick, cls, title) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (cls ? ' ' + cls : '');
+    b.type = 'button';
+    b.innerHTML = `<ha-icon icon="${icon}"></ha-icon>${text ? '<span></span>' : ''}`;
+    if (text) b.querySelector('span').textContent = text;
+    if (title) b.title = title;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  _section(label) {
+    const h = document.createElement('div');
+    h.className = 'sec';
+    h.textContent = label;
+    return h;
+  }
+
+  /**
+   * Ein Eintrag: Streifen oben, Felder darunter, wenn er offen ist.
+   * `get` und `set` sagen, wo der Eintrag im Arbeitsmodell wohnt.
+   */
+  _buildEntry(key, get, set, tools) {
+    const st = this._model();
+    const box = document.createElement('div');
+    const offen = st.open === key;
+    box.className = 'item' + (offen ? ' on' : '');
+
+    const strip = document.createElement('div');
+    strip.className = 'strip';
+    strip.innerHTML = `
+      <span class="ic"><ha-icon icon=""></ha-icon></span>
+      <span class="tx"><span class="n"></span><span class="d"></span></span>`;
+    // Die Beschriftung wird bei jedem Durchlauf aufgefrischt, nicht neu
+    // gebaut — sonst springt beim Tippen der Cursor aus dem Namensfeld.
+    this._strips.push({ el: strip, get });
+    strip.addEventListener('click', (ev) => {
+      if (ev.target.closest('.tools')) return;
+      st.open = offen ? null : key;
+      this._listSig = null;
+      this._render();
+    });
+
+    const tb = document.createElement('span');
+    tb.className = 'tools';
+    for (const tool of tools) tb.appendChild(tool());
+    tb.appendChild(this._btn(offen ? 'mdi:chevron-up' : 'mdi:chevron-down', '', () => {
+      st.open = offen ? null : key;
+      this._listSig = null;
+      this._render();
+    }, 'x'));
+    strip.appendChild(tb);
+    box.appendChild(strip);
+
+    if (offen) {
+      const body = document.createElement('div');
+      body.className = 'body';
+      const mod = stModuleOf(get());
+      const form = this._makeForm((d) => {
+        const vorher = stModuleOf(get());
+        if (d.module !== vorher) {
+          // Baustein gewechselt: nur behalten, was der neue auch kennt
+          const alt = get();
+          const neu = { module: d.module };
+          for (const f of ST_COMMON) if (alt[f.n] != null) neu[f.n] = alt[f.n];
+          if (ST_MODULES[d.module].fields.some((f) => f.n === 'entity') && alt.entity) {
+            neu.entity = alt.entity;
+          }
+          set(neu);
+          this._listSig = null;
+          this._commit();
+          return;
+        }
+        set(Object.assign({}, d));
+        this._commit();
+      });
+      form.computeLabel = (x) => {
+        if (!x.name) return '';
+        const f = [].concat(ST_MODULES[mod].fields, ST_MODULES[mod].extra || [])
+          .find((y) => y.n === x.name);
+        return t(f && f.label ? f.label : 'ed.' + x.name);
+      };
+      // Der Hinweis zur Farbe steht schon oben an der Karte — in jeder
+      // Zeile noch einmal wäre er nur Lärm.
+      form.computeHelper = (x) => {
+        const key = x.name === 'color' ? '' : this._helpKey(x.name);
+        return key ? t(key) : '';
+      };
+      this._forms.push({
+        form, schema: this._entrySchema(mod), data: () => this._entryData(get())
+      });
+      body.appendChild(form);
+      box.appendChild(body);
+    }
+    return box;
+  }
+
+  /** Eine Liste von Einträgen mit Hoch, Runter, Weg und Hinzufügen */
+  _buildList(root, feld, praefix, addLabel) {
+    const st = this._model();
+    root.appendChild(this._section(t(feld === 'rows' ? 'ed.rows' : 'ed.chips')));
+    const list = document.createElement('div');
+    list.className = 'items';
+    st[feld].forEach((_, i) => {
+      const verschieben = (d) => () => {
+        const arr = st[feld];
+        const j = i + d;
+        if (j < 0 || j >= arr.length) return;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        st.open = null;
+        this._listSig = null;
+        this._commit();
+      };
+      list.appendChild(this._buildEntry(praefix + i,
+        () => st[feld][i],
+        (v) => { st[feld][i] = v; },
+        [
+          () => {
+            const b = this._btn('mdi:chevron-up', '', verschieben(-1), 'x', t('ed.up'));
+            if (i === 0) b.disabled = true;
+            return b;
+          },
+          () => {
+            const b = this._btn('mdi:chevron-down', '', verschieben(1), 'x', t('ed.down'));
+            if (i === st[feld].length - 1) b.disabled = true;
+            return b;
+          },
+          () => this._btn('mdi:close', '', () => {
+            st[feld].splice(i, 1);
+            st.open = null;
+            this._listSig = null;
+            this._commit();
+          }, 'x', t('ed.remove'))
+        ]));
+    });
+    root.appendChild(list);
+    const adds = document.createElement('div');
+    adds.className = 'adds';
+    adds.appendChild(this._btn('mdi:plus', addLabel, () => {
+      st[feld].push({ module: 'entity', entity: '' });
+      st.open = praefix + (st[feld].length - 1);
+      this._listSig = null;
+      this._commit();
+    }));
+    root.appendChild(adds);
+  }
+
   _extra(root) {
-    if (this._note) return;
-    this._note = document.createElement('p');
-    this._note.className = 'hint';
-    this._note.textContent = t('ed.h.status');
-    root.appendChild(this._note);
+    const st = this._model();
+    // Neu gebaut wird nur, wenn sich die Struktur ändert — sonst reisst
+    // jeder Zustandswechsel im Haus das Feld unter dem Cursor weg.
+    const sig = [
+      st.open, st.head ? stModuleOf(st.head) : '-',
+      st.rows.map(stModuleOf).join(','), st.chips.map(stModuleOf).join(',')
+    ].join('#');
+
+    if (!this._list) {
+      this._list = document.createElement('div');
+      this._list.className = 'ed';
+      root.appendChild(this._list);
+    }
+
+    if (sig !== this._listSig) {
+      this._listSig = sig;
+      this._forms = [];
+      this._strips = [];
+      this._list.textContent = '';
+
+      this._list.appendChild(this._section(t('ed.head')));
+      if (st.head) {
+        const items = document.createElement('div');
+        items.className = 'items';
+        items.appendChild(this._buildEntry('h',
+          () => st.head, (v) => { st.head = v; },
+          [() => this._btn('mdi:close', '', () => {
+            st.head = null;
+            st.open = null;
+            this._listSig = null;
+            this._commit();
+          }, 'x', t('ed.remove'))]));
+        this._list.appendChild(items);
+      } else {
+        const adds = document.createElement('div');
+        adds.className = 'adds';
+        adds.appendChild(this._btn('mdi:plus', t('ed.addHead'), () => {
+          st.head = { module: 'presence', people: [] };
+          st.open = 'h';
+          this._listSig = null;
+          this._commit();
+        }));
+        this._list.appendChild(adds);
+      }
+
+      this._buildList(this._list, 'rows', 'r', t('ed.addRow'));
+      this._buildList(this._list, 'chips', 'c', t('ed.addChip'));
+
+      const note = document.createElement('p');
+      note.className = 'hint';
+      note.textContent = t('ed.h.status');
+      this._list.appendChild(note);
+    }
+
+    for (const s of this._strips) {
+      const line = this._entryLine(s.get());
+      s.el.querySelector('ha-icon').setAttribute('icon', line.icon);
+      s.el.querySelector('.n').textContent = line.name;
+      s.el.querySelector('.d').textContent = line.detail;
+    }
+    for (const f of this._forms) this._fillForm(f.form, f.schema, f.data());
   }
 }
 

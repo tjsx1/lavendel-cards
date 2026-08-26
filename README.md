@@ -746,6 +746,12 @@ chips:
 | `vacuum` | `entity`, optional `room`, `done` | Putzt (mit Fortschritt), kehrt zurück, pausiert, klemmt, heute geputzt |
 | `mower` | `entity` | Mäht, kehrt zurück, pausiert, klemmt — angedockt fällt die Zeile weg |
 | `car` | `entity` (Akku), optional `charging`, `power`, `remaining`, `cable`, `climate` | Ladestand als Balken, dazu Ladeleistung, Restzeit, Kabel, Klima |
+| `battery` | `entity` (Sensor in %), optional `charging` | Füllstand als Balken — grün, ab 40 % orange, ab 15 % rot |
+| `entity` | `entity` | Irgendeine Entität: Name, Symbol und Farbe frei wählbar |
+| `template` | — | Gar keine Entität, nur Vorlagen |
+
+`module: entity` und `module: template` muss man nicht hinschreiben — ein Eintrag mit
+`entity:` ist das eine, ein Eintrag ohne das andere.
 
 **Vorlagen für alles Übrige.** Jedes der Felder `name`, `detail`, `value`, `percent`,
 `icon`, `color` und `hide` darf statt eines festen Werts eine Jinja-Vorlage sein. Die
@@ -777,6 +783,13 @@ Was der Editor nicht kann, und warum:
 - **Umschalten zwischen `actions:` und `groups:`** macht der Schalter *In Gruppen
   aufteilen*. Beim Ausschalten wandern alle Aktionen in eine Liste, es geht nichts
   verloren.
+
+**Die Status-Karte** bekommt ab 2.15.0 einen eigenen Aufbau: Kopf, Zeilen und Chips
+stehen als eingeklappte Streifen untereinander, ein Klick öffnet die Felder. Oben im
+geöffneten Streifen steht der Baustein — wer ihn wechselt, bekommt die Felder des
+neuen Bausteins, und Name, Symbol und Farbe wandern mit. Mit den Pfeilen lassen sich
+Zeilen und Chips umsortieren. Jedes Textfeld nimmt auch eine Jinja-Vorlage entgegen,
+also auch die Storen-Automatik von oben — dafür gibt es den Baustein *Vorlage*.
 
 Zwischen Formular und YAML kann jederzeit hin- und hergewechselt werden. Der Editor
 schreibt nur, was vom Standard abweicht — leere Felder und Schalter auf ihrem
@@ -907,6 +920,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**2.15.0** — Status-Karte im Editor: Bausteine, Zeilen und Chips per Formular, neuer Baustein `battery`
 
 **2.14.0** — Neue Status-Karte: Kopf, Zeilen und Chips aus Bausteinen und Jinja-Vorlagen
 **2.13.0** — Chips als Pillen mit eigener Farbe je Aktion, vier Bauarten über `chip_style`
