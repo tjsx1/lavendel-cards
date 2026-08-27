@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 1.0.0
+ * Version 1.1.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -15,6 +15,7 @@
  *   custom:onyx-camera-card  – Kamera mit Livebild, Bewegung und Türöffner
  *   custom:onyx-lock-card    – Schloss: schieben zum Entriegeln
  *   custom:onyx-status-card  – mehrere Zustände in einer Karte
+ *   custom:onyx-climate-card – Temperaturring mit Skala und Betriebsarten
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -23,7 +24,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.0.0';
+const ONYX_VERSION = '1.1.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -151,6 +152,49 @@ const STRINGS = {
     'ed.h.show_open': 'Nur bei Schlössern, die den Riegel selbst zurückziehen können',
     'ed.h.door_entity_lock': 'Ein binary_sensor an der Tür; zeigt offen oder zu',
     'ed.h.lockColor': 'Ohne eigene Farbe färbt sich die Karte nach dem Zustand: grün verriegelt, orange entriegelt, rot klemmt.',
+    cl: 'Klima',
+    'cl.now': 'gerade {v} °C',
+    'cl.m.heat': 'Heizen',
+    'cl.m.cool': 'Kühlen',
+    'cl.m.heat_cool': 'Auto',
+    'cl.m.auto': 'Auto',
+    'cl.m.dry': 'Trocknen',
+    'cl.m.fan_only': 'Lüften',
+    'cl.m.off': 'Aus',
+    'cl.a.heating': 'Heizt',
+    'cl.a.cooling': 'Kühlt',
+    'cl.a.drying': 'Trocknet',
+    'cl.a.fan': 'Lüftet',
+    'cl.a.idle': 'Bereit',
+    'cl.a.off': 'Aus',
+    'cl.a.preheating': 'Heizt vor',
+    'cl.a.defrosting': 'Taut ab',
+    'cl.p.none': 'Keine',
+    'cl.p.home': 'Zuhause',
+    'cl.p.comfort': 'Komfort',
+    'cl.p.eco': 'Sparen',
+    'cl.p.away': 'Abwesend',
+    'cl.p.sleep': 'Nacht',
+    'cl.p.boost': 'Turbo',
+    'cl.p.activity': 'Aktiv',
+    'cl.p.frost': 'Frostschutz',
+    'cl.f.auto': 'Auto',
+    'cl.f.low': 'Leise',
+    'cl.f.medium': 'Mittel',
+    'cl.f.high': 'Stark',
+    'cl.f.off': 'Aus',
+    'cl.f.on': 'An',
+    'err.needClimate': 'Die Entität muss aus der Domäne "climate" kommen.',
+    'card.climate': 'Onyx Klima-Karte',
+    'card.climate.d': 'Temperaturring mit Skala, Betriebsarten und Voreinstellungen',
+    'ed.show_modes': 'Betriebsarten zeigen',
+    'ed.show_presets': 'Voreinstellungen zeigen',
+    'ed.show_fan': 'Lüfterstufen zeigen',
+    'ed.h.show_presets': 'Nur wenn das Gerät welche kennt',
+    'ed.h.clSensor': 'Leer lassen: dann nimmt die Karte den Wert des Thermostats',
+    'ed.h.climate': 'Der Ring zeigt den Bereich zwischen Minimum und Maximum des Geräts. Ziehen verstellt das Soll, die beiden Knöpfe gehen in der Schrittweite des Geräts. Nennt das Gerät zwei Sollwerte, wandert der nähere Griff mit.',
+    'ed.h.climateColor': 'Ohne eigene Farbe färbt sich die Karte nach dem, was gerade '
+      + 'läuft: orange beim Heizen, blau beim Kühlen, grün beim Trocknen.',
     st: 'Status',
     'st.home': 'Zuhause',
     'st.allHome': 'alle da',
@@ -509,6 +553,49 @@ const STRINGS = {
     'ed.h.show_open': 'Only for locks that can pull back the latch themselves',
     'ed.h.door_entity_lock': 'A binary_sensor on the door; shows open or closed',
     'ed.h.lockColor': 'Without a color of your own the card follows the state: green locked, orange unlocked, red jammed.',
+    cl: 'Climate',
+    'cl.now': 'now {v} °C',
+    'cl.m.heat': 'Heat',
+    'cl.m.cool': 'Cool',
+    'cl.m.heat_cool': 'Auto',
+    'cl.m.auto': 'Auto',
+    'cl.m.dry': 'Dry',
+    'cl.m.fan_only': 'Fan',
+    'cl.m.off': 'Off',
+    'cl.a.heating': 'Heating',
+    'cl.a.cooling': 'Cooling',
+    'cl.a.drying': 'Drying',
+    'cl.a.fan': 'Fan running',
+    'cl.a.idle': 'Idle',
+    'cl.a.off': 'Off',
+    'cl.a.preheating': 'Preheating',
+    'cl.a.defrosting': 'Defrosting',
+    'cl.p.none': 'None',
+    'cl.p.home': 'Home',
+    'cl.p.comfort': 'Comfort',
+    'cl.p.eco': 'Eco',
+    'cl.p.away': 'Away',
+    'cl.p.sleep': 'Sleep',
+    'cl.p.boost': 'Boost',
+    'cl.p.activity': 'Activity',
+    'cl.p.frost': 'Frost guard',
+    'cl.f.auto': 'Auto',
+    'cl.f.low': 'Low',
+    'cl.f.medium': 'Medium',
+    'cl.f.high': 'High',
+    'cl.f.off': 'Off',
+    'cl.f.on': 'On',
+    'err.needClimate': 'The entity must come from the "climate" domain.',
+    'card.climate': 'Onyx Climate Card',
+    'card.climate.d': 'Temperature dial with scale, modes and presets',
+    'ed.show_modes': 'Show modes',
+    'ed.show_presets': 'Show presets',
+    'ed.show_fan': 'Show fan speeds',
+    'ed.h.show_presets': 'Only if the device offers any',
+    'ed.h.clSensor': 'Leave empty and the card uses the thermostat reading',
+    'ed.h.climate': 'The dial spans the minimum and maximum of the device. Dragging sets the target, the two buttons step by the device step size. If the device names two targets, the nearer handle moves.',
+    'ed.h.climateColor': 'Without a colour of its own the card follows what is running: '
+      + 'orange when heating, blue when cooling, green when drying.',
     st: 'Status',
     'st.home': 'Home',
     'st.allHome': 'everyone in',
@@ -808,10 +895,12 @@ function applyLocale(hass) {
 }
 
 /** Text nachschlagen. `{n}` und Freunde werden ersetzt. */
-function t(key, vars) {
+function t(key, vars, ersatz) {
   let s = STRINGS[LANG][key];
   if (s == null) s = STRINGS.en[key];
-  if (s == null) return key;
+  // Voreinstellungen und Lüfterstufen benennt Home Assistant frei — für die
+  // gibt es keine Übersetzung, und der Schlüssel wäre als Beschriftung Unsinn.
+  if (s == null) return ersatz == null ? key : ersatz;
   if (vars) {
     for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
   }
@@ -6078,6 +6167,490 @@ class OnyxStatusCard extends OnyxBase {
   }
 }
 
+
+/* ================================================================== *
+ * 13) KLIMA-KARTE
+ * ================================================================== */
+
+/** Der Bogen des Rings: von 7:30 Uhr im Uhrzeigersinn bis 4:30 — Lücke unten */
+const CL_START = 225, CL_SPAN = 270;
+
+/** Punkt auf dem Kreis. 0° ist oben, gezählt wird im Uhrzeigersinn. */
+function clPolar(deg, r, cx, cy) {
+  const a = ((deg - 90) * Math.PI) / 180;
+  return [(cx == null ? 50 : cx) + r * Math.cos(a), (cy == null ? 50 : cy) + r * Math.sin(a)];
+}
+
+/**
+ * Wo im Ring hat der Finger aufgesetzt? Kommt der Punkt in der Lücke unten
+ * an, wird auf das nähere Ende gerundet — sonst springt der Sollwert beim
+ * Danebengreifen quer über die Skala.
+ */
+function clFraction(x, y) {
+  const dx = x - 50, dy = y - 50;          // y wird von unten gezählt
+  let deg = (Math.atan2(dx, dy) * 180) / Math.PI;
+  if (deg < 0) deg += 360;
+  const ENDE = (CL_START + CL_SPAN) % 360; // 135
+  if (deg > ENDE && deg < CL_START) return deg < 180 ? 1 : 0;
+  if (deg < CL_START) deg += 360;
+  return clamp((deg - CL_START) / CL_SPAN, 0, 1);
+}
+
+/** Die Betriebsarten, die wir zeigen können — in dieser Reihenfolge */
+const CL_MODES = {
+  heat: { icon: 'mdi:fire' },
+  cool: { icon: 'mdi:snowflake' },
+  heat_cool: { icon: 'mdi:sun-snowflake-variant' },
+  auto: { icon: 'mdi:autorenew' },
+  dry: { icon: 'mdi:water-percent' },
+  fan_only: { icon: 'mdi:fan' },
+  off: { icon: 'mdi:power' }
+};
+
+/** Symbole für die gängigen Voreinstellungen; alles andere bekommt einen Punkt */
+const CL_PRESETS = {
+  none: 'mdi:circle-outline', home: 'mdi:home', comfort: 'mdi:sofa',
+  eco: 'mdi:leaf', away: 'mdi:home-export-outline', sleep: 'mdi:weather-night',
+  boost: 'mdi:rocket-launch', activity: 'mdi:run', frost: 'mdi:snowflake-alert'
+};
+
+const CL_FAN = {
+  auto: 'mdi:fan-auto', low: 'mdi:fan-speed-1', medium: 'mdi:fan-speed-2',
+  high: 'mdi:fan-speed-3', off: 'mdi:fan-off', on: 'mdi:fan'
+};
+
+class OnyxClimateCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    /* Wie die Raum-Karte: die Farbe gehört zum Gerät, nicht zum Zustand.
+       Läuft nichts, bleibt sie — nur in den dunklen Grund gemischt. */
+    ha-card{
+      padding:14px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09); box-shadow:none; overflow:hidden;
+      display:flex; flex-direction:column; gap:12px; container-type:inline-size;
+      background:linear-gradient(to right bottom,
+        color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
+        color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
+    }
+    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+    ha-card.dead{ opacity:.55; }
+
+    .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
+    .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
+    .hico{ width:34px; height:34px; border-radius:50%; flex:none;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+           display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; }
+    ha-card.warm .hico{ color:var(--acc); }
+    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
+    ha-card.warm .lab{ color:var(--lab); }
+    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .nm{ color:#e9f1f8; }
+    .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
+    .env .t{ font-size:16px; font-weight:700; letter-spacing:-.02em; color:#9fb0be; }
+    .env .h{ font-size:12px; color:#72879a; }
+    ha-card.warm .env .t{ color:var(--acc); }
+    ha-card.warm .env .h{ color:var(--sub); }
+
+    /* Der Ring. Die Striche sind die Skala; jeder ganze Grad ist länger. */
+    .dial{ position:relative; width:100%; aspect-ratio:1/.86; display:grid;
+           place-items:center; touch-action:none; cursor:pointer; }
+    .dial svg{ position:absolute; inset:0; width:100%; height:100%; }
+    .cen{ position:relative; text-align:center; line-height:1;
+          padding:6px 46px 30px; box-sizing:border-box; max-width:100%;
+          pointer-events:none; }
+    .soll{ font-size:52px; font-weight:300; letter-spacing:-.035em; color:#fff;
+           font-variant-numeric:tabular-nums; }
+    .soll sup{ font-size:20px; font-weight:400; vertical-align:top; top:.5em;
+               position:relative; }
+    .soll.zwei{ font-size:34px; letter-spacing:-.02em; }
+    .soll.zwei sup{ font-size:15px; top:.35em; }
+    .soll.aus{ color:#8ea3b5; }
+    .act{ font-size:12.5px; color:#7b8fa0; margin-top:9px; }
+    ha-card.warm .act{ color:var(--sub); }
+    .act b{ color:var(--acc); font-weight:600; }
+    .pre{ font-size:11px; color:#6f8497; margin-top:3px; text-transform:uppercase;
+          letter-spacing:.08em; }
+    ha-card.warm .pre{ color:var(--lab); }
+
+    .pm{ position:absolute; bottom:2px; width:38px; height:38px; border-radius:50%;
+         background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
+         -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+         border:1px solid rgba(255,255,255,.11); display:grid; place-items:center;
+         color:#fff; --mdc-icon-size:19px; cursor:pointer;
+         transition:transform .12s ease; }
+    .pm.minus{ left:6px; } .pm.plus{ right:6px; }
+    .pm.held{ transform:scale(.9); }
+    .pm[disabled]{ opacity:.3; cursor:default; }
+
+    /* Betriebsarten, Voreinstellungen, Lüfter */
+    .modes{ display:flex; gap:7px; }
+    .mode{ flex:1; min-width:0; height:42px; border-radius:12px;
+           background:rgba(255,255,255,.055); border:1px solid transparent;
+           display:flex; flex-direction:column; align-items:center;
+           justify-content:center; gap:2px; font-size:10.5px; color:#a8c2d4;
+           --mdc-icon-size:17px; cursor:pointer;
+           transition:transform .12s ease, background .18s ease; }
+    .mode span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                max-width:100%; }
+    .mode.on{ background:color-mix(in srgb, var(--btn) 55%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 72%, transparent); color:#fff; }
+    .mode.held{ transform:scale(.95); }
+
+    .pills{ display:flex; gap:6px; flex-wrap:wrap; }
+    .pill{ height:28px; padding:0 11px 0 9px; border-radius:99px; font-size:11.5px;
+           font-weight:600; background:rgba(255,255,255,.05);
+           border:1px solid rgba(255,255,255,.08); color:#c3ccd6; cursor:pointer;
+           display:flex; align-items:center; gap:6px; --mdc-icon-size:14px;
+           min-width:0; max-width:100%; transition:transform .12s ease; }
+    .pill span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pill.on{ background:color-mix(in srgb, var(--btn) 55%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 72%, transparent); color:#fff; }
+    .pill.held{ transform:scale(.95); }
+
+    /* Auf einer halben Spalte fehlt den Beschriftungen der Platz */
+    /* Auf einer halben Spalte wird der Ring quadratisch — sonst laufen die
+       Zahl, die Zeile darunter und die beiden Knöpfe ineinander. */
+    @container (max-width: 260px){
+      .dial{ aspect-ratio:1/1.06; }
+      .soll{ font-size:34px; }
+      .soll.zwei{ font-size:21px; }
+      .act{ font-size:11.5px; margin-top:7px; }
+      .act .nowv{ display:none; }
+      .env .t{ font-size:15px; white-space:nowrap; }
+      .pre{ display:none; }
+      .pm{ width:32px; height:32px; --mdc-icon-size:16px; bottom:0; }
+      .pm.minus{ left:2px; } .pm.plus{ right:2px; }
+      .mode{ height:38px; font-size:0; gap:0; }
+      .mode ha-icon{ --mdc-icon-size:19px; }
+      .pill{ padding:0 9px; }
+      .env .h{ display:none; }
+    }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return { type: 'custom:onyx-climate-card', entity: firstEntity(hass, 'climate') };
+  }
+
+  setConfig(config) {
+    if (!config.entity || config.entity.split('.')[0] !== 'climate') {
+      throw new Error(t('err.needClimate'));
+    }
+    super.setConfig(config);
+  }
+
+  /* ---------------- Modell ---------------- */
+
+  _model() {
+    const hass = this._hass, cfg = this._config;
+    const st = hass.states[cfg.entity];
+    if (!st) throw new Error(t('err.entity', { id: cfg.entity }));
+    const a = st.attributes;
+    const dead = isDead(st);
+
+    const step = Number(a.target_temp_step) || 0.5;
+    const min = a.min_temp == null ? 7 : Number(a.min_temp);
+    const max = a.max_temp == null ? 35 : Number(a.max_temp);
+
+    // Ein Gerät im Auto-Betrieb nennt zwei Sollwerte statt einem
+    const low = a.target_temp_low == null ? null : Number(a.target_temp_low);
+    const high = a.target_temp_high == null ? null : Number(a.target_temp_high);
+    const zwei = low != null && high != null;
+    const soll = a.temperature == null ? null : Number(a.temperature);
+
+    const ist = cfg.temperature && hass.states[cfg.temperature]
+      ? Number(hass.states[cfg.temperature].state)
+      : (a.current_temperature == null ? null : Number(a.current_temperature));
+    const feucht = cfg.humidity && hass.states[cfg.humidity]
+      ? Number(hass.states[cfg.humidity].state)
+      : (a.current_humidity == null ? null : Number(a.current_humidity));
+
+    const modus = st.state;
+    const aktion = a.hvac_action || null;
+    // Was tut das Gerät gerade? `hvac_action` weiss es genau; fehlt sie,
+    // schliessen wir vom Betriebsmodus auf das Wahrscheinliche.
+    const laeuft = aktion
+      ? ['heating', 'cooling', 'drying', 'fan'].includes(aktion)
+      : modus !== 'off';
+
+    const modi = (a.hvac_modes || []).filter((m) => CL_MODES[m]);
+    const presets = cfg.show_presets === false ? []
+      : (a.preset_modes || []).filter(Boolean);
+    const fans = cfg.show_fan === false ? [] : (a.fan_modes || []).filter(Boolean);
+
+    return {
+      id: cfg.entity,
+      name: cfg.name || nameOf(hass, cfg.entity),
+      label: cfg.label || t('cl'),
+      icon: cfg.icon || (aktion === 'cooling' ? 'mdi:snowflake' : 'mdi:radiator'),
+      color: cfg.color || this._autoColor(aktion, modus),
+      dead, min, max, step, zwei, soll, low, high, ist, feucht,
+      modus, aktion, laeuft,
+      modi: cfg.show_modes === false ? [] : modi,
+      preset: a.preset_mode || null, presets,
+      fan: a.fan_mode || null, fans
+    };
+  }
+
+  /**
+   * Ohne eigene Farbe färbt sich die Karte nach dem, was gerade passiert:
+   * warm beim Heizen, kalt beim Kühlen, sonst neutral blau.
+   */
+  _autoColor(aktion, modus) {
+    if (aktion === 'heating' || (!aktion && modus === 'heat')) return 'orange';
+    if (aktion === 'cooling' || (!aktion && modus === 'cool')) return 'blau';
+    if (aktion === 'drying' || (!aktion && modus === 'dry')) return 'gruen';
+    return 'blau';
+  }
+
+  /* ---------------- Ring ---------------- */
+
+  /** Temperatur → Winkel auf dem Bogen */
+  _deg(m, v) {
+    return CL_START + CL_SPAN * clamp((v - m.min) / (m.max - m.min), 0, 1);
+  }
+
+  _ring(m) {
+    const farbe = m.laeuft ? 'var(--btn)' : 'rgba(255,255,255,.30)';
+    // Ohne Sollwert — nicht erreichbar, oder ein Gerät das keinen nennt —
+    // bleibt der ganze Ring grau. Ein einzelner heller Strich am Anfang
+    // sähe nach Fehler aus.
+    const ohne = m.dead || (m.zwei ? m.low == null : m.soll == null);
+    const von = m.zwei ? m.low : m.min;
+    const bis = m.zwei ? m.high : m.soll;
+
+    let striche = '';
+    // Halbe Grad als kurzer Strich, ganze als langer. Bei sehr weiten
+    // Bereichen würden die halben zu einem Brei — dann nur ganze.
+    const fein = (m.max - m.min) <= 32;
+    const schritt = fein ? 0.5 : 1;
+    for (let v = m.min; v <= m.max + 0.001; v += schritt) {
+      const deg = this._deg(m, v);
+      const ganz = Math.abs(v - Math.round(v)) < 0.01;
+      const [x1, y1] = clPolar(deg, ganz ? 38 : 40);
+      const [x2, y2] = clPolar(deg, 43);
+      const hell = !ohne && v >= von - 0.001 && v <= bis + 0.001;
+      striche += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}"
+        x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"
+        stroke="${hell ? farbe : 'rgba(255,255,255,.16)'}"
+        stroke-width="${ganz ? 1.5 : 1}" stroke-linecap="round"/>`;
+    }
+
+    // Die Ist-Temperatur als weisser Punkt auf dem Bogen
+    let punkt = '';
+    if (!m.dead && m.ist != null && !isNaN(m.ist)) {
+      const [ix, iy] = clPolar(this._deg(m, m.ist), 46);
+      punkt = `<circle cx="${ix.toFixed(2)}" cy="${iy.toFixed(2)}" r="6"
+                 fill="${farbe}" opacity=".28"/>
+               <circle cx="${ix.toFixed(2)}" cy="${iy.toFixed(2)}" r="3.2" fill="#fff"/>`;
+    }
+
+    const [ax, ay] = clPolar(CL_START, 46);
+    const [bx, by] = clPolar(CL_START + CL_SPAN, 46);
+    return `<svg viewBox="0 0 100 100">
+      <path d="M ${ax.toFixed(2)} ${ay.toFixed(2)} A 46 46 0 1 1 ${bx.toFixed(2)} ${by.toFixed(2)}"
+        fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5" stroke-linecap="round"/>
+      ${striche}${punkt}
+    </svg>`;
+  }
+
+  /* ---------------- Darstellung ---------------- */
+
+  _zahl(v) {
+    return nfmt(v, v % 1 ? 1 : 0);
+  }
+
+  _sollText(m) {
+    if (m.zwei) {
+      return `<div class="soll zwei${m.modus === 'off' ? ' aus' : ''}">${
+        esc(this._zahl(m.low))}<sup>°</sup> – ${esc(this._zahl(m.high))}<sup>°</sup></div>`;
+    }
+    if (m.soll == null) {
+      return `<div class="soll aus">–</div>`;
+    }
+    return `<div class="soll${m.modus === 'off' ? ' aus' : ''}">${
+      this._grad(m.soll, m.step)}</div>`;
+  }
+
+  /**
+   * Die grosse Zahl. Geht das Gerät in halben Grad, steht die Nachkommastelle
+   * immer da — sonst wechselte die Zahl beim Verstellen ständig ihre Breite
+   * und die ganze Karte zappelte.
+   */
+  _grad(v, step) {
+    const ganz = Math.trunc(v);
+    if (step >= 1) return `${esc(nfmt(ganz, 0))}<sup>°</sup>`;
+    const rest = Math.abs(v - ganz);
+    return `${esc(nfmt(ganz, 0))}<sup>${esc(nfmt(rest, 1).replace(/^0/, ''))}°</sup>`;
+  }
+
+  /** Die Zeile unter der Zahl: was das Gerät tut, und wie warm es wirklich ist */
+  _actText(m) {
+    const bits = [];
+    if (m.dead) return esc(t('unavailable'));
+    const tun = m.aktion ? t('cl.a.' + m.aktion, null, m.aktion)
+      : m.modus === 'off' ? t('off') : t('cl.m.' + m.modus, null, m.modus);
+    bits.push(`<b>${esc(tun)}</b>`);
+    if (m.ist != null && !isNaN(m.ist)) {
+      // Auf einer halben Spalte fällt der Teil weg: die Ist-Temperatur steht
+      // dort schon oben rechts, zweimal wäre sie nur Gedränge.
+      bits.push(`<span class="nowv">${esc(t('cl.now', { v: nfmt(m.ist, 1) }))}</span>`);
+    }
+    return bits.join('<span class="nowv"> · </span>');
+  }
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+    const aus = m.modus === 'off' || m.dead;
+
+    const modes = m.modi.length ? `<div class="modes">${m.modi.map((k) => `
+      <div class="mode${k === m.modus ? ' on' : ''}" data-mode="${esc(k)}">
+        <ha-icon icon="${CL_MODES[k].icon}"></ha-icon><span>${esc(t('cl.m.' + k, null, k))}</span>
+      </div>`).join('')}</div>` : '';
+
+    const presets = m.presets.length ? `<div class="pills">${m.presets.map((p) => `
+      <span class="pill${p === m.preset ? ' on' : ''}" data-preset="${esc(p)}">
+        <ha-icon icon="${CL_PRESETS[String(p).toLowerCase()] || 'mdi:circle-outline'}"></ha-icon
+        ><span>${esc(t('cl.p.' + String(p).toLowerCase(), null, p))}</span>
+      </span>`).join('')}</div>` : '';
+
+    const fans = m.fans.length ? `<div class="pills">${m.fans.map((f) => `
+      <span class="pill${f === m.fan ? ' on' : ''}" data-fan="${esc(f)}">
+        <ha-icon icon="${CL_FAN[String(f).toLowerCase()] || 'mdi:fan'}"></ha-icon
+        ><span>${esc(t('cl.f.' + String(f).toLowerCase(), null, f))}</span>
+      </span>`).join('')}</div>` : '';
+
+    return `
+    <ha-card class="${m.laeuft ? 'warm' : ''}${cls}${m.dead ? ' dead' : ''}"${style}>
+      <div class="head">
+        <div class="hleft" id="head">
+          <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="nm">${esc(m.name)}</div>
+          </div>
+        </div>
+        <div class="env">
+          ${m.ist != null && !isNaN(m.ist)
+            ? `<div class="t">${esc(nfmt(m.ist, 1))} °C</div>` : ''}
+          ${m.feucht != null && !isNaN(m.feucht)
+            ? `<div class="h">${esc(nfmt(m.feucht, 0))} %</div>` : ''}
+        </div>
+      </div>
+
+      <div class="dial" id="dial">
+        ${this._ring(m)}
+        <div class="cen">
+          ${this._sollText(m)}
+          <div class="act">${this._actText(m)}</div>
+          ${m.preset && m.preset !== 'none'
+            ? `<div class="pre">${esc(t('cl.p.' + String(m.preset).toLowerCase(), null, m.preset))}</div>`
+            : ''}
+        </div>
+        <div class="pm minus" id="minus"${aus ? ' disabled' : ''}>
+          <ha-icon icon="mdi:minus"></ha-icon></div>
+        <div class="pm plus" id="plus"${aus ? ' disabled' : ''}>
+          <ha-icon icon="mdi:plus"></ha-icon></div>
+      </div>
+
+      ${modes}${presets}${fans}
+    </ha-card>`;
+  }
+
+  /* ---------------- Bedienung ---------------- */
+
+  _bind(m) {
+    const root = this.shadowRoot;
+
+    const head = root.getElementById('head');
+    if (head) this._press(head, { onTap: () => fireMoreInfo(this, m.id) });
+
+    if (!m.dead) {
+      const dial = root.getElementById('dial');
+      const soll = root.querySelector('.soll');
+      // Beim Ziehen wird nur die Zahl mitgeführt; gesendet wird erst beim
+      // Loslassen. Sonst prasseln zwanzig Dienstaufrufe pro Wischer los.
+      const zeigen = (v) => { if (soll) soll.innerHTML = this._grad(v, m.step); };
+      if (dial && !m.zwei) {
+        this._press(dial, {
+          axis: 'xy',
+          onTap: () => fireMoreInfo(this, m.id),
+          onDrag: (p) => zeigen(this._wert(m, clFraction(p.x, p.y))),
+          onDrop: (p) => this._setSoll(m, this._wert(m, clFraction(p.x, p.y)))
+        });
+      } else if (dial) {
+        // Bei zwei Sollwerten wandert der nähere der beiden Griffe mit
+        this._press(dial, {
+          axis: 'xy',
+          onTap: () => fireMoreInfo(this, m.id),
+          onDrop: (p) => {
+            const v = this._wert(m, clFraction(p.x, p.y));
+            const nahLow = Math.abs(v - m.low) <= Math.abs(v - m.high);
+            this._setBereich(m, nahLow ? v : m.low, nahLow ? m.high : v);
+          }
+        });
+      }
+
+      for (const [id, vz] of [['minus', -1], ['plus', 1]]) {
+        const el = root.getElementById(id);
+        if (!el || el.hasAttribute('disabled')) continue;
+        this._press(el, { onTap: () => this._schritt(m, vz) });
+      }
+    }
+
+    root.querySelectorAll('[data-mode]').forEach((el) => {
+      this._press(el, { onTap: () => this.call('climate', 'set_hvac_mode',
+        { entity_id: m.id, hvac_mode: el.dataset.mode }) });
+    });
+    root.querySelectorAll('[data-preset]').forEach((el) => {
+      this._press(el, { onTap: () => this.call('climate', 'set_preset_mode',
+        { entity_id: m.id, preset_mode: el.dataset.preset }) });
+    });
+    root.querySelectorAll('[data-fan]').forEach((el) => {
+      this._press(el, { onTap: () => this.call('climate', 'set_fan_mode',
+        { entity_id: m.id, fan_mode: el.dataset.fan }) });
+    });
+  }
+
+  /** Anteil auf dem Bogen → Temperatur, auf die Schrittweite gerundet */
+  _wert(m, frac) {
+    const roh = m.min + frac * (m.max - m.min);
+    const v = Math.round(roh / m.step) * m.step;
+    // Fliesskommareste wie 21.900000000000002 abschneiden
+    return clamp(Math.round(v * 100) / 100, m.min, m.max);
+  }
+
+  _schritt(m, vz) {
+    if (m.zwei) {
+      this._setBereich(m,
+        clamp(m.low + vz * m.step, m.min, m.high),
+        clamp(m.high + vz * m.step, m.low, m.max));
+      return;
+    }
+    if (m.soll == null) return;
+    this._setSoll(m, clamp(Math.round((m.soll + vz * m.step) * 100) / 100, m.min, m.max));
+  }
+
+  _setSoll(m, v) {
+    this.call('climate', 'set_temperature', { entity_id: m.id, temperature: v });
+  }
+
+  _setBereich(m, low, high) {
+    this.call('climate', 'set_temperature', {
+      entity_id: m.id,
+      target_temp_low: Math.round(low * 100) / 100,
+      target_temp_high: Math.round(high * 100) / 100
+    });
+  }
+
+  getCardSize() {
+    const cfg = this._config || {};
+    return 5 + (cfg.show_modes === false ? 0 : 1)
+      + (cfg.show_presets === false ? 0 : 1);
+  }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -7563,6 +8136,56 @@ class OnyxLightEditor extends OnyxEditor {
 }
 
 /* ------------------------------------------------------------------ *
+ * Klima
+ * ------------------------------------------------------------------ */
+class OnyxClimateEditor extends OnyxEditor {
+  static get DEFAULTS() {
+    return { show_modes: true, show_presets: true, show_fan: true };
+  }
+
+  _helpKey(name) {
+    if (name === 'color') return 'ed.h.climateColor';
+    if (name === 'show_presets' || name === 'show_fan') return 'ed.h.show_presets';
+    if (name === 'temperature' || name === 'humidity') return 'ed.h.clSensor';
+    return ED_HELP_KEY[name] || '';
+  }
+
+  _schema() {
+    return [
+      fieldEntity('entity', 'climate'),
+      grid(fieldText('name'), fieldText('label')),
+      grid(fieldIcon('icon'), fieldColor()),
+      grid(fieldEntity('temperature', 'sensor'), fieldEntity('humidity', 'sensor')),
+      grid(fieldBool('show_modes'), fieldBool('show_presets')),
+      fieldBool('show_fan')
+    ];
+  }
+
+  _toForm(c) {
+    return {
+      entity: c.entity || '',
+      name: c.name || '',
+      label: c.label || '',
+      icon: c.icon || '',
+      color: c.color || '',
+      temperature: c.temperature || '',
+      humidity: c.humidity || '',
+      show_modes: c.show_modes !== false,
+      show_presets: c.show_presets !== false,
+      show_fan: c.show_fan !== false
+    };
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent = t('ed.h.climate');
+    root.appendChild(this._note);
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Registrierung der Editoren
  * ------------------------------------------------------------------ */
 function defineEditor(tag, cls) {
@@ -7581,6 +8204,7 @@ defineEditor('onyx-light-card-editor', OnyxLightEditor);
 defineEditor('onyx-camera-card-editor', OnyxCameraEditor);
 defineEditor('onyx-lock-card-editor', OnyxLockEditor);
 defineEditor('onyx-status-card-editor', OnyxStatusEditor);
+defineEditor('onyx-climate-card-editor', OnyxClimateEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -7597,7 +8221,8 @@ const EDITOR_OF = [
   [OnyxLightCard, 'onyx-light-card-editor'],
   [OnyxCameraCard, 'onyx-camera-card-editor'],
   [OnyxLockCard, 'onyx-lock-card-editor'],
-  [OnyxStatusCard, 'onyx-status-card-editor']
+  [OnyxStatusCard, 'onyx-status-card-editor'],
+  [OnyxClimateCard, 'onyx-climate-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -7635,6 +8260,7 @@ defineCard('onyx-light-card', OnyxLightCard);
 defineCard('onyx-camera-card', OnyxCameraCard);
 defineCard('onyx-lock-card', OnyxLockCard);
 defineCard('onyx-status-card', OnyxStatusCard);
+defineCard('onyx-climate-card', OnyxClimateCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -7709,11 +8335,17 @@ window.customCards.push(
     name: t('card.status'),
     description: t('card.status.d'),
     preview: false
+  },
+  {
+    type: 'onyx-climate-card',
+    name: t('card.climate'),
+    description: t('card.climate.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
   OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard,
-  OnyxLightCard, OnyxCameraCard, OnyxLockCard, OnyxStatusCard
+  OnyxLightCard, OnyxCameraCard, OnyxLockCard, OnyxStatusCard, OnyxClimateCard
 };

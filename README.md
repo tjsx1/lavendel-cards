@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Zwölf Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Dreizehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -812,6 +812,58 @@ nach unten. Man muss nicht suchen, was los ist.
 **Ein Tipp auf eine Zeile** öffnet das Detailfenster der Entität dahinter — bei Zeilen
 aus reinen Vorlagen, die keine Entität nennen, passiert nichts.
 
+### onyx-climate-card
+
+![Klima-Karte mit Temperaturring](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/climate-card.png)
+
+Ein Thermostat als Ring. Die Striche sind die Skala zwischen Minimum und Maximum
+des Geräts — jeder ganze Grad ein langer Strich, die halben kurz. Was zwischen
+Bereichsanfang und Sollwert liegt, leuchtet; der weisse Punkt auf dem Bogen ist die
+Temperatur, die gerade wirklich im Raum herrscht.
+
+```yaml
+type: custom:onyx-climate-card
+entity: climate.wohnzimmer
+```
+
+Alles Weitere ist freiwillig:
+
+```yaml
+type: custom:onyx-climate-card
+entity: climate.wohnzimmer
+name: Wohnzimmer
+temperature: sensor.wohnzimmer_temperatur
+humidity: sensor.wohnzimmer_feuchte
+show_fan: false
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `entity` | — | Muss aus der Domäne `climate` kommen |
+| `name` | Gerätename | Überschrift der Karte |
+| `label` | `Klima` | Die kleine Zeile darüber |
+| `icon` | automatisch | Heizkörper, beim Kühlen eine Schneeflocke |
+| `color` | nach Zustand | Palette der Karte; ohne Angabe orange beim Heizen, blau beim Kühlen, grün beim Trocknen |
+| `temperature` | aus dem Thermostat | Eigener Sensor für die Anzeige oben rechts |
+| `humidity` | aus dem Thermostat | dito für die Luftfeuchte |
+| `show_modes` | `true` | Die Reihe Heizen, Kühlen, Auto, Aus |
+| `show_presets` | `true` | Voreinstellungen als Pillen (Komfort, Nacht, …) |
+| `show_fan` | `true` | Lüfterstufen, falls das Gerät welche kennt |
+
+**Bedienung.** Am Ring ziehen verstellt den Sollwert; die beiden Knöpfe gehen einen
+Schritt in der Auflösung des Geräts — meist ein halbes Grad. Ein Tipp in die Mitte
+öffnet das Detailfenster. Die Reihen darunter zeigen nur, was das Gerät wirklich
+meldet: ein Heizkörperventil ohne Kühlung bekommt keinen Kühlen-Knopf, ein Thermostat
+ohne Lüfter keine Lüfterstufen.
+
+**Zwei Sollwerte.** Läuft das Gerät im Auto-Betrieb mit unterem und oberem Wert,
+zeigt der Ring den Bereich dazwischen und die Mitte beide Zahlen. Beim Ziehen wandert
+der Griff, der näher liegt; die Knöpfe verschieben beide gemeinsam.
+
+**Die Farbe folgt dem, was passiert.** Heizt das Gerät, wird die Karte warm-orange;
+kühlt es, blau. Steht es nur bereit, bleibt die Farbe, aber der Verlauf ist gedämpft —
+dieselbe Regel wie bei der Raum-Karte. Mit `color:` überschreibst du das fest.
+
 ## Visueller Editor
 
 Alle Karten bringen einen eigenen Editor mit. Beim Hinzufügen über
@@ -965,6 +1017,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.1.0** — Neue Klima-Karte: Temperaturring mit Skala, Betriebsarten, Voreinstellungen und Lüfterstufen
 
 **1.0.0** — Erste öffentliche Ausgabe. Zwölf Karten: Raum, Zieh-Regler, Storen,
 Media, Schnellzugriffe, Diagramm, Saugroboter, Wetter, Licht, Kamera, Schloss und
