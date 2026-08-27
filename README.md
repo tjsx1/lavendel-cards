@@ -690,6 +690,13 @@ blinkt das Dashboard alle zwei Minuten rot.
 fallen Knöpfe und zweite Zeile von selbst weg; übrig bleibt, was eine Vorschau
 ausmacht: der Name und ob gerade etwas los ist.
 
+**Zum Livestream.** Home Assistant vergibt das Zugriffszeichen einer Kamera alle
+fünf Minuten neu. Bis 1.2.0 zählte das mit zum Zustand der Karte — sie baute sich
+also im Fünfminutentakt neu auf und riss dabei den laufenden Player ab, worauf das
+Bild auf dem letzten Einzelbild stehenblieb. Seit 1.2.1 zählt nur noch der Pfad ohne
+Anhang; und muss die Karte doch einmal neu aufbauen, bekommt sie einen frischen
+Player statt des abgeräumten alten.
+
 ### onyx-lock-card
 
 ![Schloss-Karte, verriegelt und entriegelt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/lock-card.png)
@@ -1085,6 +1092,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.2.1** — Kamera-Karte: der Livestream fror alle fünf Minuten ein, weil die Token-Rotation von Home Assistant einen kompletten Neuaufbau der Karte auslöste
 
 **1.2.0** — Neue Energie-Karte: Flussbild zwischen Sonne, Netz, Batterie, Haus und Wallbox, dazu Tagesmengen und Kosten
 

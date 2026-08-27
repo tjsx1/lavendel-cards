@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 1.2.0
+ * Version 1.2.1
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.2.0';
+const ONYX_VERSION = '1.2.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -1207,7 +1207,7 @@ class OnyxBase extends HTMLElement {
       this._error(err);
       return;
     }
-    const sig = JSON.stringify(model);
+    const sig = this._sigOf(model);
     if (sig === this._sig) return;
     this._sig = sig;
     try {
@@ -1219,6 +1219,14 @@ class OnyxBase extends HTMLElement {
       this._error(err);
     }
   }
+
+  /**
+   * Woran erkennt die Karte, dass sich etwas geändert hat? Vorgabe ist das
+   * ganze Modell. Karten, in deren Modell Werte stehen, die sich von selbst
+   * ändern ohne dass es etwas zu sehen gäbe, dürfen das übersteuern —
+   * jeder Neuaufbau wirft schliesslich das ganze DOM weg.
+   */
+  _sigOf(model) { return JSON.stringify(model); }
 
   /** Freundliche Fehlerkarte statt einer weissen Fläche */
   _error(err) {
@@ -5096,6 +5104,24 @@ class OnyxCameraCard extends OnyxBase {
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._poll) { clearInterval(this._poll); this._poll = null; }
+    // Der Player gehört zum DOM, das gerade verschwindet. Ihn zu behalten
+    // hiesse, beim nächsten Anhängen eine Leiche einzuhängen.
+    this._stream = null;
+  }
+
+  /**
+   * In `entity_picture` steckt ein Zugriffszeichen, das Home Assistant alle
+   * fünf Minuten neu vergibt. Zählte es zur Signatur, baute sich die Karte
+   * im Fünfminutentakt neu auf — und riss dabei jedes Mal den laufenden
+   * Stream ab. Für die Signatur zählt darum nur der Pfad ohne Anhang.
+   */
+  _sigOf(model) {
+    const ohneZeichen = (u) => (typeof u === 'string' ? u.split('?')[0] : u);
+    const flach = Object.assign({}, model, { pic: ohneZeichen(model.pic) });
+    if (flach.strip) {
+      flach.strip = flach.strip.map((c) => Object.assign({}, c, { pic: ohneZeichen(c.pic) }));
+    }
+    return JSON.stringify(flach);
   }
 
   _list() {
@@ -5267,6 +5293,11 @@ class OnyxCameraCard extends OnyxBase {
    * hinweg: würde er bei jedem Zustandswechsel neu erzeugt, ruckelte
    * die Karte jedes Mal von vorne los.
    */
+  /** Hängt das Stream-Element noch im Dokument und spielt damit überhaupt? */
+  _streamLebt() {
+    return !!(this._stream && this._stream.isConnected);
+  }
+
   _fill(m) {
     const box = this.shadowRoot.getElementById('pic');
     if (!box || m.dead) return;
@@ -5278,6 +5309,10 @@ class OnyxCameraCard extends OnyxBase {
       if (!host) return;
       const Cls = customElements.get('ha-camera-stream');
       if (!Cls) { this._still(host, m); return; }
+      // Baut sich die Karte neu auf, verlässt das Stream-Element das
+      // Dokument und Home Assistant reisst den Player darin ab. Wieder
+      // anhängen weckt ihn nicht — es braucht ein frisches Element.
+      if (this._stream && !this._stream.isConnected) this._stream = null;
       if (!this._stream) {
         this._stream = document.createElement('ha-camera-stream');
         this._stream.controls = false;
@@ -5290,8 +5325,9 @@ class OnyxCameraCard extends OnyxBase {
       if (this._poll) { clearInterval(this._poll); this._poll = null; }
     });
 
-    // Bis der Stream steht — und falls er nie steht — das Standbild
-    if (!this._stream) this._still(box, m);
+    // Bis der Stream steht — und falls er nie steht — das Standbild.
+    // Auch dann, wenn ein früherer Stream unterwegs abhandengekommen ist.
+    if (!this._streamLebt()) this._still(box, m);
   }
 
   /** Rückfall: das Standbild, das sich von selbst erneuert */
@@ -5313,7 +5349,9 @@ class OnyxCameraCard extends OnyxBase {
     bust();
     if (this._poll) clearInterval(this._poll);
     this._poll = setInterval(() => {
-      if (!this.isConnected || this._stream) { clearInterval(this._poll); this._poll = null; return; }
+      if (!this.isConnected || this._streamLebt()) {
+        clearInterval(this._poll); this._poll = null; return;
+      }
       bust();
     }, CAM_POLL);
   }
