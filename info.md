@@ -1,5 +1,7 @@
 # Onyx Cards
 
+![Onyx Cards: Raum-Karte, Wetter, Schnellzugriffe und Verbrauch](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/uebersicht.png)
+
 Zwölf Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut. Deutsch und Englisch, je nach
 Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
@@ -24,3 +26,5 @@ Das mitgelieferte Theme `onyx.yaml` gehört nach `/config/themes/`.
 
 **Umstieg von Lavendel Cards:** die Kartennamen haben sich geändert
 (`custom:lavendel-…` → `custom:onyx-…`). Die Anleitung steht in der README.
+
+![Die Licht-Karte, zugeklappt und aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/light-card.png)
