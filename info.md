@@ -2,7 +2,7 @@
 
 ![Onyx Cards: Raum-Karte, Wetter, Schnellzugriffe und Verbrauch](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/uebersicht.png)
 
-Dreizehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Vierzehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut. Deutsch und Englisch, je nach
 Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 
@@ -19,6 +19,7 @@ Spracheinstellung. Keine Abhängigkeiten, kein card-mod, kein button-card.
 - **Schloss-Karte** — schieben zum Entriegeln, mit Tür- und Akkustand
 - **Status-Karte** — mehrere Zustände in einer Karte, aus Bausteinen und Vorlagen
 - **Klima-Karte** — Temperaturring mit Skala, Betriebsarten und Voreinstellungen
+- **Energie-Karte** — Flussbild zwischen Sonne, Netz, Batterie und Haus
 
 Alle sind über den visuellen Editor einzurichten.
 

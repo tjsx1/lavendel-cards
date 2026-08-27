@@ -4,7 +4,7 @@
 [Sprache / Language](#sprache--language) below for what that means and how to switch.
 The reference documentation on this page is German.
 
-Dreizehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
+Vierzehn Lovelace-Karten für Home Assistant: dunkle Flächen, Glasknöpfe, sieben wählbare
 Kartenfarben — für die Bedienung am Handy gebaut.
 
 Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten lassen sich
@@ -864,6 +864,74 @@ der Griff, der näher liegt; die Knöpfe verschieben beide gemeinsam.
 kühlt es, blau. Steht es nur bereit, bleibt die Farbe, aber der Verlauf ist gedämpft —
 dieselbe Regel wie bei der Raum-Karte. Mit `color:` überschreibst du das fest.
 
+### onyx-energy-card
+
+![Energie-Karte als Flussbild](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/energy-card.png)
+
+Wer gibt wem Strom. Sonne oben, Netz links, Batterie rechts, Haus in der Mitte, die
+Wallbox darunter. Über jede Verbindung, durch die gerade Strom fliesst, wandert ein
+Strichmuster in Flussrichtung; die Dicke der Linie sagt wie viel.
+
+Am wenigsten braucht die Karte einen einzigen Sensor:
+
+```yaml
+type: custom:onyx-energy-card
+grid: sensor.netz_leistung
+```
+
+Vollausbau:
+
+```yaml
+type: custom:onyx-energy-card
+grid: sensor.netz_leistung
+solar: sensor.pv_leistung
+battery: sensor.batterie_leistung
+battery_level: sensor.batterie_ladestand
+car: sensor.wallbox_leistung
+today_solar: sensor.pv_heute
+today_import: sensor.bezug_heute
+today_export: sensor.einspeisung_heute
+price_import: 0.31
+price_export: 0.09
+```
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `grid` | — | Netzleistung mit Vorzeichen: **positiv heisst Bezug** |
+| `grid_import` / `grid_export` | — | Statt `grid`, wenn dein Zähler zwei getrennte Sensoren liefert |
+| `solar` | — | Erzeugung der Anlage |
+| `battery` | — | Batterieleistung: **positiv heisst entladen** |
+| `battery_level` | — | Ladestand in Prozent, steht unter dem Batterie-Knoten |
+| `car` | — | Wallbox; erscheint als eigener Knoten unter dem Haus |
+| `house` | wird gerechnet | Eigener Sensor für den Hausverbrauch |
+| `invert_grid` | `false` | Dreht das Vorzeichen, wenn dein Zähler andersherum misst |
+| `invert_battery` | `false` | dito für die Batterie |
+| `today_solar` … `today_house` | — | Tagesmengen in kWh für die Kacheln |
+| `cost_today` / `saved_today` | — | Fertige Sensoren für Kosten und Ersparnis |
+| `price_import` / `price_export` | — | Preise pro kWh; daraus rechnet die Karte selbst |
+| `currency` | `CHF` | Wie die Beträge beschriftet werden |
+| `name`, `color` | `Zuhause`, `gelb` | Wie bei allen anderen Karten |
+
+**Was du nicht angibst, verschwindet.** Eine Anlage ohne Batterie zeigt keinen
+Batterie-Knoten, ein Haushalt ohne PV nur Netz und Haus. Die Karte richtet das Bild
+danach aus.
+
+**Der Hausverbrauch wird gerechnet**, wenn du keinen Sensor dafür hast: was
+hereinkommt, muss irgendwo hin. Erzeugung plus Bezug plus Entladung, minus
+Einspeisung, minus Ladung.
+
+**Einheiten sind egal.** Ein Sensor in Watt wird genauso gelesen wie einer in
+Kilowatt — die Karte schaut auf `unit_of_measurement`, nicht auf die Grösse der Zahl.
+Dasselbe gilt für Wh und kWh bei den Tagesmengen.
+
+**Kosten und Ersparnis** gehen zwei Wege. Hast du fertige Sensoren, gibst du sie unter
+`cost_today:` und `saved_today:` an. Hast du nur Preise, rechnet die Karte: bezogene
+kWh mal Arbeitspreis, und als Ersparnis den selbst verbrauchten Solarstrom zum
+Arbeitspreis plus die Einspeisung zur Vergütung. Gibst du weder noch an, fehlt die
+Zeile ganz. Ein Sensor schlägt immer den gerechneten Wert.
+
+**Ein Tipp auf einen Knoten** öffnet das Detailfenster des Sensors dahinter.
+
 ## Visueller Editor
 
 Alle Karten bringen einen eigenen Editor mit. Beim Hinzufügen über
@@ -1017,6 +1085,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.2.0** — Neue Energie-Karte: Flussbild zwischen Sonne, Netz, Batterie, Haus und Wallbox, dazu Tagesmengen und Kosten
 
 **1.1.0** — Neue Klima-Karte: Temperaturring mit Skala, Betriebsarten, Voreinstellungen und Lüfterstufen
 

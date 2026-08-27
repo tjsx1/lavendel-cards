@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 1.1.0
+ * Version 1.2.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -16,6 +16,7 @@
  *   custom:onyx-lock-card    – Schloss: schieben zum Entriegeln
  *   custom:onyx-status-card  – mehrere Zustände in einer Karte
  *   custom:onyx-climate-card – Temperaturring mit Skala und Betriebsarten
+ *   custom:onyx-energy-card  – Flussbild zwischen Sonne, Netz, Batterie und Haus
  *
  * Installation:
  *   1. Datei nach /config/www/onyx-cards.js kopieren
@@ -24,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.1.0';
+const ONYX_VERSION = '1.2.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -152,6 +153,49 @@ const STRINGS = {
     'ed.h.show_open': 'Nur bei Schlössern, die den Riegel selbst zurückziehen können',
     'ed.h.door_entity_lock': 'Ein binary_sensor an der Tür; zeigt offen oder zu',
     'ed.h.lockColor': 'Ohne eigene Farbe färbt sich die Karte nach dem Zustand: grün verriegelt, orange entriegelt, rot klemmt.',
+    en: 'Energie',
+    'en.home': 'Zuhause',
+    'en.import': 'Bezug',
+    'en.export': 'Einspeisung',
+    'en.fromGrid': 'aus dem Netz',
+    'en.own': '{n} % selbst',
+    'en.produced': 'Erzeugt',
+    'en.imported': 'Bezogen',
+    'en.exported': 'Eingespeist',
+    'en.paid': 'Heute bezahlt',
+    'en.saved': 'Gespart',
+    'en.currency': 'CHF',
+    'err.needEnergy': 'Bitte mindestens "grid:", "grid_import:" oder "solar:" angeben.',
+    'card.energy': 'Onyx Energie-Karte',
+    'card.energy.d': 'Flussbild zwischen Sonne, Netz, Batterie und Haus',
+    'ed.grid': 'Netz-Leistung',
+    'ed.grid_import': 'Netzbezug',
+    'ed.grid_export': 'Einspeisung',
+    'ed.solar': 'Erzeugung',
+    'ed.battery': 'Batterie-Leistung',
+    'ed.battery_level': 'Batterie-Ladestand',
+    'ed.house': 'Hausverbrauch',
+    'ed.car': 'Wallbox',
+    'ed.invert_grid': 'Netz-Vorzeichen drehen',
+    'ed.invert_battery': 'Batterie-Vorzeichen drehen',
+    'ed.today_solar': 'Erzeugt heute',
+    'ed.today_import': 'Bezogen heute',
+    'ed.today_export': 'Eingespeist heute',
+    'ed.today_house': 'Verbraucht heute',
+    'ed.cost_today': 'Kosten heute',
+    'ed.saved_today': 'Ersparnis heute',
+    'ed.price_import': 'Arbeitspreis',
+    'ed.price_export': 'Einspeisevergütung',
+    'ed.currency': 'Währung',
+    'ed.h.grid': 'Ein Sensor mit Vorzeichen: positiv heisst Bezug. Wer getrennte '
+      + 'Sensoren hat, lässt dieses Feld leer und füllt die beiden darunter.',
+    'ed.h.invert_grid': 'Nur nötig, wenn dein Zähler positiv für Einspeisung misst',
+    'ed.h.battery': 'Positiv heisst entladen, negativ laden',
+    'ed.h.house': 'Leer lassen: dann rechnet die Karte den Rest aus',
+    'ed.h.price_import': 'Pro kWh. Nur nötig, wenn du keinen fertigen Kosten-Sensor hast.',
+    'ed.h.energy': 'Was du nicht angibst, verschwindet aus dem Bild — eine Anlage ohne '
+      + 'Batterie zeigt keinen Batterie-Knoten. Kosten und Ersparnis erscheinen, sobald '
+      + 'entweder ein Sensor oder ein Preis dasteht.',
     cl: 'Klima',
     'cl.now': 'gerade {v} °C',
     'cl.m.heat': 'Heizen',
@@ -553,6 +597,49 @@ const STRINGS = {
     'ed.h.show_open': 'Only for locks that can pull back the latch themselves',
     'ed.h.door_entity_lock': 'A binary_sensor on the door; shows open or closed',
     'ed.h.lockColor': 'Without a color of your own the card follows the state: green locked, orange unlocked, red jammed.',
+    en: 'Energy',
+    'en.home': 'Home',
+    'en.import': 'Import',
+    'en.export': 'Export',
+    'en.fromGrid': 'from the grid',
+    'en.own': '{n} % own',
+    'en.produced': 'Produced',
+    'en.imported': 'Imported',
+    'en.exported': 'Exported',
+    'en.paid': 'Paid today',
+    'en.saved': 'Saved',
+    'en.currency': 'CHF',
+    'err.needEnergy': 'Please provide at least "grid:", "grid_import:" or "solar:".',
+    'card.energy': 'Onyx Energy Card',
+    'card.energy.d': 'Flow diagram between sun, grid, battery and house',
+    'ed.grid': 'Grid power',
+    'ed.grid_import': 'Grid import',
+    'ed.grid_export': 'Grid export',
+    'ed.solar': 'Production',
+    'ed.battery': 'Battery power',
+    'ed.battery_level': 'Battery level',
+    'ed.house': 'House consumption',
+    'ed.car': 'Wallbox',
+    'ed.invert_grid': 'Flip grid sign',
+    'ed.invert_battery': 'Flip battery sign',
+    'ed.today_solar': 'Produced today',
+    'ed.today_import': 'Imported today',
+    'ed.today_export': 'Exported today',
+    'ed.today_house': 'Consumed today',
+    'ed.cost_today': 'Cost today',
+    'ed.saved_today': 'Saved today',
+    'ed.price_import': 'Import price',
+    'ed.price_export': 'Export rate',
+    'ed.currency': 'Currency',
+    'ed.h.grid': 'One signed sensor: positive means import. With separate sensors, '
+      + 'leave this empty and fill the two below.',
+    'ed.h.invert_grid': 'Only needed if your meter counts export as positive',
+    'ed.h.battery': 'Positive means discharging, negative charging',
+    'ed.h.house': 'Leave empty and the card works out the remainder',
+    'ed.h.price_import': 'Per kWh. Only needed if you have no ready-made cost sensor.',
+    'ed.h.energy': 'Whatever you leave out disappears from the diagram — a system '
+      + 'without a battery shows no battery node. Cost and savings appear as soon as '
+      + 'either a sensor or a price is given.',
     cl: 'Climate',
     'cl.now': 'now {v} °C',
     'cl.m.heat': 'Heat',
@@ -6651,6 +6738,469 @@ class OnyxClimateCard extends OnyxBase {
   }
 }
 
+
+/* ================================================================== *
+ * 14) ENERGIE-KARTE
+ * ================================================================== */
+
+/** Die Knoten des Flussbilds. Farben sind Rollen, nicht Kartenpalette. */
+const EN_FARBE = {
+  solar: '#f0c341', grid: '#ef5f68', battery: '#7fe0ab',
+  house: '#8ad2f2', car: '#9b7bf5'
+};
+const EN_ICON = {
+  solar: 'mdi:solar-power-variant', grid: 'mdi:transmission-tower',
+  battery: 'mdi:home-battery', house: 'mdi:home-lightning-bolt',
+  car: 'mdi:ev-station'
+};
+
+/**
+ * Einen Leistungswert einlesen und auf Kilowatt bringen. Manche Sensoren
+ * liefern Watt, manche Kilowatt — die Einheit entscheidet, nicht die Zahl.
+ */
+function enWatt(hass, id) {
+  const st = id && hass.states[id];
+  if (!st || isDead(st)) return null;
+  const v = Number(st.state);
+  if (isNaN(v)) return null;
+  const u = String(st.attributes.unit_of_measurement || '').toLowerCase();
+  if (u === 'w') return v / 1000;
+  if (u === 'mw') return v * 1000;
+  return v;
+}
+
+/** Eine Energiemenge einlesen und auf Kilowattstunden bringen */
+function enKwh(hass, id) {
+  const st = id && hass.states[id];
+  if (!st || isDead(st)) return null;
+  const v = Number(st.state);
+  if (isNaN(v)) return null;
+  const u = String(st.attributes.unit_of_measurement || '').toLowerCase();
+  if (u === 'wh') return v / 1000;
+  if (u === 'mwh') return v * 1000;
+  return v;
+}
+
+class OnyxEnergyCard extends OnyxBase {
+  static get CSS() {
+    return PAL_CSS + `
+    ha-card{
+      padding:14px; border-radius:var(--onyx-r,24px);
+      border:1px solid rgba(255,255,255,.09); box-shadow:none; overflow:hidden;
+      display:flex; flex-direction:column; gap:12px; container-type:inline-size;
+      background:linear-gradient(to right bottom,
+        color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
+        color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
+    }
+    ha-card.warm{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+
+    .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
+    .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
+    .hico{ width:34px; height:34px; border-radius:50%; flex:none;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.10);
+           display:grid; place-items:center; color:#8ea3b5; --mdc-icon-size:18px; }
+    ha-card.warm .hico{ color:var(--acc); }
+    .lab{ font-size:11px; line-height:14px; color:#6f8497; }
+    ha-card.warm .lab{ color:var(--lab); }
+    .nm{ font-size:13px; font-weight:600; line-height:18px; color:#c3ccd6;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    ha-card.warm .nm{ color:#e9f1f8; }
+    .env{ text-align:right; line-height:1.35; font-variant-numeric:tabular-nums; }
+    .env .t{ font-size:16px; font-weight:700; letter-spacing:-.02em; color:#9fb0be;
+             white-space:nowrap; }
+    .env .h{ font-size:12px; color:#72879a; white-space:nowrap; }
+    ha-card.warm .env .t{ color:var(--acc); }
+    ha-card.warm .env .h{ color:var(--sub); }
+
+    /* Das Flussbild */
+    .flow{ position:relative; width:100%; }
+    .flow > svg{ position:absolute; inset:0; width:100%; height:100%; }
+    .node{ position:absolute; width:96px; text-align:center;
+           transform:translate(-50%,-50%); cursor:pointer;
+           display:flex; flex-direction:column; }
+    /* Bei Knoten, von denen die Linien nach unten weglaufen, steht die Zahl
+       über dem Ring — sonst liegt sie mitten auf einer Linie. */
+    .node.hoch{ flex-direction:column-reverse; }
+    .node.hoch .v{ margin:0 0 5px; }
+    .node .ring{ width:46px; height:46px; border-radius:50%; margin:0 auto;
+                 display:grid; place-items:center; --mdc-icon-size:21px;
+                 border:2px solid currentColor; background:#12151a;
+                 transition:transform .12s ease; }
+    .node.held .ring{ transform:scale(.9); }
+    /* Ein Schatten hinter der Schrift, damit sie auch über einer Linie lesbar bleibt */
+    .node .v{ font-size:12.5px; font-weight:700; margin-top:5px; color:#fff;
+              font-variant-numeric:tabular-nums; align-self:center;
+              padding:1px 7px; border-radius:7px;
+              background:rgba(10,13,17,.72);
+              -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+    .node .s{ font-size:10px; color:#93a4b3; margin-top:2px; align-self:center;
+              padding:0 6px; border-radius:6px; background:rgba(10,13,17,.6);
+              max-width:100%; box-sizing:border-box;
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .node.aus{ opacity:.45; }
+
+    /* Fliessender Strom: ein wanderndes Strichmuster. Punkte, die einzeln
+       entlanglaufen, würden bei jedem neuen Messwert sichtbar zurück-
+       springen — ein gleichmässiges Muster tut das nicht. */
+    @keyframes onyxflow{ to{ stroke-dashoffset:-16; } }
+    .line{ fill:none; stroke-linecap:round; }
+    .line.aus{ stroke:rgba(255,255,255,.09); stroke-width:1; }
+    .line.an{ stroke-dasharray:5 11; animation:onyxflow 1.1s linear infinite; }
+    .line.rueck{ animation-direction:reverse; }
+    .base{ fill:none; stroke:rgba(255,255,255,.07); stroke-linecap:round; }
+
+    /* Kacheln für heute */
+    .tiles{ display:flex; gap:7px; }
+    .tile{ flex:1; min-width:0; border-radius:12px; background:rgba(255,255,255,.055);
+           padding:9px 10px; line-height:1.3; cursor:pointer; }
+    .tile .k{ font-size:10px; color:#8ea3b5; text-transform:uppercase;
+              letter-spacing:.07em; white-space:nowrap; overflow:hidden;
+              text-overflow:ellipsis; }
+    .tile .v{ font-size:15px; font-weight:700; color:#fff; margin-top:2px;
+              font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .tile .v small{ font-size:11px; font-weight:400; color:#93a4b3; margin-left:2px; }
+
+    .foot{ display:flex; justify-content:space-between; align-items:baseline;
+           gap:10px; font-size:11.5px; color:#7b8fa0; }
+    ha-card.warm .foot{ color:var(--sub); }
+    .foot b{ font-size:14px; color:#fff; font-weight:700;
+             font-variant-numeric:tabular-nums; }
+    .foot .gut b{ color:${EN_FARBE.battery}; }
+
+    @container (max-width: 280px){
+      .node{ width:72px; }
+      .node .ring{ width:38px; height:38px; --mdc-icon-size:18px; }
+      .node .v{ font-size:11px; margin-top:4px; }
+      .node .s{ display:none; }
+      /* Nebeneinander bleibt von den Beschriftungen nichts übrig —
+         also untereinander, mit dem Wert rechts. */
+      .tiles{ flex-direction:column; gap:5px; }
+      .tile{ display:flex; align-items:baseline; justify-content:space-between;
+             gap:8px; padding:7px 11px; }
+      .tile .k{ font-size:10.5px; }
+      .tile .v{ font-size:13.5px; margin-top:0; }
+      .foot{ flex-direction:column; gap:2px; }
+    }
+    `;
+  }
+
+  static getStubConfig(hass) {
+    return {
+      type: 'custom:onyx-energy-card',
+      grid: firstEntity(hass, 'sensor', (st) =>
+        st.attributes.device_class === 'power')
+    };
+  }
+
+  setConfig(config) {
+    if (!config.grid && !config.grid_import && !config.solar) {
+      throw new Error(t('err.needEnergy'));
+    }
+    super.setConfig(config);
+  }
+
+  /* ---------------- Modell ---------------- */
+
+  _model() {
+    const hass = this._hass, cfg = this._config;
+    const W = (id) => enWatt(hass, id);
+    const K = (id) => enKwh(hass, id);
+    const r2 = (v) => (v == null ? null : Math.round(v * 100) / 100);
+
+    // Netz: entweder ein Sensor mit Vorzeichen, oder zwei getrennte
+    let bezug = 0, einspeisung = 0;
+    if (cfg.grid_import || cfg.grid_export) {
+      bezug = Math.max(0, W(cfg.grid_import) || 0);
+      einspeisung = Math.max(0, W(cfg.grid_export) || 0);
+    } else {
+      const g = W(cfg.grid) || 0;
+      // Vorgabe: positiv heisst Bezug. Wer es andersherum misst, dreht
+      // das mit invert_grid um.
+      const v = cfg.invert_grid ? -g : g;
+      bezug = Math.max(0, v);
+      einspeisung = Math.max(0, -v);
+    }
+
+    const solar = Math.max(0, W(cfg.solar) || 0);
+
+    // Batterie: positiv heisst entladen. Auch hier umkehrbar.
+    let battRoh = W(cfg.battery);
+    if (battRoh != null && cfg.invert_battery) battRoh = -battRoh;
+    const entladung = Math.max(0, battRoh || 0);
+    const ladung = Math.max(0, -(battRoh || 0));
+    const battStand = (() => {
+      const st = cfg.battery_level && hass.states[cfg.battery_level];
+      if (!st || isDead(st)) return null;
+      const v = Number(st.state);
+      return isNaN(v) ? null : Math.round(v);
+    })();
+
+    const auto = Math.max(0, W(cfg.car) || 0);
+
+    // Der Hausverbrauch ist selten gemessen — meist ergibt er sich aus dem
+    // Rest. Was hereinkommt, muss irgendwo hin.
+    const gemessen = W(cfg.house);
+    const haus = gemessen != null ? Math.max(0, gemessen)
+      : Math.max(0, solar + bezug + entladung - einspeisung - ladung);
+
+    /* Wer speist wen? Die Sonne wird zuerst dem Haus zugerechnet, dann der
+       Batterie, der Rest geht ins Netz — dieselbe Reihenfolge, die auch
+       Home Assistant im Energie-Dashboard annimmt. */
+    const solarNachHaus = Math.min(solar, Math.max(0, haus - entladung - bezug));
+    const solarNachBatt = Math.min(Math.max(0, solar - solarNachHaus), ladung);
+    const solarNachNetz = Math.max(0, solar - solarNachHaus - solarNachBatt);
+    const netzNachBatt = Math.max(0, ladung - solarNachBatt);
+
+    // Wie viel des Verbrauchs kam aus eigener Erzeugung?
+    const eigen = solarNachHaus + entladung;
+    const quote = haus > 0.01 ? clamp(Math.round((eigen / haus) * 100), 0, 100) : null;
+
+    const kanten = [
+      { von: 'solar', nach: 'house', wert: r2(solarNachHaus), farbe: EN_FARBE.solar },
+      { von: 'solar', nach: 'battery', wert: r2(solarNachBatt), farbe: EN_FARBE.solar },
+      { von: 'solar', nach: 'grid', wert: r2(solarNachNetz), farbe: EN_FARBE.solar },
+      { von: 'grid', nach: 'house', wert: r2(Math.max(0, bezug - netzNachBatt)),
+        farbe: EN_FARBE.grid },
+      { von: 'grid', nach: 'battery', wert: r2(netzNachBatt), farbe: EN_FARBE.grid },
+      { von: 'battery', nach: 'house', wert: r2(entladung), farbe: EN_FARBE.battery },
+      { von: 'house', nach: 'car', wert: r2(auto), farbe: EN_FARBE.car }
+    ].filter((k) => k.wert != null && k.wert > 0.005);
+
+    return {
+      hatSolar: !!cfg.solar,
+      hatBatterie: !!cfg.battery,
+      hatAuto: !!cfg.car,
+      name: cfg.name || t('en.home'),
+      label: cfg.label || t('en'),
+      color: cfg.color || 'gelb',
+      solar: r2(solar), bezug: r2(bezug), einspeisung: r2(einspeisung),
+      entladung: r2(entladung), ladung: r2(ladung), battStand,
+      haus: r2(haus), auto: r2(auto), quote, kanten,
+      heute: {
+        solar: K(cfg.today_solar), bezug: K(cfg.today_import),
+        einspeisung: K(cfg.today_export), haus: K(cfg.today_house)
+      },
+      geld: this._geld(),
+      ids: {
+        solar: cfg.solar || null,
+        grid: cfg.grid || cfg.grid_import || null,
+        battery: cfg.battery || cfg.battery_level || null,
+        house: cfg.house || null,
+        car: cfg.car || null
+      }
+    };
+  }
+
+  /**
+   * Kosten und Ersparnis. Wer fertige Sensoren hat, gibt sie an; wer
+   * stattdessen Preise einträgt, bekommt sie aus den Tagesmengen gerechnet.
+   * Wer nichts angibt, sieht die Zeile nicht.
+   */
+  _geld() {
+    const hass = this._hass, cfg = this._config;
+    const zahl = (id) => {
+      const st = id && hass.states[id];
+      if (!st || isDead(st)) return null;
+      const v = Number(st.state);
+      return isNaN(v) ? null : v;
+    };
+    let kosten = zahl(cfg.cost_today);
+    let gespart = zahl(cfg.saved_today);
+
+    const bezug = enKwh(hass, cfg.today_import);
+    const eingespeist = enKwh(hass, cfg.today_export);
+    const erzeugt = enKwh(hass, cfg.today_solar);
+    const pE = Number(cfg.price_import);
+    const pA = Number(cfg.price_export);
+
+    if (kosten == null && bezug != null && !isNaN(pE)) kosten = bezug * pE;
+    if (gespart == null && !isNaN(pE)) {
+      // Gespart ist, was nicht bezogen werden musste, plus die Vergütung
+      const selbst = erzeugt != null && eingespeist != null
+        ? Math.max(0, erzeugt - eingespeist) : null;
+      if (selbst != null) {
+        gespart = selbst * pE + (eingespeist != null && !isNaN(pA) ? eingespeist * pA : 0);
+      }
+    }
+    const w = (v) => (v == null ? null : Math.round(v * 100) / 100);
+    return { kosten: w(kosten), gespart: w(gespart),
+      einheit: cfg.currency || t('en.currency') };
+  }
+
+  /* ---------------- Flussbild ---------------- */
+
+  _plaetze(m) {
+    // Ohne Auto reicht eine Raute; mit Auto rückt alles hoch und das
+    // Auto hängt unter dem Haus.
+    if (m.hatAuto) {
+      return { hoehe: '1/1.18', solar: [50, 12], grid: [13, 38],
+        battery: [87, 38], house: [50, 64], car: [50, 91] };
+    }
+    return { hoehe: '1/0.98', solar: [50, 15], grid: [13, 46],
+      battery: [87, 46], house: [50, 82] };
+  }
+
+  _flow(m) {
+    const P = this._plaetze(m);
+    const sichtbar = ['grid', 'house']
+      .concat(m.hatSolar ? ['solar'] : [])
+      .concat(m.hatBatterie ? ['battery'] : [])
+      .concat(m.hatAuto ? ['car'] : []);
+
+    const pfad = (a, b) => {
+      const [x1, y1] = P[a], [x2, y2] = P[b];
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      return `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
+    };
+
+    // Erst alle möglichen Verbindungen blass, dann die aktiven darüber
+    const paare = [
+      ['solar', 'house'], ['solar', 'battery'], ['solar', 'grid'],
+      ['grid', 'house'], ['grid', 'battery'], ['battery', 'house'],
+      ['house', 'car']
+    ].filter(([a, b]) => sichtbar.includes(a) && sichtbar.includes(b));
+
+    const grund = paare.map(([a, b]) =>
+      `<path class="base" d="${pfad(a, b)}" stroke-width="1"/>`).join('');
+
+    const groesste = Math.max(0.2, ...m.kanten.map((k) => k.wert));
+    const aktiv = m.kanten.map((k) => {
+      // Dicke nach Leistung, aber nie so dünn dass man sie übersieht
+      const dick = (1.6 + 2.6 * Math.sqrt(k.wert / groesste)).toFixed(2);
+      return `<path class="line an" d="${pfad(k.von, k.nach)}"
+        stroke="${k.farbe}" stroke-width="${dick}" opacity=".95"/>`;
+    }).join('');
+
+    const knoten = sichtbar.map((k) => {
+      const [x, y] = P[k];
+      const info = this._knotenText(m, k);
+      const hoch = k === 'solar';
+      return `<div class="node${info.aus ? ' aus' : ''}${hoch ? ' hoch' : ''}"
+           style="left:${x}%;top:${y}%;color:${EN_FARBE[k]}" data-node="${k}">
+        <div class="ring"><ha-icon icon="${esc(info.icon)}"></ha-icon></div>
+        <div class="v">${esc(info.wert)}</div>
+        ${info.unter ? `<div class="s">${esc(info.unter)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div class="flow" style="aspect-ratio:${P.hoehe}">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">${grund}${aktiv}</svg>
+      ${knoten}
+    </div>`;
+  }
+
+  /** Was steht unter einem Knoten? */
+  _knotenText(m, k) {
+    const kw = (v) => nfmt(v, 2) + ' kW';
+    if (k === 'solar') {
+      return { icon: EN_ICON.solar, wert: kw(m.solar), aus: m.solar < 0.005 };
+    }
+    if (k === 'grid') {
+      const raus = m.einspeisung > m.bezug;
+      return {
+        icon: raus ? 'mdi:transmission-tower-import' : 'mdi:transmission-tower-export',
+        wert: kw(raus ? m.einspeisung : m.bezug),
+        unter: t(raus ? 'en.export' : 'en.import'),
+        aus: m.bezug < 0.005 && m.einspeisung < 0.005
+      };
+    }
+    if (k === 'battery') {
+      const laedt = m.ladung > m.entladung;
+      const still = m.ladung < 0.005 && m.entladung < 0.005;
+      return {
+        icon: laedt ? 'mdi:battery-charging-70'
+          : still ? 'mdi:home-battery' : 'mdi:battery-arrow-down',
+        wert: kw(laedt ? m.ladung : m.entladung),
+        unter: m.battStand == null ? null : nfmt(m.battStand, 0) + ' %',
+        aus: still
+      };
+    }
+    if (k === 'car') {
+      return { icon: EN_ICON.car, wert: kw(m.auto), aus: m.auto < 0.005 };
+    }
+    return { icon: EN_ICON.house, wert: kw(m.haus), aus: m.haus < 0.005 };
+  }
+
+  /* ---------------- Darstellung ---------------- */
+
+  _html(m) {
+    const { cls, style } = paletteAttrs(m.color);
+    const kwh = (v) => (v == null ? null
+      : `${esc(nfmt(v, v >= 100 ? 0 : 1))}<small>kWh</small>`);
+
+    const felder = [
+      ['en.produced', m.heute.solar, m.ids.solar],
+      ['en.imported', m.heute.bezug, m.ids.grid],
+      ['en.exported', m.heute.einspeisung, m.ids.grid]
+    ].filter(([, v]) => v != null);
+    const kacheln = felder.length ? `<div class="tiles">${felder.map(([k, v, id]) => `
+      <div class="tile" data-e="${esc(id || '')}">
+        <div class="k">${esc(t(k))}</div><div class="v">${kwh(v)}</div>
+      </div>`).join('')}</div>` : '';
+
+    const g = m.geld;
+    const geldTeile = [];
+    if (g.kosten != null) {
+      geldTeile.push(`<span>${esc(t('en.paid'))} <b>${esc(nfmt(g.kosten, 2))}</b> ${
+        esc(g.einheit)}</span>`);
+    }
+    if (g.gespart != null) {
+      geldTeile.push(`<span class="gut">${esc(t('en.saved'))} <b>${
+        esc(nfmt(g.gespart, 2))}</b> ${esc(g.einheit)}</span>`);
+    }
+    const geld = geldTeile.length ? `<div class="foot">${geldTeile.join('')}</div>` : '';
+
+    // Oben rechts steht, was gerade am meisten zählt: läuft die Anlage,
+    // ist es die Erzeugung; sonst der Bezug aus dem Netz.
+    const laeuft = m.solar > 0.005;
+    const rechts = laeuft
+      ? `<div class="t">${esc(nfmt(m.solar, 2))} kW</div>${
+          m.quote == null ? '' : `<div class="h">${esc(t('en.own', { n: m.quote }))}</div>`}`
+      : `<div class="t">${esc(nfmt(m.bezug, 2))} kW</div>
+         <div class="h">${esc(t('en.fromGrid'))}</div>`;
+
+    return `
+    <ha-card class="${laeuft ? 'warm' : ''}${cls}"${style}>
+      <div class="head">
+        <div class="hleft" id="head">
+          <div class="hico"><ha-icon icon="mdi:transmission-tower"></ha-icon></div>
+          <div style="min-width:0">
+            <div class="lab">${esc(m.label)}</div>
+            <div class="nm">${esc(m.name)}</div>
+          </div>
+        </div>
+        <div class="env">${rechts}</div>
+      </div>
+      ${this._flow(m)}
+      ${kacheln}${geld}
+    </ha-card>`;
+  }
+
+  _bind(m) {
+    const root = this.shadowRoot;
+    const head = root.getElementById('head');
+    if (head && m.ids.grid) {
+      this._press(head, { onTap: () => fireMoreInfo(this, m.ids.grid) });
+    }
+    root.querySelectorAll('[data-node]').forEach((el) => {
+      const id = m.ids[el.dataset.node];
+      if (!id) return;
+      const go = () => fireMoreInfo(this, id);
+      this._press(el, { onTap: go, onHold: go });
+    });
+    root.querySelectorAll('.tile[data-e]').forEach((el) => {
+      const id = el.dataset.e;
+      if (!id) return;
+      this._press(el, { onTap: () => fireMoreInfo(this, id) });
+    });
+  }
+
+  getCardSize() {
+    const cfg = this._config || {};
+    return 6 + (cfg.today_solar || cfg.today_import ? 1 : 0);
+  }
+}
+
 /* ==================================================================== *
  * Visuelle Editoren
  *
@@ -6701,6 +7251,13 @@ const ED_HELP_KEY = {
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind'
+};
+
+/** Hilfetexte, die nur in der Energie-Karte gelten */
+const EN_HELP = {
+  grid: 'ed.h.grid', invert_grid: 'ed.h.invert_grid', battery: 'ed.h.battery',
+  house: 'ed.h.house', price_import: 'ed.h.price_import',
+  price_export: 'ed.h.price_import'
 };
 
 /** Hilfetexte, die nur in der Status-Karte gelten */
@@ -8186,6 +8743,65 @@ class OnyxClimateEditor extends OnyxEditor {
 }
 
 /* ------------------------------------------------------------------ *
+ * Energie
+ * ------------------------------------------------------------------ */
+class OnyxEnergyEditor extends OnyxEditor {
+  // Ohne diese Vorgaben blieben die beiden Schalter als `false` in der
+  // YAML stehen, obwohl sie nichts bewirken.
+  static get DEFAULTS() { return { invert_grid: false, invert_battery: false }; }
+
+  _helpKey(name) { return EN_HELP[name] || ED_HELP_KEY[name] || ''; }
+
+  _schema() {
+    const p = (n) => fieldEntity(n, 'sensor');
+    return [
+      p('grid'),
+      grid(p('grid_import'), p('grid_export')),
+      grid(p('solar'), p('house')),
+      grid(fieldEntity('battery', 'sensor'), fieldEntity('battery_level', 'sensor')),
+      p('car'),
+      grid(fieldBool('invert_grid'), fieldBool('invert_battery')),
+      grid(fieldText('name'), fieldColor()),
+      grid(p('today_solar'), p('today_import')),
+      grid(p('today_export'), p('today_house')),
+      grid(p('cost_today'), p('saved_today')),
+      grid(
+        { name: 'price_import', selector: { number: { min: 0, max: 5, step: 0.001,
+          mode: 'box' } } },
+        { name: 'price_export', selector: { number: { min: 0, max: 5, step: 0.001,
+          mode: 'box' } } }
+      ),
+      fieldText('currency')
+    ];
+  }
+
+  _toForm(c) {
+    const out = {
+      name: c.name || '', color: c.color || '',
+      invert_grid: c.invert_grid === true,
+      invert_battery: c.invert_battery === true,
+      currency: c.currency || ''
+    };
+    for (const k of ['grid', 'grid_import', 'grid_export', 'solar', 'house',
+      'battery', 'battery_level', 'car', 'today_solar', 'today_import',
+      'today_export', 'today_house', 'cost_today', 'saved_today']) {
+      out[k] = c[k] || '';
+    }
+    out.price_import = c.price_import == null ? '' : c.price_import;
+    out.price_export = c.price_export == null ? '' : c.price_export;
+    return out;
+  }
+
+  _extra(root) {
+    if (this._note) return;
+    this._note = document.createElement('p');
+    this._note.className = 'hint';
+    this._note.textContent = t('ed.h.energy');
+    root.appendChild(this._note);
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Registrierung der Editoren
  * ------------------------------------------------------------------ */
 function defineEditor(tag, cls) {
@@ -8205,6 +8821,7 @@ defineEditor('onyx-camera-card-editor', OnyxCameraEditor);
 defineEditor('onyx-lock-card-editor', OnyxLockEditor);
 defineEditor('onyx-status-card-editor', OnyxStatusEditor);
 defineEditor('onyx-climate-card-editor', OnyxClimateEditor);
+defineEditor('onyx-energy-card-editor', OnyxEnergyEditor);
 
 /* Jede Karte meldet ihren Editor an. Als Eigenschaft gesetzt statt als
    statische Methode im Klassenrumpf — so bleibt der ganze Editor-Teil in
@@ -8222,7 +8839,8 @@ const EDITOR_OF = [
   [OnyxCameraCard, 'onyx-camera-card-editor'],
   [OnyxLockCard, 'onyx-lock-card-editor'],
   [OnyxStatusCard, 'onyx-status-card-editor'],
-  [OnyxClimateCard, 'onyx-climate-card-editor']
+  [OnyxClimateCard, 'onyx-climate-card-editor'],
+  [OnyxEnergyCard, 'onyx-energy-card-editor']
 ];
 for (const [cls, tag] of EDITOR_OF) {
   cls.getConfigElement = async () => {
@@ -8261,6 +8879,7 @@ defineCard('onyx-camera-card', OnyxCameraCard);
 defineCard('onyx-lock-card', OnyxLockCard);
 defineCard('onyx-status-card', OnyxStatusCard);
 defineCard('onyx-climate-card', OnyxClimateCard);
+defineCard('onyx-energy-card', OnyxEnergyCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
@@ -8341,11 +8960,18 @@ window.customCards.push(
     name: t('card.climate'),
     description: t('card.climate.d'),
     preview: false
+  },
+  {
+    type: 'onyx-energy-card',
+    name: t('card.energy'),
+    description: t('card.energy.d'),
+    preview: false
   }
 );
 
 export {
   OnyxRoomCard, OnyxSliderCard, OnyxCoverCard,
   OnyxMediaCard, OnyxActionsCard, OnyxChartCard, OnyxVacuumCard, OnyxWeatherCard,
-  OnyxLightCard, OnyxCameraCard, OnyxLockCard, OnyxStatusCard, OnyxClimateCard
+  OnyxLightCard, OnyxCameraCard, OnyxLockCard, OnyxStatusCard, OnyxClimateCard,
+  OnyxEnergyCard
 };
