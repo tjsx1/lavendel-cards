@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.2.1';
+const ONYX_VERSION = '1.3.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -239,6 +239,7 @@ const STRINGS = {
     'ed.h.climate': 'Der Ring zeigt den Bereich zwischen Minimum und Maximum des Geräts. Ziehen verstellt das Soll, die beiden Knöpfe gehen in der Schrittweite des Geräts. Nennt das Gerät zwei Sollwerte, wandert der nähere Griff mit.',
     'ed.h.climateColor': 'Ohne eigene Farbe färbt sich die Karte nach dem, was gerade '
       + 'läuft: orange beim Heizen, blau beim Kühlen, grün beim Trocknen.',
+    quick: 'Schnellzugriff',
     st: 'Status',
     'st.home': 'Zuhause',
     'st.allHome': 'alle da',
@@ -683,6 +684,7 @@ const STRINGS = {
     'ed.h.climate': 'The dial spans the minimum and maximum of the device. Dragging sets the target, the two buttons step by the device step size. If the device names two targets, the nearer handle moves.',
     'ed.h.climateColor': 'Without a colour of its own the card follows what is running: '
       + 'orange when heating, blue when cooling, green when drying.',
+    quick: 'Quick access',
     st: 'Status',
     'st.home': 'Home',
     'st.allHome': 'everyone in',
@@ -1078,6 +1080,22 @@ function pctOf(st) {
 function nameOf(hass, id, fallback) {
   const st = hass.states[id];
   return (st && st.attributes.friendly_name) || fallback || id;
+}
+
+/**
+ * Der Zustand einer Entität, so wie Home Assistant selbst ihn schreiben würde:
+ * übersetzt und mit Einheit. Ältere Kerne kennen die Hilfe nicht — dann bleibt
+ * der rohe Zustand stehen, wie bisher.
+ */
+function stateText(hass, st) {
+  if (!st) return '';
+  if (hass && typeof hass.formatEntityState === 'function') {
+    try {
+      const s = hass.formatEntityState(st);
+      if (s) return s;
+    } catch (e) { /* stiller Rückfall */ }
+  }
+  return st.state;
 }
 
 /** Entitäten eines Bereichs, ohne Diagnose-, versteckte und deaktivierte */
@@ -2748,7 +2766,7 @@ class OnyxActionsCard extends OnyxBase {
   static getStubConfig(hass) {
     const first = firstEntity(hass, ['scene', 'script', 'automation', 'input_boolean']);
     return {
-      type: 'custom:onyx-actions-card', title: 'Schnellzugriff',
+      type: 'custom:onyx-actions-card', title: t('quick'),
       actions: first ? [first] : []
     };
   }
@@ -4067,7 +4085,7 @@ class OnyxWeatherCard extends OnyxBase {
       position:relative; padding:12px; border-radius:var(--onyx-r,24px);
       border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:10px; overflow:hidden;
-      box-shadow:none;
+      box-shadow:none; container-type:inline-size;
       background:linear-gradient(to right bottom,
         var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
       /* Die Sonne ist gelb, egal welche Farbe die Karte trägt. Nur der
@@ -4148,7 +4166,10 @@ class OnyxWeatherCard extends OnyxBase {
           border-radius:9px; border:1px solid rgba(255,255,255,.10);
           background:linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.03)); }
     .per.held{ opacity:.6; }
-    .hint{ font-size:10px; color:#4f5c69; }
+    .hint{ font-size:10px; color:#4f5c69; margin-left:10px; text-align:right; }
+    /* Auf einer schmalen Karte — halbe Spalte, Kartenwähler — hat der
+       Hinweis keinen Platz mehr neben der Pille. Dann schweigt er. */
+    @container (max-width: 290px){ .hint{ display:none; } }
     .empty{ position:relative; height:60px; display:grid; place-items:center;
             font-size:12px; color:#5d6b7a; }
     `;
@@ -6149,7 +6170,7 @@ class OnyxStatusCard extends OnyxBase {
     const name = this._field(e, 'name', key)
       || (e.entity ? nameOf(hass, e.entity) : '');
     let detail = this._field(e, 'detail', key);
-    if (detail == null && st) detail = st.state;
+    if (detail == null && st) detail = stateText(hass, st);
     const pctRaw = this._field(e, 'percent', key);
     const pct = pctRaw == null || pctRaw === '' ? null : Number(pctRaw);
     const col = this._field(e, 'color', key);
@@ -8925,85 +8946,85 @@ window.customCards.push(
     type: 'onyx-room-card',
     name: t('card.room'),
     description: t('card.room.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-slider-card',
     name: t('card.slider'),
     description: t('card.slider.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-cover-card',
     name: t('card.cover'),
     description: t('card.cover.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-media-card',
     name: t('card.media'),
     description: t('card.media.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-actions-card',
     name: t('card.actions'),
     description: t('card.actions.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-chart-card',
     name: t('card.chart'),
     description: t('card.chart.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-vacuum-card',
     name: t('card.vacuum'),
     description: t('card.vacuum.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-weather-card',
     name: t('card.weather'),
     description: t('card.weather.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-light-card',
     name: t('card.light'),
     description: t('card.light.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-camera-card',
     name: t('card.camera'),
     description: t('card.camera.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-lock-card',
     name: t('card.lock'),
     description: t('card.lock.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-status-card',
     name: t('card.status'),
     description: t('card.status.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-climate-card',
     name: t('card.climate'),
     description: t('card.climate.d'),
-    preview: false
+    preview: true
   },
   {
     type: 'onyx-energy-card',
     name: t('card.energy'),
     description: t('card.energy.d'),
-    preview: false
+    preview: true
   }
 );
 
