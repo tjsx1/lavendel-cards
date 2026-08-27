@@ -167,6 +167,19 @@ cover_wind: input_boolean.windwaechter
 Die beiden Schalter dürfen ein `input_boolean`, ein `switch` oder eine `automation`
 sein — geschaltet wird über `homeassistant.toggle`, das kennt sie alle.
 
+**Was die Karte oben meldet.** Die Zeile unter dem Namen nennt nur, was vom
+Normalzustand abweicht — und der ist bei Storen *offen*. Also steht dort
+„1 Store geschlossen", nicht „1 Store offen"; stehen alle offen, schweigt die Karte
+dazu. Genauso bei der Musik: „Musik läuft" erscheint nur, wenn wirklich etwas spielt.
+Ein pausierter Lautsprecher meldet nichts, seine Zeile sagt schlicht *Pausiert*, und
+der Musikknopf bleibt dunkel. Im aufgeklappten Bereich zählt die Kopfzeile passend
+dazu „2 von 3 geschlossen".
+
+**Der volle Farbverlauf heisst: hier läuft etwas** — Licht an, Musik spielt, Heizung
+oder Kühlung arbeitet. Storen zählen dafür nicht mit, weder offen noch zu; sonst
+leuchtete nachts jede Karte im Haus. Ihr Gruppenknopf leuchtet aber sehr wohl, sobald
+eine Store geschlossen ist.
+
 **Bedienung.** Tipp auf einen Gruppenknopf **klappt die Gruppe auf** und zeigt jedes
 Gerät einzeln. **Halten schaltet die ganze Gruppe** um. In der Liste: Tipp = an/aus,
 quer ziehen = Helligkeit oder Storenhöhe, Halten = Detailfenster.
@@ -952,6 +965,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**2.17.0** — Raum-Karte: geschlossene Storen werden gezählt statt offener, pausierte Musik meldet nichts mehr
 
 **2.16.0** — Raum-Karte: Schalter in der Lampenliste, Knöpfe für alles ein/aus und die Storen samt Automatik und Windwächter
 

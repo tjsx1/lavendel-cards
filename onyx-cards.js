@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.16.0
+ * Version 2.17.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -23,7 +23,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.16.0';
+const ONYX_VERSION = '2.17.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -278,8 +278,9 @@ const STRINGS = {
     musicPlaying: 'Musik läuft',
     heating: 'heizt',
     cooling: 'kühlt',
-    coverOpen: '{n} Store offen',
-    coversOpen: '{n} Storen offen',
+    coverShut: '{n} Store geschlossen',
+    coversShut: '{n} Storen geschlossen',
+    mediaPaused: 'Pausiert',
     allOff: 'Alles aus',
     unavailable: 'Nicht erreichbar',
     on: 'An',
@@ -288,7 +289,7 @@ const STRINGS = {
     closed: 'Zu',
     pctOpen: '{n} % offen',
     playing: 'Läuft',
-    nOfMOpen: '{n} von {m} offen',
+    nOfMShut: '{n} von {m} geschlossen',
     nOfMOn: '{n} von {m} an',
     closeAllCovers: 'Alle Storen zu',
     turnAllOff: 'Alle aus',
@@ -633,8 +634,9 @@ const STRINGS = {
     musicPlaying: 'Music playing',
     heating: 'heating',
     cooling: 'cooling',
-    coverOpen: '{n} blind open',
-    coversOpen: '{n} blinds open',
+    coverShut: '{n} blind closed',
+    coversShut: '{n} blinds closed',
+    mediaPaused: 'Paused',
     allOff: 'All off',
     unavailable: 'Unavailable',
     on: 'On',
@@ -643,7 +645,7 @@ const STRINGS = {
     closed: 'Closed',
     pctOpen: '{n} % open',
     playing: 'Playing',
-    nOfMOpen: '{n} of {m} open',
+    nOfMShut: '{n} of {m} closed',
     nOfMOn: '{n} of {m} on',
     closeAllCovers: 'Close all blinds',
     turnAllOff: 'All off',
@@ -1389,6 +1391,13 @@ class OnyxRoomCard extends OnyxBase {
         const on = d === 'climate' && act
           ? (act === 'heating' || act === 'cooling' || act === 'drying')
           : isOn(st);
+        // `on` heisst "eingeschaltet", `melden` heisst "davon will der Raum
+        // oben etwas lesen". Bei Storen ist das Geschlossensein die Nachricht,
+        // nicht das Offenstehen; ein pausierter Lautsprecher meldet nichts.
+        const melden = isDead(st) ? false
+          : own === 'cover' ? !on
+          : own === 'media_player' ? ['playing', 'buffering'].includes(st.state)
+          : on;
         return {
           id,
           own,
@@ -1401,6 +1410,7 @@ class OnyxRoomCard extends OnyxBase {
           // Nur echte Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
           glow: own === 'light' ? lightGlow(st) : null,
           on,
+          melden,
           dead: isDead(st),
           pct: pctOf(st),
           state: st ? st.state : 'unavailable',
@@ -1410,7 +1420,14 @@ class OnyxRoomCard extends OnyxBase {
           target: st && st.attributes.temperature != null ? st.attributes.temperature : null
         };
       });
-      groups.push({ domain: d, items, onCount: items.filter((i) => i.on).length });
+      groups.push({
+        domain: d,
+        items,
+        // onCount steuert das Schalten (halten schaltet die Gruppe um),
+        // meldeCount steuert, was zu lesen ist und was leuchtet.
+        onCount: items.filter((i) => i.on).length,
+        meldeCount: items.filter((i) => i.melden).length
+      });
     }
 
     const tempId = cfg.temperature || this._autoSensor('temperature');
@@ -1462,17 +1479,20 @@ class OnyxRoomCard extends OnyxBase {
   _summary(m) {
     const bits = [];
     for (const g of m.groups) {
-      if (!g.onCount) continue;
+      const n = g.meldeCount;
+      if (!n) continue;
       if (g.domain === 'light') {
-        bits.push(t(g.onCount === 1 ? 'lightOn' : 'lightsOn', { n: g.onCount }));
+        bits.push(t(n === 1 ? 'lightOn' : 'lightsOn', { n }));
       } else if (g.domain === 'media_player') {
+        // Nur wenn wirklich etwas spielt. Pausiert heisst: nichts zu melden.
         bits.push(t('musicPlaying'));
       } else if (g.domain === 'climate') {
         // nur melden, wenn wirklich gerade geheizt oder gekühlt wird
         const act = g.items.find((i) => i.action === 'heating' || i.action === 'cooling');
         if (act) bits.push(t(act.action === 'cooling' ? 'cooling' : 'heating'));
       } else if (g.domain === 'cover') {
-        bits.push(t(g.onCount === 1 ? 'coverOpen' : 'coversOpen', { n: g.onCount }));
+        // Zu ist die Nachricht, nicht offen — offen ist der Normalzustand
+        bits.push(t(n === 1 ? 'coverShut' : 'coversShut', { n }));
       }
     }
     return bits.length ? bits.join(' · ') : t('allOff');
@@ -1480,11 +1500,15 @@ class OnyxRoomCard extends OnyxBase {
 
   _rowText(it, domain) {
     if (it.dead) return t('unavailable');
-    // Ein Schalter in der Lampenliste kennt keine Helligkeit
+    if (domain === 'media_player') {
+      if (it.melden) return it.title || t('playing');
+      return it.on ? t('mediaPaused') : t('off');
+    }
+    // Ein Schalter in der Lampenliste kennt keine Helligkeit. Die Prüfung
+    // steht hinter den Domänen, die ohnehin eigenen Text mitbringen.
     if (!it.dim) return it.on ? t('on') : t('off');
     if (domain === 'light') return it.on ? `${it.pct} %` : t('off');
     if (domain === 'cover') return it.pct > 0 ? t('pctOpen', { n: it.pct }) : t('closed');
-    if (domain === 'media_player') return it.on ? (it.title || t('playing')) : t('off');
     if (domain === 'climate') {
       if (it.state === 'off') return t('off');
       const one = (v) => (v == null ? '–' : nfmt(v, v % 1 ? 1 : 0));
@@ -1528,10 +1552,12 @@ class OnyxRoomCard extends OnyxBase {
   }
 
   _html(m) {
-    const anyOn = m.groups.some((g) => g.onCount > 0);
+    // Warm wird die Karte, wenn im Raum etwas läuft. Geschlossene Storen
+    // sind kein Betrieb — sonst leuchtete nachts jede Karte auf.
+    const anyOn = m.groups.some((g) => g.domain !== 'cover' && g.meldeCount > 0);
 
     const buttons = m.groups.map((g) => `
-      <div class="gbtn ${g.onCount ? 'on' : ''} ${m.open === g.domain ? 'armed' : ''}"
+      <div class="gbtn ${g.meldeCount ? 'on' : ''} ${m.open === g.domain ? 'armed' : ''}"
            data-grp="${g.domain}">
         <ha-icon icon="${GROUPS[g.domain].icon}"></ha-icon>
       </div>`).join('');
@@ -1556,8 +1582,8 @@ class OnyxRoomCard extends OnyxBase {
       <div class="divide"></div>
       <div class="grp">
         <span>${esc(t('inRoom', { g: t('group.' + og.domain) }))}</span>
-        <b>${esc(t(og.domain === 'cover' ? 'nOfMOpen' : 'nOfMOn',
-                     { n: og.onCount, m: og.items.length }))}</b>
+        <b>${esc(t(og.domain === 'cover' ? 'nOfMShut' : 'nOfMOn',
+                     { n: og.meldeCount, m: og.items.length }))}</b>
       </div>
       <div class="rows">${rows}</div>
       ${this._actions(m, og)}`;
