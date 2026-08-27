@@ -71,7 +71,7 @@ Ohne Theme funktionieren die Karten, sehen aber neutraler aus.
 
 ### onyx-room-card
 
-![Raum-Karte, Lichter aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-card.png)
+![Raum-Karte, Lichter und Storen aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-card.png)
 
 Zwei Betriebsarten. **Bereich** — die Karte sucht sich alles selbst:
 
@@ -120,6 +120,8 @@ lights:
 | `area` | — | Bereichs-ID (nicht der angezeigte Name). Liste über Entwicklerwerkzeuge → Vorlage mit `{{ areas() }}` |
 | `lights` | aus dem Bereich | Welche Lampen erscheinen, in dieser Reihenfolge |
 | `covers` | aus dem Bereich | Storen. Auch `storen:` oder `rollos:` geschrieben |
+| `cover_auto` | — | Schalter der Storen-Automatik; wird zum Knopf, wenn die Storen aufgeklappt sind |
+| `cover_wind` | — | dito für den Windwächter |
 | `media` | aus dem Bereich | Medienspieler |
 | `climate` | aus dem Bereich | Thermostate |
 | `name` | Bereichsname | Überschrift der Karte |
@@ -134,6 +136,36 @@ lights:
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
 mit Listen bleibt deine Reihenfolge stehen.
+
+**Schalter dürfen in die Lampenliste.** Ein Shelly, der eine Lampe schaltet, ist für
+den Raum eine Lampe — also darf `lights:` neben `light.…` auch `switch.…` enthalten.
+Solche Zeilen lassen sich antippen, aber nicht ziehen: ein Relais kennt keine
+Helligkeit, und statt Prozent steht dort schlicht *An* oder *Aus*. Beim automatischen
+Durchsuchen eines Bereichs bleibt es bei den echten Lampen — welcher Schalter eine
+Lampe ist und welcher die Kaffeemaschine, weiss nur du.
+
+```yaml
+lights:
+  - light.decke
+  - switch.shelly_sideboard
+```
+
+**Knöpfe unter der Liste.** Ist die Lichtgruppe aufgeklappt, stehen darunter *Alle
+ein* und *Alle aus*. Bei den Storen sind es *Alle rauf* und *Alle runter*, dazu
+*Automatik* und *Windwächter*, sobald `cover_auto:` und `cover_wind:` gesetzt sind —
+die beiden leuchten mit, solange sie eingeschaltet sind, und ein Tipp schaltet sie um.
+Auf einer halben Spalte kürzen sich die Beschriftungen zu *Rauf*, *Runter*, *Auto*
+und *Wind*.
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+cover_auto: input_boolean.storen_automatik
+cover_wind: input_boolean.windwaechter
+```
+
+Die beiden Schalter dürfen ein `input_boolean`, ein `switch` oder eine `automation`
+sein — geschaltet wird über `homeassistant.toggle`, das kennt sie alle.
 
 **Bedienung.** Tipp auf einen Gruppenknopf **klappt die Gruppe auf** und zeigt jedes
 Gerät einzeln. **Halten schaltet die ganze Gruppe** um. In der Liste: Tipp = an/aus,
@@ -920,6 +952,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**2.16.0** — Raum-Karte: Schalter in der Lampenliste, Knöpfe für alles ein/aus und die Storen samt Automatik und Windwächter
 
 **2.15.0** — Status-Karte im Editor: Bausteine, Zeilen und Chips per Formular, neuer Baustein `battery`
 

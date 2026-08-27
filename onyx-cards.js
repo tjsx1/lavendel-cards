@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.15.0
+ * Version 2.16.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -23,7 +23,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.15.0';
+const ONYX_VERSION = '2.16.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -292,6 +292,17 @@ const STRINGS = {
     nOfMOn: '{n} von {m} an',
     closeAllCovers: 'Alle Storen zu',
     turnAllOff: 'Alle aus',
+    turnAllOn: 'Alle ein',
+    turnAllOnShort: 'Ein',
+    turnAllOffShort: 'Aus',
+    coversUp: 'Alle rauf',
+    coversUpShort: 'Rauf',
+    coversDown: 'Alle runter',
+    coversDownShort: 'Runter',
+    coverAuto: 'Automatik',
+    coverAutoShort: 'Auto',
+    coverWind: 'Windwächter',
+    coverWindShort: 'Wind',
 
     windLock: 'Windwächter aktiv',
     slats: 'Lamellen',
@@ -363,6 +374,12 @@ const STRINGS = {
     'ed.media': 'Medienspieler',
     'ed.climate': 'Heizung',
     'ed.lock_entity': 'Sperre',
+    'ed.cover_auto': 'Storen-Automatik',
+    'ed.cover_wind': 'Windwächter',
+    'ed.h.cover_auto': 'Erscheint als Knopf, wenn die Storen ausgeklappt sind',
+    'ed.h.cover_wind': 'Ebenso — leer lassen, wenn es keinen gibt',
+    'ed.h.lights': 'Schalter dürfen mit hinein: ein Shelly, der eine Lampe schaltet, '
+      + 'zählt für den Raum als Lampe',
     'ed.lock_label': 'Text bei Sperre',
     'ed.show_name': 'Namen anzeigen',
     'ed.show_art': 'Cover anzeigen',
@@ -630,6 +647,17 @@ const STRINGS = {
     nOfMOn: '{n} of {m} on',
     closeAllCovers: 'Close all blinds',
     turnAllOff: 'All off',
+    turnAllOn: 'All on',
+    turnAllOnShort: 'On',
+    turnAllOffShort: 'Off',
+    coversUp: 'All up',
+    coversUpShort: 'Up',
+    coversDown: 'All down',
+    coversDownShort: 'Down',
+    coverAuto: 'Automatic',
+    coverAutoShort: 'Auto',
+    coverWind: 'Wind guard',
+    coverWindShort: 'Wind',
 
     windLock: 'Wind guard active',
     slats: 'Slats',
@@ -701,6 +729,12 @@ const STRINGS = {
     'ed.media': 'Media players',
     'ed.climate': 'Thermostats',
     'ed.lock_entity': 'Lock',
+    'ed.cover_auto': 'Blind automation',
+    'ed.cover_wind': 'Wind guard',
+    'ed.h.cover_auto': 'Appears as a button while the blinds are expanded',
+    'ed.h.cover_wind': 'Same — leave empty if you do not have one',
+    'ed.h.lights': 'Switches are welcome: a Shelly switching a lamp counts as a lamp '
+      + 'for the room',
     'ed.lock_label': 'Text while locked',
     'ed.show_name': 'Show name',
     'ed.show_art': 'Show cover art',
@@ -1199,6 +1233,7 @@ class OnyxRoomCard extends OnyxBase {
     ha-card{
       padding:12px; border-radius:var(--onyx-r, 24px); border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:10px; overflow:hidden;
+      container-type:inline-size;
       background:linear-gradient(to right bottom,
         color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
         color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
@@ -1269,10 +1304,27 @@ class OnyxRoomCard extends OnyxBase {
            white-space:nowrap; }
     .lrow.off .lname, .lrow.off .lval{ color:#7b8fa0; }
     .lrow.dead{ opacity:.45; }
-    .allout{ height:42px; border-radius:12px; background:rgba(255,255,255,.055);
-             display:flex; align-items:center; justify-content:center; gap:8px;
-             font-size:12.5px; font-weight:500; color:#a8c2d4; cursor:pointer;
-             --mdc-icon-size:15px; }
+    /* Knöpfe unter den Zeilen, paarweise nebeneinander */
+    .acts{ display:flex; gap:7px; }
+    .act{ flex:1; min-width:0; height:42px; border-radius:12px;
+          background:rgba(255,255,255,.055); border:1px solid transparent;
+          display:flex; align-items:center; justify-content:center; gap:7px;
+          padding:0 6px; font-size:12.5px; font-weight:500; color:#a8c2d4;
+          cursor:pointer; --mdc-icon-size:15px;
+          transition:transform .12s ease, background .18s ease; }
+    .act ha-icon{ flex:none; }
+    .act span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .act.on{ background:color-mix(in srgb, var(--btn) 55%, transparent);
+             border-color:color-mix(in srgb, var(--btn) 72%, transparent); color:#fff; }
+    .act.held{ transform:scale(.97); }
+    /* Auf einer halben Spalte würden aus "Alle rauf" und "Alle runter"
+       zweimal "Alle r…". Dort steht deshalb die kurze Beschriftung. */
+    .act .sm{ display:none; }
+    @container (max-width: 270px){
+      .act{ font-size:12px; gap:5px; padding:0 4px; }
+      .act .lg{ display:none; }
+      .act .sm{ display:inline; }
+    }
     `;
   }
 
@@ -1326,6 +1378,10 @@ class OnyxRoomCard extends OnyxBase {
       const items = listed.map((entry) => {
         const id = entry.entity;
         const st = hass.states[id];
+        // In der Lampenliste dürfen auch Schalter stehen — ein Shelly, der
+        // eine Lampe schaltet, ist für den Raum eine Lampe. Nur regeln
+        // lässt er sich nicht, also merken wir uns seine echte Domäne.
+        const own = id.split('.')[0];
         // Ein Thermostat ist fast immer eingeschaltet. Als "läuft gerade" zählt
         // es nur, wenn es tatsächlich heizt oder kühlt — sonst leuchtete der
         // Klima-Knopf rund ums Jahr.
@@ -1335,10 +1391,15 @@ class OnyxRoomCard extends OnyxBase {
           : isOn(st);
         return {
           id,
+          own,
+          // Ein Schalter kennt keine Helligkeit — die Zeile lässt sich
+          // antippen, aber nicht ziehen.
+          dim: own === 'light' || own === 'cover',
           name: entry.name || nameOf(hass, id),
-          icon: entry.icon || GROUPS[d].icon,
-          // Nur Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
-          glow: d === 'light' ? lightGlow(st) : null,
+          icon: entry.icon || (own === 'switch' && d === 'light'
+            ? 'mdi:power-socket-eu' : GROUPS[d].icon),
+          // Nur echte Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
+          glow: own === 'light' ? lightGlow(st) : null,
           on,
           dead: isDead(st),
           pct: pctOf(st),
@@ -1375,8 +1436,17 @@ class OnyxRoomCard extends OnyxBase {
       hum: readOut(humId),
       groups,
       open: this._open,
+      auto: this._flagOf(cfg.cover_auto),
+      wind: this._flagOf(cfg.cover_wind),
       path: cfg.navigation_path || null
     };
+  }
+
+  /** Ein Schalter, der nur an oder aus kennt — Automatik, Windwächter */
+  _flagOf(id) {
+    if (!id) return null;
+    const st = this._hass.states[id];
+    return { id, on: isOn(st), dead: isDead(st) };
   }
 
   _autoSensor(kind) {
@@ -1410,6 +1480,8 @@ class OnyxRoomCard extends OnyxBase {
 
   _rowText(it, domain) {
     if (it.dead) return t('unavailable');
+    // Ein Schalter in der Lampenliste kennt keine Helligkeit
+    if (!it.dim) return it.on ? t('on') : t('off');
     if (domain === 'light') return it.on ? `${it.pct} %` : t('off');
     if (domain === 'cover') return it.pct > 0 ? t('pctOpen', { n: it.pct }) : t('closed');
     if (domain === 'media_player') return it.on ? (it.title || t('playing')) : t('off');
@@ -1419,6 +1491,40 @@ class OnyxRoomCard extends OnyxBase {
       return `${one(it.temp)} → ${one(it.target)} °C`;
     }
     return it.state;
+  }
+
+  /**
+   * Die Knöpfe unter den Zeilen. Paarweise, weil zwei nebeneinander noch
+   * breit genug für ihre Beschriftung sind — bei vieren würde sie brechen.
+   * Automatik und Windwächter erscheinen nur, wenn sie konfiguriert sind,
+   * und leuchten mit, wenn sie eingeschaltet sind.
+   */
+  _actions(m, og) {
+    const btn = (id, icon, key, on) => `
+      <div class="act${on ? ' on' : ''}" data-act="${id}">
+        <ha-icon icon="${icon}"></ha-icon
+        ><span class="lg">${esc(t(key))}</span
+        ><span class="sm">${esc(t(key + 'Short'))}</span>
+      </div>`;
+    const reihe = (inner) => `<div class="acts">${inner}</div>`;
+
+    if (og.domain === 'light') {
+      return reihe(btn('allon', 'mdi:lightbulb-on', 'turnAllOn')
+        + btn('alloff', 'mdi:lightbulb-off', 'turnAllOff'));
+    }
+    if (og.domain === 'cover') {
+      let out = reihe(btn('up', 'mdi:arrow-up', 'coversUp')
+        + btn('down', 'mdi:arrow-down', 'coversDown'));
+      const zwei = [];
+      if (m.auto) zwei.push(btn('auto', 'mdi:calendar-clock', 'coverAuto', m.auto.on));
+      if (m.wind) zwei.push(btn('wind', 'mdi:weather-windy', 'coverWind', m.wind.on));
+      if (zwei.length) out += reihe(zwei.join(''));
+      return out;
+    }
+    if (og.domain === 'media_player') {
+      return reihe(btn('alloff', 'mdi:music-note-off', 'turnAllOff'));
+    }
+    return '';
   }
 
   _html(m) {
@@ -1433,9 +1539,8 @@ class OnyxRoomCard extends OnyxBase {
     let panel = '';
     const og = m.groups.find((g) => g.domain === m.open);
     if (og) {
-      const dragable = og.domain === 'light' || og.domain === 'cover';
       const rows = og.items.map((it) => {
-        const pct = dragable && it.pct > 0 ? it.pct : 0;
+        const pct = it.dim && it.pct > 0 ? it.pct : 0;
         return `
         <div class="lrow ${it.dead ? 'dead' : ''} ${!it.on && !it.dead ? 'off' : ''}"
              data-ent="${esc(it.id)}" data-dom="${og.domain}"${
@@ -1447,7 +1552,6 @@ class OnyxRoomCard extends OnyxBase {
         </div>`;
       }).join('');
 
-      const allOff = og.domain === 'light' || og.domain === 'media_player' || og.domain === 'cover';
       panel = `
       <div class="divide"></div>
       <div class="grp">
@@ -1456,10 +1560,7 @@ class OnyxRoomCard extends OnyxBase {
                      { n: og.onCount, m: og.items.length }))}</b>
       </div>
       <div class="rows">${rows}</div>
-      ${allOff ? `<div class="allout" id="alloff">
-          <ha-icon icon="${GROUPS[og.domain].icon}"></ha-icon>
-          ${esc(t(og.domain === 'cover' ? 'closeAllCovers' : 'turnAllOff'))}
-        </div>` : ''}`;
+      ${this._actions(m, og)}`;
     }
 
     const { cls: pal, style } = paletteAttrs(m.color);
@@ -1514,7 +1615,9 @@ class OnyxRoomCard extends OnyxBase {
       const domain = row.dataset.dom;
       const fill = row.querySelector('.lfill');
       const val = row.querySelector('.lval');
-      const canDrag = domain === 'light' || domain === 'cover';
+      const og = m.groups.find((g) => g.domain === domain);
+      const it = og && og.items.find((x) => x.id === id);
+      const canDrag = !!(it && it.dim);
 
       this._press(row, {
         axis: 'x',
@@ -1522,43 +1625,68 @@ class OnyxRoomCard extends OnyxBase {
         onHold: () => fireMoreInfo(this, id),
         onDrag: canDrag ? (pct) => {
           fill.style.width = pct + '%';
-          val.textContent = domain === 'cover' ? `${pct} % offen` : `${pct} %`;
+          val.textContent = domain === 'cover' ? t('pctOpen', { n: pct }) : `${pct} %`;
         } : null,
         onDrop: canDrag ? (pct) => {
-          if (domain === 'light') {
-            if (pct <= 0) this.call('light', 'turn_off', { entity_id: id });
-            else this.call('light', 'turn_on', { entity_id: id, brightness_pct: pct });
-          } else {
+          if (domain === 'cover') {
             this.call('cover', 'set_cover_position', { entity_id: id, position: pct });
+          } else if (pct <= 0) {
+            this.call('light', 'turn_off', { entity_id: id });
+          } else {
+            this.call('light', 'turn_on', { entity_id: id, brightness_pct: pct });
           }
         } : null
       });
     });
 
-    const allOff = root.getElementById('alloff');
-    if (allOff) {
+    root.querySelectorAll('.act[data-act]').forEach((el) => {
+      const was = el.dataset.act;
       const grp = m.groups.find((g) => g.domain === m.open);
-      this._press(allOff, { onTap: () => this._allOff(grp) });
-    }
+      this._press(el, { onTap: () => this._doAction(was, grp, m) });
+    });
+  }
 
+  /** Ein Knopf unter den Zeilen */
+  _doAction(was, grp, m) {
+    if (was === 'alloff') { this._allOff(grp); return; }
+    if (was === 'allon') { this._allOn(grp); return; }
+    if (!grp) return;
+    const ids = grp.items.map((i) => i.id);
+    if (was === 'up') { this.call('cover', 'open_cover', { entity_id: ids }); return; }
+    if (was === 'down') { this.call('cover', 'close_cover', { entity_id: ids }); return; }
+    const flag = was === 'auto' ? m.auto : was === 'wind' ? m.wind : null;
+    if (flag) this._toggleFlag(flag);
+  }
+
+  /**
+   * Automatik und Windwächter können Hilfsschalter, echte Schalter oder
+   * Automationen sein. `homeassistant.toggle` kennt sie alle.
+   */
+  _toggleFlag(flag) {
+    if (!flag || flag.dead) return;
+    this.call('homeassistant', 'toggle', { entity_id: flag.id });
   }
 
   _toggleOne(id, domain) {
-    if (domain === 'climate') { fireMoreInfo(this, id); return; }
-    if (domain === 'media_player') { this.call('media_player', 'media_play_pause', { entity_id: id }); return; }
-    if (domain === 'cover') {
+    const own = id.split('.')[0];
+    if (own === 'climate') { fireMoreInfo(this, id); return; }
+    if (own === 'media_player') { this.call('media_player', 'media_play_pause', { entity_id: id }); return; }
+    if (own === 'cover') {
       const st = this._hass.states[id];
       this.call('cover', isOn(st) ? 'close_cover' : 'open_cover', { entity_id: id });
       return;
     }
-    this.call('light', 'toggle', { entity_id: id });
+    // light, switch, input_boolean — jede Domäne kennt ihr eigenes toggle
+    this.call(own, 'toggle', { entity_id: id });
   }
 
   _toggleGroup(grp) {
     if (!grp) return;
     const ids = grp.items.map((i) => i.id);
     if (grp.domain === 'light') {
-      this.call('light', grp.onCount ? 'turn_off' : 'turn_on', { entity_id: ids });
+      // Die Liste darf Lampen und Schalter mischen — homeassistant.turn_on
+      // schickt jede Entität an ihre eigene Domäne weiter.
+      this.call('homeassistant', grp.onCount ? 'turn_off' : 'turn_on', { entity_id: ids });
     } else if (grp.domain === 'media_player') {
       this.call('media_player', 'media_play_pause', { entity_id: ids });
     } else if (grp.domain === 'cover') {
@@ -1568,10 +1696,15 @@ class OnyxRoomCard extends OnyxBase {
     }
   }
 
+  _allOn(grp) {
+    if (!grp || grp.domain !== 'light') return;
+    this.call('homeassistant', 'turn_on', { entity_id: grp.items.map((i) => i.id) });
+  }
+
   _allOff(grp) {
     if (!grp) return;
     const ids = grp.items.map((i) => i.id);
-    if (grp.domain === 'light') this.call('light', 'turn_off', { entity_id: ids });
+    if (grp.domain === 'light') this.call('homeassistant', 'turn_off', { entity_id: ids });
     else if (grp.domain === 'media_player') this.call('media_player', 'turn_off', { entity_id: ids });
     else if (grp.domain === 'cover') this.call('cover', 'close_cover', { entity_id: ids });
   }
@@ -5967,7 +6100,8 @@ const ED_HELP_KEY = {
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
-  consumables: 'ed.h.consumables'
+  consumables: 'ed.h.consumables',
+  lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind'
 };
 
 /** Hilfetexte, die nur in der Status-Karte gelten */
@@ -6379,8 +6513,12 @@ class OnyxRoomEditor extends OnyxEditor {
           }
         }
       },
-      fieldEntity('lights', 'light', true),
+      fieldEntity('lights', ['light', 'switch'], true),
       fieldEntity('covers', 'cover', true),
+      grid(
+        fieldEntity('cover_auto', ['input_boolean', 'switch', 'automation']),
+        fieldEntity('cover_wind', ['input_boolean', 'switch', 'automation'])
+      ),
       fieldEntity('media', 'media_player', true),
       fieldEntity('climate', 'climate', true)
     ];
@@ -6396,6 +6534,8 @@ class OnyxRoomEditor extends OnyxEditor {
       temperature: c.temperature || '',
       humidity: c.humidity || '',
       navigation_path: c.navigation_path || '',
+      cover_auto: c.cover_auto || '',
+      cover_wind: c.cover_wind || '',
       groups: c.groups || ['light', 'cover', 'media_player', 'climate']
     };
     for (const { field, domain } of ROOM_LISTS) {
