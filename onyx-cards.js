@@ -1,6 +1,6 @@
 /*!
  * Onyx Cards für Home Assistant
- * Version 2.17.0
+ * Version 1.0.0
  *
  * Enthält:
  *   custom:onyx-room-card    – Raum-Karte, aufklappbar pro Gerätegruppe
@@ -23,7 +23,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '2.17.0';
+const ONYX_VERSION = '1.0.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,

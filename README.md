@@ -814,7 +814,7 @@ aus reinen Vorlagen, die keine Entität nennen, passiert nichts.
 
 ## Visueller Editor
 
-Alle Karten bringen ab 1.2.0 einen eigenen Editor mit. Beim Hinzufügen über
+Alle Karten bringen einen eigenen Editor mit. Beim Hinzufügen über
 **Karte hinzufügen** oder beim Klick auf den Stift öffnet sich ein Formular statt der
 YAML — mit Entitäten-Picker, Bereichs-Picker, Symbolwahl und Farbliste.
 
@@ -829,7 +829,7 @@ Was der Editor nicht kann, und warum:
   aufteilen*. Beim Ausschalten wandern alle Aktionen in eine Liste, es geht nichts
   verloren.
 
-**Die Status-Karte** bekommt ab 2.15.0 einen eigenen Aufbau: Kopf, Zeilen und Chips
+**Die Status-Karte** hat einen eigenen Aufbau: Kopf, Zeilen und Chips
 stehen als eingeklappte Streifen untereinander, ein Klick öffnet die Felder. Oben im
 geöffneten Streifen steht der Baustein — wer ihn wechselt, bekommt die Felder des
 neuen Bausteins, und Name, Symbol und Farbe wandern mit. Mit den Pfeilen lassen sich
@@ -966,45 +966,15 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
-**2.17.0** — Raum-Karte: geschlossene Storen werden gezählt statt offener, pausierte Musik meldet nichts mehr
+**1.0.0** — Erste öffentliche Ausgabe. Zwölf Karten: Raum, Zieh-Regler, Storen,
+Media, Schnellzugriffe, Diagramm, Saugroboter, Wetter, Licht, Kamera, Schloss und
+Status. Alle über den visuellen Editor einzurichten, alle zweisprachig Deutsch und
+Englisch, alle ohne Abhängigkeiten. Dazu das Theme `onyx.yaml`.
 
-**2.16.0** — Raum-Karte: Schalter in der Lampenliste, Knöpfe für alles ein/aus und die Storen samt Automatik und Windwächter
-
-**2.15.0** — Status-Karte im Editor: Bausteine, Zeilen und Chips per Formular, neuer Baustein `battery`
-
-**2.14.0** — Neue Status-Karte: Kopf, Zeilen und Chips aus Bausteinen und Jinja-Vorlagen
-**2.13.0** — Chips als Pillen mit eigener Farbe je Aktion, vier Bauarten über `chip_style`
-**2.12.0** — Neue Schloss-Karte: schieben zum Entriegeln, Zustandsfarbe, Riegel-Knopf
-**2.11.0** — Raum-Karte bleibt auch im Ruhezustand in ihrer Farbe, nur gedämpft
-**2.10.0** — Raum-Karte: Gruppen in der Reihenfolge Licht, Storen, Musik, Klima; der Knopf zur Raumseite entfällt
-**2.9.0** — Farbrad statt Farbfeld; Knöpfe und Zeilen glühen in der Farbe der Lampe
-**2.8.0** — Neue Kamera-Karte: Livebild, Bewegungs- und Klingelabzeichen, Türöffner, mehrere Kameras
-**2.7.0** — Freie Farbwahl im Farbfeld statt sieben fester Tupfer; `colors` entfällt
-**2.6.0** — Regler ohne weissen Strich an der Füllkante; die Knöpfe auf den Schienen sind Ringe
-**2.5.0** — Licht-Karte zugeklappt nur noch eine Zeile; der Helligkeitsregler klappt mit aus
-**2.4.0** — Licht-Karte neu gebaut: klein, im Mushroom-Aufbau, ausklappbar wie die Raum-Karte
-**2.3.0** — Neue Licht-Karte: Helligkeitsfeld, Farbtemperatur, Farben, Effekte
-**2.2.0** — Neue Wetter-Karte mit gezeichneter Szene, Stationswerten und Vorhersage
-**2.1.0** — Neue Saugroboter-Karte mit Akkuring, Raumauswahl und Verbrauchsteilen
-**2.0.0** — Umbenannt: `lavendel-…` heisst jetzt `onyx-…`. Kein Rückwärtsbetrieb, siehe [Umstieg](#umstieg-von-lavendel-cards)
-**1.5.0** — Zweisprachig: Texte, Zahlen- und Zeitformat folgen den Einstellungen von Home Assistant
-**1.4.0** — Diagramm-Karte: weiche Linie ohne Überschwinger, Rauschen wird zusammengefasst
-**1.3.0** — Regler, Storen und Schnellzugriffe im dunklen Design; Farbwahl auch dort
-**1.2.0** — Visueller Editor für alle sechs Karten; brauchbare Startkonfiguration aus der Kartenauswahl
-**1.1.0** — Neue Diagramm-Karte
-**1.0.0** — Masse am Vorbild nachgemessen: Radius 24, Glasknöpfe, Coverblende
-**0.9.0** — Raumname neben das Icon, Karte kompakter
-**0.8.0** — Gruppenknöpfe umrandet statt gefüllt, grösser; aktive Farbe aus der Palette
-**0.7.1** — Cover randlos mit weichem Übergang, Knöpfe und Regler nach Vorbild
-**0.7.0** — Media-Karte im neuen Design, Kartengrund aus dem Cover
-**0.6.0** — Tippen klappt auf, Halten schaltet; Kartenfarbe wählbar
-**0.5.0** — Raum-Karte im dunklen Design; Theme auf Dunkel umgestellt
-**0.4.0** — Schnellzugriff-Karte für Szenen, Skripte und Automationen
-**0.3.0** — Raum-Karte: Geräte einzeln angeben mit `lights:`, `covers:`, `media:`, `climate:`
-**0.2.2** — Hovern mit der Maus verstellte Werte und fror die Karte ein
-**0.2.1** — Schutz gegen doppelt geladene Ressourcen (Umstieg auf HACS)
-**0.2.0** — Media-Karte
-**0.1.0** — Raum-Karte, Zieh-Regler, Storen-Karte, Theme
+Davor lagen rund zwei Dutzend Entwicklungsversionen, die nie veröffentlicht wurden —
+zuerst unter dem Namen *Lavendel Cards*, dann als *Onyx Cards*. Wer die Schritte
+nachlesen will, findet sie in der
+[Commit-Geschichte](https://github.com/tjsx1/onyx-cards/commits/main).
 
 ## Lizenz
 
