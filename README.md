@@ -122,7 +122,7 @@ lights:
 | `covers` | aus dem Bereich | Storen. Auch `storen:` oder `rollos:` geschrieben |
 | `cover_auto` | — | Schalter der Storen-Automatik; wird zum Knopf, wenn die Storen aufgeklappt sind |
 | `cover_wind` | — | dito für den Windwächter |
-| `cover_favorite` | — | Wunschposition aller Storen: eine Prozentzahl oder `stop`. Ohne Angabe erscheint kein Stern |
+| `cover_favorite` | — | Wunschposition aller Storen als Rückfallwert: `70`, `{position: 70, tilt: 35}` oder `stop`. Nur YAML — im Editor stellst du jede Store einzeln ein |
 | `media` | aus dem Bereich | Medienspieler |
 | `climate` | aus dem Bereich | Thermostate |
 | `name` | Bereichsname | Überschrift der Karte |
@@ -170,33 +170,48 @@ sein — geschaltet wird über `homeassistant.toggle`, das kennt sie alle.
 
 **Die Wunschposition.** Viele Storen kennen eine gespeicherte Lieblingsstellung —
 bei Somfy heisst sie *my*. Home Assistant kennt so etwas nicht: die Cover-Schnittstelle
-hat nur auf, zu, halt und eine Prozentzahl. Die Karte bietet deshalb beides an. Steht
-eine Zahl da, fährt der Stern die Store mit `cover.set_cover_position` dorthin; steht
-`stop` da, schickt er nur `cover.stop_cover` — und das ist bei einem Somfy-RTS-Antrieb
-genau die my-Taste, weil der Antrieb im Stillstand selbst weiss, wohin er fahren soll.
+hat nur auf, zu, halt, eine Höhe und einen Lamellenwinkel. Die Karte bietet deshalb
+beide Wege an, und jede Store wählt ihren eigenen.
+
+Im visuellen Editor steht unter der Karte der Abschnitt **Wunschpositionen der Storen**:
+eine Zeile je Store, aufklappbar, mit einem Regler für die Höhe, einem für den
+Lamellenwinkel — der erscheint nur, wenn die Store ihre Lamellen kennt — und einem
+Knopf **Ist-Zustand übernehmen**, der beides so einträgt, wie die Store gerade steht.
+Das ist meist der bequemste Weg: fahr sie hin, wo du sie haben willst, und drück
+einmal darauf.
+
+In der YAML sieht dasselbe so aus:
 
 ```yaml
 type: custom:onyx-room-card
 area: wohnzimmer
-cover_favorite: 70          # gilt für alle Storen des Raums
 storen:
-  - cover.wohnen_sued       # erbt die 70
+  - entity: cover.wohnen_sued
+    favorite: {position: 70, tilt: 35}   # Höhe und Lamellenwinkel
   - entity: cover.wohnen_west
-    favorite: 30            # eigene Wunschposition
+    favorite: 70                          # nur die Höhe
   - entity: cover.wohnen_nord
-    favorite: stop          # Somfy RTS: nur ein Halt, den Rest macht der Antrieb
-  - entity: cover.bad
-    favorite: false         # gar kein Stern, obwohl die Karte einen kennt
+    favorite: stop                        # Somfy RTS: nur ein Halt
+  - cover.bad                             # kein Stern
 ```
 
 Der Stern steht am rechten Rand der Zeile und lässt den Rest der Zeile in Ruhe —
-Ziehen und Antippen funktionieren weiter wie zuvor. Steht die Store schon auf ihrer
-Wunschposition, leuchtet er in der Kartenfarbe. Bei `stop` bleibt er dunkel: die
-Karte weiss nicht, welche Position der Antrieb sich gemerkt hat.
+Ziehen und Antippen funktionieren weiter wie zuvor. Er erscheint nur, wo eine
+Wunschposition eingerichtet ist; trägt eine Store im Raum eine, halten die anderen
+den Platz frei, damit die Prozentzahlen fluchten. Steht die Store schon auf ihrer
+Wunschposition — Höhe **und** Winkel —, leuchtet er in der Kartenfarbe. Bei `stop`
+bleibt er dunkel: die Karte weiss nicht, welche Position der Antrieb sich gemerkt hat.
 
-Im visuellen Editor lässt sich `cover_favorite` für die ganze Karte setzen. Einzelne
-Storen davon abweichen zu lassen, geht bis auf Weiteres nur in der YAML — der Editor
-lässt solche Einträge aber unangetastet, auch wenn du die Liste dort umsortierst.
+Beim Antippen schickt die Karte `cover.set_cover_position` und, wenn ein Winkel
+eingetragen ist, `cover.set_cover_tilt_position` hinterher — dasselbe, was eine Szene
+in Home Assistant auch tut. Bei `stop` geht nur `cover.stop_cover` hinaus, und wohin
+die Store dann fährt, weiss allein der Antrieb.
+
+Kommen die Storen aus dem Bereich statt aus einer Liste, kann die Karte sie einzeln
+nicht ansprechen. Der Editor bietet dann einen Knopf an, der die Storen des Bereichs
+als Liste übernimmt; danach lässt sich jede einzeln einstellen. Wer lieber alles auf
+einmal setzt, schreibt `cover_favorite:` in die YAML — das gilt für jede Store, die
+nichts Eigenes sagt, und `favorite: false` an einem Eintrag nimmt sie wieder aus.
 
 **Was die Karte oben meldet.** Die Zeile unter dem Namen nennt nur, was vom
 Normalzustand abweicht — und der ist bei Storen *offen*. Also steht dort
