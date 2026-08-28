@@ -38,7 +38,7 @@ HACS trägt die Ressource selbst ein — der Schritt unter Einstellungen → Das
 
 ### Ohne HACS
 
-`onyx-cards.js` nach `/config/www/` kopieren, dann unter
+`dist/onyx-cards.js` nach `/config/www/` kopieren, dann unter
 Einstellungen → Dashboards → ⋮ → Ressourcen hinzufügen:
 
 ```
@@ -122,6 +122,7 @@ lights:
 | `covers` | aus dem Bereich | Storen. Auch `storen:` oder `rollos:` geschrieben |
 | `cover_auto` | — | Schalter der Storen-Automatik; wird zum Knopf, wenn die Storen aufgeklappt sind |
 | `cover_wind` | — | dito für den Windwächter |
+| `cover_favorite` | — | Wunschposition aller Storen: eine Prozentzahl oder `stop`. Ohne Angabe erscheint kein Stern |
 | `media` | aus dem Bereich | Medienspieler |
 | `climate` | aus dem Bereich | Thermostate |
 | `name` | Bereichsname | Überschrift der Karte |
@@ -166,6 +167,36 @@ cover_wind: input_boolean.windwaechter
 
 Die beiden Schalter dürfen ein `input_boolean`, ein `switch` oder eine `automation`
 sein — geschaltet wird über `homeassistant.toggle`, das kennt sie alle.
+
+**Die Wunschposition.** Viele Storen kennen eine gespeicherte Lieblingsstellung —
+bei Somfy heisst sie *my*. Home Assistant kennt so etwas nicht: die Cover-Schnittstelle
+hat nur auf, zu, halt und eine Prozentzahl. Die Karte bietet deshalb beides an. Steht
+eine Zahl da, fährt der Stern die Store mit `cover.set_cover_position` dorthin; steht
+`stop` da, schickt er nur `cover.stop_cover` — und das ist bei einem Somfy-RTS-Antrieb
+genau die my-Taste, weil der Antrieb im Stillstand selbst weiss, wohin er fahren soll.
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+cover_favorite: 70          # gilt für alle Storen des Raums
+storen:
+  - cover.wohnen_sued       # erbt die 70
+  - entity: cover.wohnen_west
+    favorite: 30            # eigene Wunschposition
+  - entity: cover.wohnen_nord
+    favorite: stop          # Somfy RTS: nur ein Halt, den Rest macht der Antrieb
+  - entity: cover.bad
+    favorite: false         # gar kein Stern, obwohl die Karte einen kennt
+```
+
+Der Stern steht am rechten Rand der Zeile und lässt den Rest der Zeile in Ruhe —
+Ziehen und Antippen funktionieren weiter wie zuvor. Steht die Store schon auf ihrer
+Wunschposition, leuchtet er in der Kartenfarbe. Bei `stop` bleibt er dunkel: die
+Karte weiss nicht, welche Position der Antrieb sich gemerkt hat.
+
+Im visuellen Editor lässt sich `cover_favorite` für die ganze Karte setzen. Einzelne
+Storen davon abweichen zu lassen, geht bis auf Weiteres nur in der YAML — der Editor
+lässt solche Einträge aber unangetastet, auch wenn du die Liste dort umsortierst.
 
 **Was die Karte oben meldet.** Die Zeile unter dem Namen nennt nur, was vom
 Normalzustand abweicht — und der ist bei Storen *offen*. Also steht dort

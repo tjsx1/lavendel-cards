@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.3.0';
+const ONYX_VERSION = '1.4.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -368,6 +368,8 @@ const STRINGS = {
     heating: 'heizt',
     cooling: 'kühlt',
     coverShut: '{n} Store geschlossen',
+    favTo: 'Auf {n} % fahren',
+    favStop: 'Auf die Wunschposition (my)',
     coversShut: '{n} Storen geschlossen',
     mediaPaused: 'Pausiert',
     allOff: 'Alles aus',
@@ -465,6 +467,12 @@ const STRINGS = {
     'ed.climate': 'Heizung',
     'ed.lock_entity': 'Sperre',
     'ed.cover_auto': 'Storen-Automatik',
+    'ed.cover_favorite': 'Wunschposition der Storen',
+    'ed.h.cover_favorite': 'Eine Prozentzahl (z. B. 70) oder das Wort stop. '
+      + 'Bei einer Zahl fährt der Stern die Store dorthin; bei stop schickt er '
+      + 'nur ein Halt — das ist bei Somfy RTS die my-Taste. Leer lassen: dann '
+      + 'erscheint kein Stern. Einzelne Storen können in der YAML mit '
+      + '"favorite:" davon abweichen.',
     'ed.cover_wind': 'Windwächter',
     'ed.h.cover_auto': 'Erscheint als Knopf, wenn die Storen ausgeklappt sind',
     'ed.h.cover_wind': 'Ebenso — leer lassen, wenn es keinen gibt',
@@ -811,6 +819,8 @@ const STRINGS = {
     heating: 'heating',
     cooling: 'cooling',
     coverShut: '{n} blind closed',
+    favTo: 'Move to {n}%',
+    favStop: 'Move to the favourite position (my)',
     coversShut: '{n} blinds closed',
     mediaPaused: 'Paused',
     allOff: 'All off',
@@ -908,6 +918,11 @@ const STRINGS = {
     'ed.climate': 'Thermostats',
     'ed.lock_entity': 'Lock',
     'ed.cover_auto': 'Blind automation',
+    'ed.cover_favorite': 'Favourite position of the blinds',
+    'ed.h.cover_favorite': 'A percentage (e.g. 70) or the word stop. '
+      + 'With a number the star drives the blind there; with stop it only sends '
+      + 'a halt — on Somfy RTS that is the my button. Leave empty and no star '
+      + 'appears. Individual blinds can override this in YAML with "favorite:".',
     'ed.cover_wind': 'Wind guard',
     'ed.h.cover_auto': 'Appears as a button while the blinds are expanded',
     'ed.h.cover_wind': 'Same — leave empty if you do not have one',
@@ -1427,6 +1442,24 @@ function normList(list) {
     .filter((e) => e && e.entity);
 }
 
+/**
+ * Die Wunschposition einer Store. Home Assistant kennt so etwas nicht —
+ * die Cover-Schnittstelle hat nur auf, zu, halt und eine Prozentzahl.
+ * Deshalb darf hier beides stehen:
+ *   `favorite: 70`     fährt mit set_cover_position auf 70 %
+ *   `favorite: stop`   drückt stop_cover — bei Somfy RTS ist das die my-Taste
+ * Steht am Eintrag nichts, gilt `cover_favorite` der ganzen Karte.
+ */
+function coverFav(entry, cfg) {
+  let raw = entry && entry.favorite;
+  if (raw == null || raw === '') raw = cfg && cfg.cover_favorite;
+  if (raw == null || raw === '' || raw === false) return null;
+  if (typeof raw === 'string' && raw.trim().toLowerCase() === 'stop') return 'stop';
+  const n = Number(raw);
+  if (isNaN(n)) return null;
+  return clamp(Math.round(n), 0, 100);
+}
+
 class OnyxRoomCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
@@ -1506,6 +1539,17 @@ class OnyxRoomCard extends OnyxBase {
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .lval{ font-size:12.5px; color:var(--sub); font-variant-numeric:tabular-nums;
            white-space:nowrap; }
+    /* Die Wunschposition: ein eigenes Ziel am rechten Rand der Zeile.
+       Steht die Store schon dort, leuchtet der Stern in der Kartenfarbe. */
+    .fav{ width:28px; height:28px; border-radius:9px; flex:none; display:grid;
+          place-items:center; cursor:pointer; --mdc-icon-size:15px; color:#a8c2d4;
+          background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.10);
+          transition:transform .12s ease, background .18s ease; }
+    .fav.set{ background:color-mix(in srgb, var(--btn) 55%, transparent);
+              border-color:color-mix(in srgb, var(--btn) 72%, transparent); color:#fff; }
+    .fav.held{ transform:scale(.92); }
+    .fav.leer{ background:none; border-color:transparent; pointer-events:none; }
+    .lrow.dead .fav{ pointer-events:none; }
     .lrow.off .lname, .lrow.off .lval{ color:#7b8fa0; }
     .lrow.dead{ opacity:.45; }
     /* Knöpfe unter den Zeilen, paarweise nebeneinander */
@@ -1611,6 +1655,9 @@ class OnyxRoomCard extends OnyxBase {
             ? 'mdi:power-socket-eu' : GROUPS[d].icon),
           // Nur echte Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
           glow: own === 'light' ? lightGlow(st) : null,
+          // Nur Storen tragen eine Wunschposition — und nur, wenn eine
+          // eingerichtet ist. Ohne Einrichtung bleibt die Zeile, wie sie war.
+          fav: own === 'cover' ? coverFav(entry, cfg) : null,
           on,
           melden,
           dead: isDead(st),
@@ -1767,6 +1814,9 @@ class OnyxRoomCard extends OnyxBase {
     let panel = '';
     const og = m.groups.find((g) => g.domain === m.open);
     if (og) {
+      // Trägt auch nur eine Store einen Stern, halten die anderen den Platz
+      // frei — sonst stünden die Prozentzahlen in der Liste versetzt.
+      const platzFuerStern = og.items.some((i) => i.fav != null);
       const rows = og.items.map((it) => {
         const pct = it.dim && it.pct > 0 ? it.pct : 0;
         return `
@@ -1777,6 +1827,12 @@ class OnyxRoomCard extends OnyxBase {
           <div class="lico ${it.on ? 'grad' : ''}"><ha-icon icon="${esc(it.icon)}"></ha-icon></div>
           <div class="lname">${esc(it.name)}</div>
           <div class="lval">${esc(this._rowText(it, og.domain))}</div>
+          ${it.fav == null ? (platzFuerStern ? '<div class="fav leer"></div>' : '') : `<div class="fav${
+            it.fav !== 'stop' && it.pct === it.fav ? ' set' : ''}"
+               data-fav="${esc(it.id)}"
+               title="${esc(it.fav === 'stop' ? t('favStop') : t('favTo', { n: it.fav }))}">
+            <ha-icon icon="mdi:star"></ha-icon>
+          </div>`}
         </div>`;
       }).join('');
 
@@ -1836,6 +1892,18 @@ class OnyxRoomCard extends OnyxBase {
         onTap: () => { this._open = this._open === domain ? null : domain; this._repaint(); },
         onHold: () => this._toggleGroup(grp)
       });
+    });
+
+    // Der Stern liegt in der Zeile, die selbst auf Tippen und Ziehen hört.
+    // Damit ein Griff auf den Stern nicht auch die Zeile bewegt, hält er
+    // die Ereignisse bei sich.
+    root.querySelectorAll('.fav[data-fav]').forEach((knopf) => {
+      const og = m.groups.find((g) => g.domain === 'cover');
+      const it = og && og.items.find((x) => x.id === knopf.dataset.fav);
+      if (!it) return;
+      ['pointerdown', 'pointerup', 'click'].forEach((art) =>
+        knopf.addEventListener(art, (ev) => ev.stopPropagation()));
+      this._press(knopf, { onTap: () => this._favorite(it) });
     });
 
     root.querySelectorAll('.lrow').forEach((row) => {
@@ -1906,6 +1974,20 @@ class OnyxRoomCard extends OnyxBase {
     }
     // light, switch, input_boolean — jede Domäne kennt ihr eigenes toggle
     this.call(own, 'toggle', { entity_id: id });
+  }
+
+  /**
+   * Auf die Wunschposition fahren. Bei `stop` ist der Knopf die my-Taste
+   * der Fernbedienung: Home Assistant schickt nur ein Halt, und der Antrieb
+   * selbst weiss, wohin er dann fährt.
+   */
+  _favorite(it) {
+    if (it.fav == null) return;
+    if (it.fav === 'stop') {
+      this.call('cover', 'stop_cover', { entity_id: it.id });
+      return;
+    }
+    this.call('cover', 'set_cover_position', { entity_id: it.id, position: it.fav });
   }
 
   _toggleGroup(grp) {
@@ -7309,7 +7391,8 @@ const ED_HELP_KEY = {
   entities: 'ed.h.entities', columns: 'ed.h.columns',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
-  lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind'
+  lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
+  cover_favorite: 'ed.h.cover_favorite'
 };
 
 /** Hilfetexte, die nur in der Energie-Karte gelten */
@@ -7429,7 +7512,10 @@ function mergeList(ids, previous) {
   for (const e of normList(previous) || []) old[e.entity] = e;
   return (ids || []).map((id) => {
     const kept = old[id];
-    if (kept && (kept.name || kept.icon)) return Object.assign({}, kept);
+    // Alles, was mehr trägt als die blosse Entität — Name, Symbol,
+    // Wunschposition —, bleibt erhalten. Sonst würfe ein Griff in die
+    // Liste im visuellen Editor die Feinheiten stillschweigend weg.
+    if (kept && Object.keys(kept).length > 1) return Object.assign({}, kept);
     return id;
   });
 }
@@ -7734,6 +7820,7 @@ class OnyxRoomEditor extends OnyxEditor {
         fieldEntity('cover_auto', ['input_boolean', 'switch', 'automation']),
         fieldEntity('cover_wind', ['input_boolean', 'switch', 'automation'])
       ),
+      fieldText('cover_favorite'),
       fieldEntity('media', 'media_player', true),
       fieldEntity('climate', 'climate', true)
     ];
@@ -7751,6 +7838,7 @@ class OnyxRoomEditor extends OnyxEditor {
       navigation_path: c.navigation_path || '',
       cover_auto: c.cover_auto || '',
       cover_wind: c.cover_wind || '',
+      cover_favorite: c.cover_favorite == null ? '' : String(c.cover_favorite),
       groups: c.groups || ['light', 'cover', 'media_player', 'climate']
     };
     for (const { field, domain } of ROOM_LISTS) {
@@ -7762,6 +7850,13 @@ class OnyxRoomEditor extends OnyxEditor {
 
   _fromForm(data) {
     const cfg = Object.assign({}, this._config, data);
+    // Das Textfeld liefert "70" oder "stop". Eine Zahl gehört als Zahl
+    // in die YAML, damit sie dort nicht in Anführungszeichen steht.
+    const wunsch = String(cfg.cover_favorite == null ? '' : cfg.cover_favorite).trim();
+    if (!wunsch) delete cfg.cover_favorite;
+    else if (wunsch.toLowerCase() === 'stop') cfg.cover_favorite = 'stop';
+    else if (!isNaN(Number(wunsch))) cfg.cover_favorite = clamp(Math.round(Number(wunsch)), 0, 100);
+    else delete cfg.cover_favorite;
     for (const { field, domain } of ROOM_LISTS) {
       // In welchen Schlüssel geschrieben wird, entscheidet der Bestand:
       // wer `storen:` geschrieben hat, behält `storen:`.
