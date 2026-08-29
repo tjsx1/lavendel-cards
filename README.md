@@ -129,6 +129,11 @@ lights:
 | `icon` | Bereichs-Icon | z. B. `mdi:sofa` |
 | `temperature` | erster Sensor des Bereichs | Anzeige oben rechts |
 | `humidity` | erster Sensor des Bereichs | dito für die Luftfeuchte |
+| `history` | — | Sensor, dessen Verlauf als Fläche hinter der Karte liegt. `true` nimmt den aus `temperature` |
+| `history_hours` | `24` | Zeitfenster des Verlaufs in Stunden |
+| `history_height` | `55` | Höhe der Fläche in Prozent der Karte |
+| `history_opacity` | `0.25` | Deckkraft der Fläche, `0` bis `1` |
+| `history_min_span` | `2` | Kleinste Spanne der Skala, in der Einheit des Sensors |
 | `groups` | `[light, cover, media_player, climate]` | Reihenfolge der Gruppenknöpfe |
 | `color` | `blau` | Kartenfarbe: `blau` `gruen` `gelb` `orange` `rot` `violett` `rosa` — oder ein eigener Hexwert wie `"#00b3a4"` |
 | `label` | `Raum` | Die kleine Zeile über dem Namen |
@@ -137,6 +142,33 @@ lights:
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
 mit Listen bleibt deine Reihenfolge stehen.
+
+**Verlauf im Hintergrund.** Die Karte kann den Verlauf eines Sensors als Fläche
+hinter ihren Inhalt legen — meist die Raumtemperatur, deren Zahl ohnehin oben
+rechts steht. Aus der Zahl wird damit ein Bild: Man sieht, ob es den ganzen Tag
+so warm war oder ob das Zimmer gerade erst aufheizt.
+
+```yaml
+type: custom:onyx-room-card
+area: schlafzimmer
+temperature: sensor.schlafzimmer_temperatur
+history: true            # oder eine eigene Entität
+history_hours: 24
+```
+
+`history: true` nimmt den Sensor aus `temperature` — den eingetragenen oder den
+selbst gefundenen. Steht dort eine Entität, gilt die; ohne `history` bleibt die
+Karte, wie sie war.
+
+Die Werte kommen aus der Historie des Recorders. Hält der für diesen Sensor
+nichts vor, bleibt die Fläche weg und der Rest der Karte steht unverändert.
+Geholt wird höchstens alle fünf Minuten je Karte, gezeichnet werden achtzig
+zusammengefasste Punkte — mehr zeigt ein Tagesverlauf hinter einer Karte ohnehin
+nicht.
+
+`history_min_span` ist die kleinste Spanne, über die sich die Kurve streckt. Ohne
+sie sähe ein Zimmer, das zwischen 25,1 und 25,4 °C steht, aus wie ein Gebirge:
+Die Fläche füllt immer das ganze Band, egal wie klein der gemessene Bereich ist.
 
 **Schalter dürfen in die Lampenliste.** Ein Shelly, der eine Lampe schaltet, ist für
 den Raum eine Lampe — also darf `lights:` neben `light.…` auch `switch.…` enthalten.
