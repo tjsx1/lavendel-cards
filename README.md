@@ -465,7 +465,7 @@ entities:
 | `entities` | — | **Pflicht.** Ein bis vier Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
 | `graphs` | `all` | Wie viele Linien gleichzeitig gezeichnet werden: `all` oder `1` bis `4`. Die Werte rechts erscheinen immer alle |
 | `fill` | `true` | Jede gezeichnete Reihe bekommt ihre Fläche. `false` lässt nur die blossen Linien |
-| `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch |
+| `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch. Gemeint ist der laufende Kalenderzeitraum, nicht die letzten 24 Stunden |
 | `title` | Name des gewählten Werts | Überschrift der Karte |
 | `label` | `Verlauf` | Die kleine Zeile darüber |
 | `icon` | `mdi:chart-line` | Icon im Kreis links |
@@ -475,6 +475,14 @@ entities:
 **Bedienung.** Tippen auf einen Wert macht ihn zur führenden Linie, Halten öffnet sein
 Detailfenster. Der Zeitraum unten links lässt sich antippen und wandert durch
 Tag → Woche → Monat → Jahr, ohne dass du die Konfiguration anfassen musst.
+
+**Der Zeitraum hängt am Kalender.** *Tag* heisst heute ab Mitternacht, nicht die
+letzten vierundzwanzig Stunden — sonst stünde um zehn Uhr morgens die halbe gestrige
+Nacht im Bild. Ebenso beginnt *Woche* am Montag, *Monat* am Ersten und *Jahr* am
+1. Januar; endet wird jeweils jetzt. Ob die Woche am Montag oder am Sonntag anfängt,
+übernimmt die Karte aus der Einstellung von Home Assistant. Kurz nach Mitternacht ist
+die Tageskurve entsprechend kurz — das ist gewollt und nicht der Recorder, der nichts
+hergibt.
 
 **Werte ablesen.** Am Rechner genügt es, mit der Maus über den Graphen zu fahren; am
 Telefon zieht man mit dem Finger darüber. Eine senkrechte Linie zeigt die Stelle, auf

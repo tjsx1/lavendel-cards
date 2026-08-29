@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.6.1';
+const ONYX_VERSION = '1.6.2';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -3160,11 +3160,35 @@ class OnyxActionsCard extends OnyxBase {
  * ================================================================== */
 
 const PERIODS = {
-  tag:   { hours: 24,       stat: null,    ticks: 'time' },
-  woche: { hours: 24 * 7,   stat: 'hour',  ticks: 'day' },
-  monat: { hours: 24 * 30,  stat: 'day',   ticks: 'date' },
-  jahr:  { hours: 24 * 365, stat: 'month', ticks: 'month' }
+  tag:   { stat: null,    ticks: 'time' },
+  woche: { stat: 'hour',  ticks: 'day' },
+  monat: { stat: 'day',   ticks: 'date' },
+  jahr:  { stat: 'month', ticks: 'month' }
 };
+
+/**
+ * Der Anfang des Zeitraums — im Kalender verankert, nicht von jetzt
+ * rückwärts gezählt. "Tag" heisst heute ab Mitternacht, nicht die letzten
+ * vierundzwanzig Stunden; sonst stünde um 10 Uhr die halbe gestrige Nacht
+ * im Bild, und der Wert "heute" der Energie-Karte passte nicht dazu.
+ */
+function periodStart(period, hass) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (period === 'woche') {
+    // Home Assistant kennt den ersten Wochentag; wo es ihn nicht sagt,
+    // gilt Montag — das ist hierzulande der Normalfall.
+    const erst = hass && hass.locale && hass.locale.first_weekday;
+    const sonntag = erst === 'sunday';
+    const wd = d.getDay();                       // 0 = Sonntag
+    d.setDate(d.getDate() - (sonntag ? wd : (wd + 6) % 7));
+  } else if (period === 'monat') {
+    d.setDate(1);
+  } else if (period === 'jahr') {
+    d.setMonth(0, 1);
+  }
+  return d;
+}
 const PERIOD_ALIAS = {
   tag: 'tag', day: 'tag', heute: 'tag',
   woche: 'woche', week: 'woche',
@@ -3428,7 +3452,7 @@ class OnyxChartCard extends OnyxBase {
 
     const def = PERIODS[this._period];
     const end = new Date();
-    const start = new Date(end.getTime() - def.hours * 3600 * 1000);
+    const start = periodStart(this._period, this._hass);
     const ids = this._list().map((e) => e.entity);
 
     try {
