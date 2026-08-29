@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.6.0';
+const ONYX_VERSION = '1.6.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -507,6 +507,9 @@ const STRINGS = {
     'ed.h.navigation_path': 'z. B. /lovelace/wohnzimmer',
     'ed.h.lock_entity': 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
     'ed.h.sensor': 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
+    'ed.fill': 'Flächen einfärben',
+    'ed.h.fill': 'Jede gezeichnete Reihe bekommt ihre Fläche. Aus: nur die blossen '
+      + 'Linien. Je mehr Flächen übereinander liegen, desto blasser wird jede.',
     'ed.graphs': 'Wie viele Linien',
     'ed.graphsAll': 'Alle',
     'ed.graphsOne': 'Nur die gewählte',
@@ -982,6 +985,9 @@ const STRINGS = {
     'ed.h.navigation_path': 'e.g. /lovelace/living-room',
     'ed.h.lock_entity': 'While this entity is "on" the travel buttons are locked',
     'ed.h.sensor': 'Leave empty and the card looks for a sensor in the area itself',
+    'ed.fill': 'Fill the areas',
+    'ed.h.fill': 'Every drawn series gets its area. Off: bare lines only. The more '
+      + 'areas overlap, the fainter each one becomes.',
     'ed.graphs': 'How many lines',
     'ed.graphsAll': 'All',
     'ed.graphsOne': 'Only the selected one',
@@ -3276,7 +3282,7 @@ function smoothPath(pts) {
  * Die Farben der Reihen. Die erste läuft in der Kartenfarbe, die weiteren
  * bekommen feste, gut unterscheidbare Töne. Am Eintrag darf `color:` stehen.
  */
-const CH_FARBEN = ['#2fc48a', '#e8c34a', '#9b7bf5'];
+const CH_FARBEN = ['#2fc48a', '#9b7bf5', '#ef6bb0'];
 function chFarbe(entry, i) {
   const eigen = entry && entry.color;
   if (eigen) {
@@ -3538,8 +3544,15 @@ class OnyxChartCard extends OnyxBase {
     const t1 = Math.max(...voll.map((r) => r[r.length - 1].t));
     const spanne = t1 - t0 || 1;
 
+    // Flächen sind der Normalfall; `fill: false` lässt nur die Linien stehen.
+    // Je mehr Flächen übereinander liegen, desto blasser jede einzelne —
+    // sonst wird aus vier Verläufen ein Brei.
+    const fuellen = this._config.fill !== false;
+    const wieViele = m.gezeichnet.length;
+    const staerke = wieViele <= 1 ? 0.38 : wieViele === 2 ? 0.28 : 0.20;
+
     const geo = [];
-    const defs = [], hinten = [], vorne = [];
+    const defs = [], flaechen = [], linien = [], vorne = [];
     m.items.forEach((it, i) => {
       const pts = reihen[i];
       if (pts.length < 2 || !m.gezeichnet.includes(i)) { geo.push(null); return; }
@@ -3554,16 +3567,18 @@ class OnyxChartCard extends OnyxBase {
       geo.push({ pts, xy });
       const d = smoothPath(xy);
       const fuehrt = i === m.sel;
-      if (fuehrt) {
+      if (fuellen) {
+        // Die geführte Reihe darf etwas kräftiger sein als ihre Begleiter
+        const oben = (fuehrt ? staerke : staerke * 0.7).toFixed(3);
         defs.push(`<linearGradient id="ch${i}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${it.color}" stop-opacity=".38"/>
+          <stop offset="0%" stop-color="${it.color}" stop-opacity="${oben}"/>
           <stop offset="100%" stop-color="${it.color}" stop-opacity="0"/>
         </linearGradient>`);
-        hinten.push(`<path d="${d} L${W} ${H} L0 ${H} Z" fill="url(#ch${i})"/>`);
+        flaechen.push(`<path d="${d} L${W} ${H} L0 ${H} Z" fill="url(#ch${i})"/>`);
       }
-      // Die geführte Linie zuletzt, damit sie über den anderen liegt
-      (fuehrt ? vorne : hinten).push(`<path d="${d}" fill="none" stroke="${it.color}"
-        stroke-width="${fuehrt ? 2 : 1.3}" opacity="${fuehrt ? 1 : 0.65}"
+      // Erst alle Flächen, dann die Linien, die geführte zuoberst
+      (fuehrt ? vorne : linien).push(`<path d="${d}" fill="none" stroke="${it.color}"
+        stroke-width="${fuehrt ? 2 : 1.3}" opacity="${fuehrt ? 1 : 0.75}"
         vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`);
     });
 
@@ -3578,7 +3593,7 @@ class OnyxChartCard extends OnyxBase {
         <defs>${defs.join('')}</defs>
         <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
               stroke-width=".4" stroke-dasharray="1 2"/>
-        ${hinten.join('')}${vorne.join('')}
+        ${flaechen.join('')}${linien.join('')}${vorne.join('')}
       </svg>
       <svg class="ov" id="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
            style="height:${hoehe}px" aria-hidden="true"></svg>
@@ -7673,6 +7688,7 @@ const ED_HELP_KEY = {
   color: 'ed.h.color', area: 'ed.h.area', navigation_path: 'ed.h.navigation_path',
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
+  fill: 'ed.h.fill',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
@@ -8014,7 +8030,7 @@ class OnyxMediaEditor extends OnyxEditor {
  * Diagramm
  * ------------------------------------------------------------------ */
 class OnyxChartEditor extends OnyxEditor {
-  static get DEFAULTS() { return { tinted: false }; }
+  static get DEFAULTS() { return { tinted: false, fill: true }; }
 
   _schema() {
     return [
@@ -8031,7 +8047,8 @@ class OnyxChartEditor extends OnyxEditor {
             }
           }
         },
-        fieldBool('tinted')
+        fieldBool('tinted'),
+        fieldBool('fill')
       ),
       {
         name: 'graphs',
@@ -8056,7 +8073,8 @@ class OnyxChartEditor extends OnyxEditor {
       icon: c.icon || '',
       color: c.color || '',
       period: PERIOD_ALIAS[String(c.period || 'tag').toLowerCase()] || 'tag',
-      tinted: c.tinted === true
+      tinted: c.tinted === true,
+      fill: c.fill !== false
     };
   }
 

@@ -440,8 +440,9 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 ![Diagramm-Karte mit vier Messwerten](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/chart-card.png)
 
 Bis zu vier Messwerte rechts, darunter ihre Verläufe. Der angetippte Wert **führt**:
-seine Linie ist kräftig und bekommt die Fläche, die übrigen laufen als dünne Linien
-mit. Fährt man über den Graphen, erscheint eine Blase mit allen Werten zu dieser Zeit.
+seine Linie ist kräftig, die übrigen laufen dünner mit. Jede bekommt ihre eigene
+eingefärbte Fläche. Fährt man über den Graphen, erscheint eine Blase mit allen Werten
+zu dieser Zeit.
 
 ```yaml
 type: custom:onyx-chart-card
@@ -463,6 +464,7 @@ entities:
 |---|---|---|
 | `entities` | — | **Pflicht.** Ein bis vier Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
 | `graphs` | `all` | Wie viele Linien gleichzeitig gezeichnet werden: `all` oder `1` bis `4`. Die Werte rechts erscheinen immer alle |
+| `fill` | `true` | Jede gezeichnete Reihe bekommt ihre Fläche. `false` lässt nur die blossen Linien |
 | `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch |
 | `title` | Name des gewählten Werts | Überschrift der Karte |
 | `label` | `Verlauf` | Die kleine Zeile darüber |
@@ -500,8 +502,14 @@ der Liste — am Ende geht es vorne weiter. Bei `graphs: 1` verhält sich die Ka
 wie früher: eine Kurve, und Antippen holt eine andere ins Bild. Keine Reihe ist je
 unerreichbar.
 
+**Flächen.** Jede gezeichnete Reihe bekommt eine Fläche in ihrer Farbe, die nach unten
+ausläuft. Je mehr Flächen übereinander liegen, desto blasser wird jede einzelne — bei
+einer Reihe deckt sie 38 %, bei zweien 28 %, ab dreien 20 %; die geführte Reihe bleibt
+dabei etwas kräftiger als ihre Begleiter. Wer lieber nur Linien sieht, setzt
+`fill: false`.
+
 **Farben und Höhe.** Die erste Reihe läuft in der Kartenfarbe, die weiteren in Grün,
-Gelb und Violett. Am einzelnen Eintrag darf `color:` stehen — ein Palettenname oder ein
+Violett und Rosa. Am einzelnen Eintrag darf `color:` stehen — ein Palettenname oder ein
 Hexwert:
 
 ```yaml
