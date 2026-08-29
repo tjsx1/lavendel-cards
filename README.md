@@ -19,7 +19,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
 | `onyx-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
 | `onyx-actions-card` | Schnellzugriffe für Szenen, Skripte und Automationen |
-| `onyx-chart-card` | Bis zu drei Messwerte, einer davon als Verlauf |
+| `onyx-chart-card` | Bis zu vier Messwerte, Verläufe wählbar, Werte beim Ziehen |
 | `onyx-vacuum-card` | Saugroboter mit Akkuring, Raumauswahl und Verbrauchsteilen |
 | `onyx-weather-card` | Wetter mit gezeichneter Szene, Messwerten und Vorhersage |
 | `onyx-light-card` | Licht als eine Zeile; Regler, Farbrad und Effekte klappen aus |
@@ -437,10 +437,11 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 
 ### onyx-chart-card
 
-![Diagramm-Karte mit drei Messwerten](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/chart-card.png)
+![Diagramm-Karte mit vier Messwerten](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/chart-card.png)
 
-Bis zu drei Messwerte rechts, darunter der Verlauf von einem davon. Antippen
-eines Werts wechselt, welcher gezeichnet wird.
+Bis zu vier Messwerte rechts, darunter ihre Verläufe. Der angetippte Wert **führt**:
+seine Linie ist kräftig und bekommt die Fläche, die übrigen laufen als dünne Linien
+mit. Fährt man über den Graphen, erscheint eine Blase mit allen Werten zu dieser Zeit.
 
 ```yaml
 type: custom:onyx-chart-card
@@ -460,7 +461,8 @@ entities:
 
 | Option | Vorgabe | Wirkung |
 |---|---|---|
-| `entities` | — | **Pflicht.** Ein bis drei Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
+| `entities` | — | **Pflicht.** Ein bis vier Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
+| `graphs` | `all` | Wie viele Linien gleichzeitig gezeichnet werden: `all` oder `1` bis `4`. Die Werte rechts erscheinen immer alle |
 | `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch |
 | `title` | Name des gewählten Werts | Überschrift der Karte |
 | `label` | `Verlauf` | Die kleine Zeile darüber |
@@ -468,9 +470,58 @@ entities:
 | `color` | `blau` | Farbe von Linie, Fläche und Icon |
 | `tinted` | `false` | `true` färbt auch den Kartengrund, sonst bleibt er dunkel |
 
-**Bedienung.** Tippen auf einen Wert macht ihn zum Graphen, Halten öffnet sein
+**Bedienung.** Tippen auf einen Wert macht ihn zur führenden Linie, Halten öffnet sein
 Detailfenster. Der Zeitraum unten links lässt sich antippen und wandert durch
 Tag → Woche → Monat → Jahr, ohne dass du die Konfiguration anfassen musst.
+
+**Werte ablesen.** Am Rechner genügt es, mit der Maus über den Graphen zu fahren; am
+Telefon zieht man mit dem Finger darüber. Eine senkrechte Linie zeigt die Stelle, auf
+jeder Kurve sitzt ein Punkt, und die Blase nennt Zeitpunkt und Wert jeder Reihe.
+Senkrechtes Scrollen bleibt dabei unberührt — nur waagrechte Bewegungen gehören der
+Karte. Beim Loslassen verschwindet alles wieder.
+
+**Wie viele Linien.** Vier Werte heissen nicht zwangsläufig vier Linien. `graphs:`
+sagt, wie viele Reihen gleichzeitig gezeichnet werden — die Zahlen rechts stehen
+davon unberührt immer alle da. Ein voller Farbpunkt markiert einen Wert, der gerade
+eine Linie hat; ein leerer Ring einen, der nur als Zahl dabei ist.
+
+```yaml
+type: custom:onyx-chart-card
+graphs: 1            # all (Vorgabe) oder 1 bis 4
+entities:
+  - sensor.leistung
+  - sensor.pv
+  - sensor.temperatur
+  - sensor.feuchte
+```
+
+Gezeichnet wird die **angetippte** Reihe und, bei mehr als einer Linie, die folgenden
+der Liste — am Ende geht es vorne weiter. Bei `graphs: 1` verhält sich die Karte damit
+wie früher: eine Kurve, und Antippen holt eine andere ins Bild. Keine Reihe ist je
+unerreichbar.
+
+**Farben und Höhe.** Die erste Reihe läuft in der Kartenfarbe, die weiteren in Grün,
+Gelb und Violett. Am einzelnen Eintrag darf `color:` stehen — ein Palettenname oder ein
+Hexwert:
+
+```yaml
+entities:
+  - sensor.leistung                 # Kartenfarbe
+  - entity: sensor.pv
+    color: gelb
+  - entity: sensor.temperatur
+    color: "#00b3a4"
+```
+
+Mit jeder zusätzlichen **Linie** wächst das Diagramm — von 96 px bei einer auf 176 px
+bei vier. Sonst verdeckte die Blase mit ihren vier Zeilen die halbe Kurve. Wer mit
+`graphs:` weniger Linien zeigt, bekommt entsprechend die niedrigere Karte.
+
+**Jede Reihe hat ihre eigene Skala.** Watt und Grad auf einer gemeinsamen Achse wären
+unlesbar: die Temperatur wäre ein flacher Strich am Boden. Deshalb wird jede Kurve auf
+ihre eigene Spanne gestreckt. Man sieht damit den Verlauf jeder Reihe, aber die Höhe
+zweier Kurven zueinander bedeutet nichts. Die Zeitachse teilen sich alle, damit der
+Zeiger überall dieselbe Stunde meint.
 
 **Wie die Linie entsteht.** Die Kurve ist eine monotone kubische Interpolation: weich,
 aber ohne Überschwinger. Eine gewöhnliche Spline schiesst nach einer Spitze über den

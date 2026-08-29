@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.5.0';
+const ONYX_VERSION = '1.6.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -421,7 +421,7 @@ const STRINGS = {
     'period.jahr': 'Jahr',
     noHistory: 'Kein Verlauf für diesen Zeitraum',
     historyFailed: 'Verlauf nicht verfügbar',
-    tapToSwitch: 'Wert antippen wechselt den Graphen',
+    tapToSwitch: 'Antippen wechselt, Ziehen zeigt Werte',
 
     'err.entity': 'Entität {id} gibt es nicht.',
     'err.needEntity': 'Bitte "entity" angeben.',
@@ -430,7 +430,7 @@ const STRINGS = {
     'err.color': 'Farbe "{c}" gibt es nicht. Möglich: {list}',
     'err.needActions': 'Bitte "actions:" oder "groups:" mit Einträgen angeben.',
     'err.needEntities': 'Bitte "entities:" mit ein bis drei Sensoren angeben.',
-    'err.tooMany': 'Höchstens drei Entitäten — sonst wird die Spalte zur Liste.',
+    'err.tooMany': 'Höchstens vier Entitäten — sonst wird die Spalte zur Liste.',
     'err.period': 'period muss tag, woche, monat oder jahr sein.',
 
     'card.room': 'Onyx Raum-Karte',
@@ -507,12 +507,19 @@ const STRINGS = {
     'ed.h.navigation_path': 'z. B. /lovelace/wohnzimmer',
     'ed.h.lock_entity': 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
     'ed.h.sensor': 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
-    'ed.h.entities': 'Ein bis drei Messwerte',
+    'ed.graphs': 'Wie viele Linien',
+    'ed.graphsAll': 'Alle',
+    'ed.graphsOne': 'Nur die gewählte',
+    'ed.graphsN': '{n} Linien',
+    'ed.h.graphs': 'Wie viele Reihen gleichzeitig gezeichnet werden. Die Werte '
+      + 'rechts erscheinen immer alle. Gezeichnet wird die angetippte Reihe und, '
+      + 'bei mehr als einer Linie, die folgenden der Liste.',
+    'ed.h.entities': 'Ein bis vier Messwerte. Der angetippte führt und bekommt die Fläche, die übrigen laufen als dünne Linien mit.',
     'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
     'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
       + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
       + 'Code-Editor — der Editor hier lässt sie unangetastet.',
-    'ed.tooMany': 'Höchstens drei Messwerte — die überzähligen wurden verworfen.',
+    'ed.tooMany': 'Höchstens vier Messwerte — die überzähligen wurden verworfen.',
     'ed.addAction': 'Aktion',
     'ed.addGroup': 'Gruppe',
     'ed.shape.squares': 'Quadrate',
@@ -890,7 +897,7 @@ const STRINGS = {
     'period.jahr': 'Year',
     noHistory: 'No history for this period',
     historyFailed: 'History unavailable',
-    tapToSwitch: 'Tap a value to switch the graph',
+    tapToSwitch: 'Tap to switch, drag to read values',
 
     'err.entity': 'Entity {id} does not exist.',
     'err.needEntity': 'Please set "entity".',
@@ -899,7 +906,7 @@ const STRINGS = {
     'err.color': 'Unknown color "{c}". Available: {list}',
     'err.needActions': 'Please set "actions:" or "groups:" with entries.',
     'err.needEntities': 'Please set "entities:" with one to three sensors.',
-    'err.tooMany': 'Three entities at most — beyond that the column becomes a list.',
+    'err.tooMany': 'Four entities at most — beyond that the column becomes a list.',
     'err.period': 'period must be day, week, month or year.',
 
     'card.room': 'Onyx Room Card',
@@ -975,12 +982,19 @@ const STRINGS = {
     'ed.h.navigation_path': 'e.g. /lovelace/living-room',
     'ed.h.lock_entity': 'While this entity is "on" the travel buttons are locked',
     'ed.h.sensor': 'Leave empty and the card looks for a sensor in the area itself',
-    'ed.h.entities': 'One to three readings',
+    'ed.graphs': 'How many lines',
+    'ed.graphsAll': 'All',
+    'ed.graphsOne': 'Only the selected one',
+    'ed.graphsN': '{n} lines',
+    'ed.h.graphs': 'How many series are drawn at once. The values on the right '
+      + 'always show all of them. Drawn are the one you tap and, with more than '
+      + 'one line, the following ones in the list.',
+    'ed.h.entities': 'One to four readings. The one you tap leads and gets the area, the others run along as thin lines.',
     'ed.h.columns': 'Does not apply to tiles and rail',
     'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
       + 'in the area, alphabetically. Per-device names and icons are only available in '
       + 'the code editor — this editor leaves them untouched.',
-    'ed.tooMany': 'Three readings at most — the surplus was dropped.',
+    'ed.tooMany': 'Four readings at most — the surplus was dropped.',
     'ed.addAction': 'Action',
     'ed.addGroup': 'Group',
     'ed.shape.squares': 'Squares',
@@ -1331,7 +1345,9 @@ class OnyxBase extends HTMLElement {
       if (ev.button != null && ev.button > 0) return;   // Rechts- und Mittelklick ignorieren
       down = true; held = false; dragging = false;
       sx = ev.clientX; sy = ev.clientY;
-      el.setPointerCapture && el.setPointerCapture(ev.pointerId);
+      // Ein Zeiger, den der Browser schon losgelassen hat, lässt sich nicht
+      // mehr einfangen — das darf den Rest des Griffs nicht abwürgen.
+      try { el.setPointerCapture && el.setPointerCapture(ev.pointerId); } catch (e) { /* egal */ }
       el.classList.add('held');
       if (opts.onHold) {
         timer = setTimeout(() => { held = true; haptic(this, 'medium'); opts.onHold(); }, holdMs);
@@ -3256,6 +3272,23 @@ function smoothPath(pts) {
   return d;
 }
 
+/**
+ * Die Farben der Reihen. Die erste läuft in der Kartenfarbe, die weiteren
+ * bekommen feste, gut unterscheidbare Töne. Am Eintrag darf `color:` stehen.
+ */
+const CH_FARBEN = ['#2fc48a', '#e8c34a', '#9b7bf5'];
+function chFarbe(entry, i) {
+  const eigen = entry && entry.color;
+  if (eigen) {
+    const name = PALETTES[String(eigen).toLowerCase()];
+    return name ? PAL_HEX[name] : String(eigen);
+  }
+  return i === 0 ? 'var(--acc)' : CH_FARBEN[(i - 1) % CH_FARBEN.length];
+}
+
+/** Je mehr Linien, desto höher das Diagramm — sonst verdeckt die Blase alles */
+const CH_HOEHE = [96, 96, 124, 150, 176];
+
 class OnyxChartCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
@@ -3288,9 +3321,35 @@ class OnyxChartCard extends OnyxBase {
     .v.sel .u{ font-size:13px; color:rgba(255,255,255,.75); }
     .v.sel .cap{ color:var(--acc); }
     .v.held{ opacity:.6; }
+    /* Der Punkt sagt, welche Linie zu welcher Zahl gehört */
+    .v{ display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+    .v .dot{ width:7px; height:7px; border-radius:50%; flex:none; }
+    /* Ein Wert ohne Linie hält den Platz, bleibt aber unbemalt */
+    .v .dot.leer{ background:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+    .v .stapel{ display:flex; flex-direction:column; align-items:flex-end; }
 
-    .chart{ position:relative; }
+    /* pan-y: senkrechtes Scrollen bleibt beim Browser, waagrechtes Ziehen
+       gehört uns — so lässt sich am Telefon über die Kurve fahren. */
+    .chart{ position:relative; touch-action:pan-y; }
     svg{ display:block; width:100%; height:96px; overflow:visible; }
+    svg.ov{ position:absolute; left:0; top:0; right:0; pointer-events:none; }
+    /* Die Punkte auf den Kurven sind HTML, nicht SVG: das Diagramm wird
+       ungleichmässig gestreckt, ein <circle> darin wäre ein Ei. */
+    .pts{ position:absolute; left:0; right:0; top:0; pointer-events:none; }
+    .pts i{ position:absolute; width:9px; height:9px; border-radius:50%;
+            transform:translate(-50%,-50%); box-shadow:0 0 0 2px rgba(12,14,18,.85); }
+
+    /* Die Blase beim Fahren über den Graphen */
+    .blase{ position:absolute; z-index:3; top:2px; transform:translateX(-50%);
+            background:rgba(20,22,28,.92); border:1px solid rgba(255,255,255,.10);
+            border-radius:11px; padding:6px 8px; pointer-events:none; white-space:nowrap;
+            box-shadow:0 8px 24px rgba(0,0,0,.5); }
+    .blase[hidden]{ display:none; }
+    .blase .zeit{ font-size:10px; line-height:13px; color:#8fa3b5; margin-bottom:2px; }
+    .blase .r{ display:flex; align-items:center; gap:5px; font-size:11px; color:#dbe6f0;
+               line-height:15px; font-variant-numeric:tabular-nums; }
+    .blase .r i{ width:6px; height:6px; border-radius:50%; flex:none; }
+    .blase .r b{ font-weight:600; margin-left:auto; padding-left:11px; }
     .axis{ display:flex; justify-content:space-between; margin-top:4px; }
     .axis span{ font-size:10px; color:#5d6b7a; font-variant-numeric:tabular-nums; }
 
@@ -3315,10 +3374,25 @@ class OnyxChartCard extends OnyxBase {
     };
   }
 
+  /**
+   * Wie viele Linien gezeichnet werden. `all` (Vorgabe) heisst alle, eine
+   * Zahl heisst: die gewählte Reihe und die folgenden der Liste, umlaufend.
+   * So bleibt bei `graphs: 1` jede Reihe durch Antippen erreichbar.
+   */
+  _graphCount() {
+    const roh = this._config.graphs;
+    if (roh == null || roh === '') return null;
+    const wort = String(roh).toLowerCase();
+    if (wort === 'all' || wort === 'alle') return null;
+    const n = Number(roh);
+    if (isNaN(n) || n < 1) return null;
+    return Math.min(Math.round(n), 4);
+  }
+
   setConfig(config) {
     const list = normList(config.entities);
     if (!list || !list.length) throw new Error(t('err.needEntities'));
-    if (list.length > 3) throw new Error(t('err.tooMany'));
+    if (list.length > 4) throw new Error(t('err.tooMany'));
     const p = PERIOD_ALIAS[String(config.period || 'tag').toLowerCase()];
     if (!p) throw new Error(t('err.period'));
     this._period = this._period || p;
@@ -3400,6 +3474,7 @@ class OnyxChartCard extends OnyxBase {
       const pts = (this._series && this._series[e.entity]) || [];
       return {
         id: e.entity, i,
+        color: chFarbe(e, i),
         name: e.name || nameOf(hass, e.entity),
         unit: e.unit || (st && st.attributes.unit_of_measurement) || '',
         value: isNaN(raw) ? null : raw,
@@ -3409,6 +3484,11 @@ class OnyxChartCard extends OnyxBase {
       };
     });
     const sel = Math.min(this._sel, items.length - 1);
+    const wieViele = this._graphCount();
+    const gezeichnet = wieViele == null
+      ? items.map((_, i) => i)
+      : Array.from({ length: Math.min(wieViele, items.length) },
+          (_, k) => (sel + k) % items.length);
     return {
       title: this._config.title || null,
       label: this._config.label || t('history'),
@@ -3416,7 +3496,7 @@ class OnyxChartCard extends OnyxBase {
       color: this._config.color || null,
       tinted: this._config.tinted === true,
       period: this._period,
-      items, sel,
+      items, sel, gezeichnet,
       error: this._error || null
     };
   }
@@ -3433,58 +3513,105 @@ class OnyxChartCard extends OnyxBase {
     return [f(new Date(from)), f(mid), f(new Date(to))];
   }
 
+  /**
+   * Alle Reihen in einem Bild. Jede wird auf ihre eigene Spanne skaliert —
+   * Watt neben Grad auf einer gemeinsamen Achse wäre unlesbar. Die Zeitachse
+   * teilen sich alle, damit der Zeiger überall dieselbe Stunde meint.
+   */
   _chart(m) {
-    const it = m.items[m.sel];
-    const raw = (this._series && this._series[it.id]) || [];
+    this._geo = null;
     if (m.error) return `<div class="empty">${esc(m.error)}</div>`;
-    if (raw.length < 2) return `<div class="empty">${esc(t('noHistory'))}</div>`;
+
     // Nur die rohe Historie wird zusammengefasst und geglättet — sie
     // liefert Hunderte zappelnder Punkte. Langzeitstatistiken sind bereits
     // gemittelt; die bleiben unangetastet, sonst würden aus gemessenen
     // Monatswerten weichgezeichnete Näherungen.
-    const pts = raw.length > 48 ? soften(resample(raw, 48)) : raw;
+    const reihen = m.items.map((it) => {
+      const roh = (this._series && this._series[it.id]) || [];
+      return roh.length > 48 ? soften(resample(roh, 48)) : roh;
+    });
+    const voll = reihen.filter((r, i) => r.length >= 2 && m.gezeichnet.includes(i));
+    if (!voll.length) return `<div class="empty">${esc(t('noHistory'))}</div>`;
 
-    const W = 100, H = 40, pad = 1.5;          // in viewBox-Einheiten
-    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
-    let lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
-    if (hi === lo) { hi = lo + 1; lo -= 1; }
-    const span = hi - lo;
-    lo -= span * 0.12; hi += span * 0.12;
+    const W = 100, H = 40, pad = 1.5;
+    const t0 = Math.min(...voll.map((r) => r[0].t));
+    const t1 = Math.max(...voll.map((r) => r[r.length - 1].t));
+    const spanne = t1 - t0 || 1;
 
-    const xy = pts.map((p) => [
-      ((p.t - t0) / (t1 - t0 || 1)) * W,
-      H - pad - ((p.v - lo) / (hi - lo)) * (H - pad * 2)
-    ]);
-    const line = smoothPath(xy);
-    const area = `${line} L${W} ${H} L0 ${H} Z`;
+    const geo = [];
+    const defs = [], hinten = [], vorne = [];
+    m.items.forEach((it, i) => {
+      const pts = reihen[i];
+      if (pts.length < 2 || !m.gezeichnet.includes(i)) { geo.push(null); return; }
+      let lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
+      if (hi === lo) { hi = lo + 1; lo -= 1; }
+      const sp = hi - lo;
+      lo -= sp * 0.12; hi += sp * 0.12;
+      const xy = pts.map((p) => [
+        ((p.t - t0) / spanne) * W,
+        H - pad - ((p.v - lo) / (hi - lo)) * (H - pad * 2)
+      ]);
+      geo.push({ pts, xy });
+      const d = smoothPath(xy);
+      const fuehrt = i === m.sel;
+      if (fuehrt) {
+        defs.push(`<linearGradient id="ch${i}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${it.color}" stop-opacity=".38"/>
+          <stop offset="100%" stop-color="${it.color}" stop-opacity="0"/>
+        </linearGradient>`);
+        hinten.push(`<path d="${d} L${W} ${H} L0 ${H} Z" fill="url(#ch${i})"/>`);
+      }
+      // Die geführte Linie zuletzt, damit sie über den anderen liegt
+      (fuehrt ? vorne : hinten).push(`<path d="${d}" fill="none" stroke="${it.color}"
+        stroke-width="${fuehrt ? 2 : 1.3}" opacity="${fuehrt ? 1 : 0.65}"
+        vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`);
+    });
+
+    const hoehe = CH_HOEHE[Math.min(geo.filter(Boolean).length, 4)];
+    this._geo = { t0, t1, reihen: geo };
     const ticks = this._tickLabels(t0, t1);
-    const gid = 'g' + m.sel;
 
     return `
-    <div class="chart">
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--acc)" stop-opacity=".38"/>
-            <stop offset="100%" stop-color="var(--acc)" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
+    <div class="chart" id="chart">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${hoehe}px"
+           aria-hidden="true">
+        <defs>${defs.join('')}</defs>
         <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
               stroke-width=".4" stroke-dasharray="1 2"/>
-        <path d="${area}" fill="url(#${gid})"/>
-        <path d="${line}" fill="none" stroke="var(--acc)" stroke-width="2"
-              vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+        ${hinten.join('')}${vorne.join('')}
       </svg>
+      <svg class="ov" id="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+           style="height:${hoehe}px" aria-hidden="true"></svg>
+      <div class="pts" id="pts" style="height:${hoehe}px"></div>
+      <div class="blase" id="blase" hidden></div>
       <div class="axis">${ticks.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
     </div>`;
   }
 
+  /** Die Zeit unter dem Zeiger, so genau wie der Zeitraum es hergibt */
+  _zeitText(ms) {
+    const d = new Date(ms);
+    if (this._period === 'tag' || this._period === 'woche') {
+      return `${fmtDate(d, { weekday: 'short' })}, ${fmtTime(d)}`;
+    }
+    if (this._period === 'monat') return fmtDate(d, { day: '2-digit', month: 'long' });
+    return fmtDate(d, { month: 'long', year: 'numeric' });
+  }
+
   _html(m) {
     const { cls, style } = paletteAttrs(m.color);
+    // Der Farbpunkt sagt, welcher Wert im Bild eine Linie hat. Bei einer
+    // einzigen Reihe erklärt er nichts und bleibt weg.
+    const punkte = m.items.length > 1;
     const vals = m.items.map((it) => `
       <div class="v ${it.i === m.sel ? 'sel' : ''}" data-i="${it.i}">
-        <div><span class="n">${it.dead ? '–' : esc(nfmt(it.value))}</span><span class="u">${esc(it.unit)}</span></div>
-        <div class="cap">${esc(it.name)}</div>
+        ${punkte && m.gezeichnet.includes(it.i)
+          ? `<span class="dot" style="background:${it.color}"></span>`
+          : (punkte ? '<span class="dot leer"></span>' : '')}
+        <div class="stapel">
+          <div><span class="n">${it.dead ? '–' : esc(nfmt(it.value))}</span><span class="u">${esc(it.unit)}</span></div>
+          <div class="cap">${esc(it.name)}</div>
+        </div>
       </div>`).join('');
 
     return `
@@ -3525,9 +3652,89 @@ class OnyxChartCard extends OnyxBase {
         this._repaint();
       }
     });
+
+    const chart = root.getElementById('chart');
+    if (chart && this._geo) this._scrub(chart, m);
   }
 
-  getCardSize() { return 4; }
+  /**
+   * Über den Graphen fahren: senkrechte Linie, ein Punkt je Reihe und eine
+   * Blase mit allen Werten zu dieser Zeit. Am Telefon ist es Ziehen, am
+   * Rechner das blosse Darüberfahren.
+   */
+  _scrub(box, m) {
+    const root = this.shadowRoot;
+    const ov = root.getElementById('ov');
+    const pts = root.getElementById('pts');
+    const blase = root.getElementById('blase');
+    if (!ov || !pts || !blase) return;
+    const geo = this._geo;
+    let zieht = false;
+
+    const aus = () => {
+      zieht = false;
+      ov.textContent = '';
+      pts.textContent = '';
+      blase.hidden = true;
+      // Die Sperre wieder lösen: Neuaufbauten sind während des Fahrens
+      // gesperrt, damit die Blase nicht bei jedem Zustandswechsel im Haus
+      // verschwindet. Bliebe sie stehen, fröre die Karte ein.
+      if (this._busy) { this._busy = false; this._tryRender(); }
+    };
+
+    const an = (ev) => {
+      const r = box.getBoundingClientRect();
+      if (!r.width) return;
+      const x = clamp((ev.clientX - r.left) / r.width, 0, 1);
+      const zeit = geo.t0 + x * (geo.t1 - geo.t0);
+
+      const marken = [], zeilen = [];
+      geo.reihen.forEach((g, i) => {
+        if (!g) return;
+        let k = 0, naechste = Infinity;
+        for (let j = 0; j < g.pts.length; j++) {
+          const d = Math.abs(g.pts[j].t - zeit);
+          if (d < naechste) { naechste = d; k = j; }
+        }
+        const it = m.items[i];
+        marken.push(`<i style="left:${g.xy[k][0].toFixed(2)}%;
+          top:${(g.xy[k][1] / 40 * 100).toFixed(2)}%; background:${it.color}"></i>`);
+        zeilen.push(`<div class="r"><i style="background:${it.color}"></i>
+          <span>${esc(it.name)}</span>
+          <b>${esc(nfmt(g.pts[k].v))}${it.unit ? ' ' + esc(it.unit) : ''}</b></div>`);
+      });
+      if (!zeilen.length) return;
+
+      const px = (x * 100).toFixed(2);
+      ov.innerHTML = `<line x1="${px}" y1="0" x2="${px}" y2="40"
+        stroke="rgba(255,255,255,.22)" stroke-width=".5" stroke-dasharray="1.5 1.5"
+        vector-effect="non-scaling-stroke"/>`;
+      pts.innerHTML = marken.join('');
+      blase.innerHTML = `<div class="zeit">${esc(this._zeitText(zeit))}</div>${zeilen.join('')}`;
+      blase.hidden = false;
+      // Die Blase bleibt in der Karte, auch am Rand
+      const halb = blase.offsetWidth / 2;
+      blase.style.left =
+        clamp(x * r.width, halb + 2, Math.max(halb + 2, r.width - halb - 2)) + 'px';
+      this._busy = true;
+    };
+
+    box.addEventListener('pointerdown', (ev) => {
+      if (ev.button != null && ev.button > 0) return;
+      zieht = true;
+      an(ev);
+    });
+    box.addEventListener('pointermove', (ev) => {
+      if (zieht || ev.pointerType === 'mouse') an(ev);
+    });
+    box.addEventListener('pointerup', aus);
+    box.addEventListener('pointercancel', aus);
+    box.addEventListener('pointerleave', aus);
+  }
+
+  getCardSize() {
+    try { return 3 + Math.min(this._list().length, 4); } catch (e) { return 4; }
+  }
 }
 
 /* ================================================================== *
@@ -7465,7 +7672,7 @@ function ensureFormLoaded() {
 const ED_HELP_KEY = {
   color: 'ed.h.color', area: 'ed.h.area', navigation_path: 'ed.h.navigation_path',
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
-  entities: 'ed.h.entities', columns: 'ed.h.columns',
+  entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
@@ -7825,12 +8032,24 @@ class OnyxChartEditor extends OnyxEditor {
           }
         },
         fieldBool('tinted')
-      )
+      ),
+      {
+        name: 'graphs',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [{ value: 'all', label: t('ed.graphsAll') }]
+              .concat([1, 2, 3, 4].map((n) => ({ value: String(n),
+                label: t(n === 1 ? 'ed.graphsOne' : 'ed.graphsN', { n }) })))
+          }
+        }
+      }
     ];
   }
 
   _toForm(c) {
     return {
+      graphs: c.graphs == null || c.graphs === '' ? 'all' : String(c.graphs),
       entities: (normList(c.entities) || []).map((e) => e.entity),
       title: c.title || '',
       label: c.label || '',
@@ -7843,10 +8062,13 @@ class OnyxChartEditor extends OnyxEditor {
 
   _fromForm(data) {
     const cfg = Object.assign({}, this._config, data);
-    // Die Karte verträgt höchstens drei — lieber hier abschneiden als
+    // Die Karte verträgt höchstens vier — lieber hier abschneiden als
     // eine Konfiguration speichern, die beim Laden auf einen Fehler läuft.
-    const ids = (data.entities || []).slice(0, 3);
-    this._tooMany = (data.entities || []).length > 3;
+    const ids = (data.entities || []).slice(0, 4);
+    this._tooMany = (data.entities || []).length > 4;
+    // "alle" ist der Normalfall und muss nicht in der YAML stehen
+    if (!data.graphs || data.graphs === 'all') delete cfg.graphs;
+    else cfg.graphs = Number(data.graphs);
     cfg.entities = mergeList(ids, this._config.entities);
     return cfg;
   }
