@@ -1565,8 +1565,11 @@ class OnyxRoomCard extends OnyxBase {
        sonst zeigt. Beschnitten wird er vom overflow:hidden der Karte,
        also sauber an den runden Ecken. */
     ha-card > *:not(.spark){ position:relative; z-index:1; }
-    /* Breite ausdrücklich: ein SVG ohne width-Angabe brächte sonst seine
-       eigene Vorgabe von 300 Bildpunkten mit und endete mitten in der Karte. */
+    /* Breite ausdrücklich: ein absolut gesetztes SVG mit Höhe und width:auto
+       ist über-bestimmt. Der Browser verwirft dann right:0 und rechnet die
+       Breite aus dem Seitenverhältnis der viewBox (100:100) — ein Quadrat in
+       der Ecke statt eines Bands über die ganze Karte. preserveAspectRatio
+       hilft nicht, das wirkt erst beim Zeichnen des Inhalts. */
     .spark{ position:absolute; left:0; right:0; bottom:0; width:100%; z-index:0;
             pointer-events:none; display:block; }
     .spark .fill{ fill:var(--acc); }
