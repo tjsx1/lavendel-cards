@@ -148,6 +148,8 @@ hinter ihren Inhalt legen — meist die Raumtemperatur, deren Zahl ohnehin oben
 rechts steht. Aus der Zahl wird damit ein Bild: Man sieht, ob es den ganzen Tag
 so warm war oder ob das Zimmer gerade erst aufheizt.
 
+![Raum-Karte mit Temperaturverlauf im Hintergrund](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-card-history.png)
+
 ```yaml
 type: custom:onyx-room-card
 area: schlafzimmer
