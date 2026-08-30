@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.6.2';
+const ONYX_VERSION = '1.7.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -507,6 +507,21 @@ const STRINGS = {
     'ed.h.navigation_path': 'z. B. /lovelace/wohnzimmer',
     'ed.h.lock_entity': 'Steht diese Entität auf "an", sind die Fahrtasten gesperrt',
     'ed.h.sensor': 'Leer lassen: die Karte sucht selbst einen Sensor im Bereich',
+    'ed.reihen': 'Die einzelnen Reihen',
+    'ed.h.reihen': 'Je Reihe ein eigener Name, eine eigene Einheit und eine eigene '
+      + 'Farbe. Darunter lässt sich für Woche, Monat und Jahr ein anderer Sensor '
+      + 'hinterlegen — eine Momentanleistung taugt übers Jahr nichts, ein '
+      + 'Zählerstand schon.',
+    'ed.unit': 'Einheit',
+    'ed.h.unit': 'Überschreibt nur die Beschriftung, gerechnet wird nichts um. '
+      + 'Leer lassen: dann gilt die Einheit der Entität.',
+    'ed.y_axis': 'Werte an der Y-Achse',
+    'ed.h.y_axis': 'Höchster, mittlerer und tiefster Wert am linken Rand. Sie '
+      + 'gehören der geführten Reihe — jede Reihe hat ihre eigene Skala.',
+    'ed.woche': 'Sensor für die Woche',
+    'ed.monat': 'Sensor für den Monat',
+    'ed.jahr': 'Sensor für das Jahr',
+    'ed.h.perEntity': 'Leer lassen: dann gilt die Entität von oben',
     'ed.fill': 'Flächen einfärben',
     'ed.h.fill': 'Jede gezeichnete Reihe bekommt ihre Fläche. Aus: nur die blossen '
       + 'Linien. Je mehr Flächen übereinander liegen, desto blasser wird jede.',
@@ -985,6 +1000,20 @@ const STRINGS = {
     'ed.h.navigation_path': 'e.g. /lovelace/living-room',
     'ed.h.lock_entity': 'While this entity is "on" the travel buttons are locked',
     'ed.h.sensor': 'Leave empty and the card looks for a sensor in the area itself',
+    'ed.reihen': 'The individual series',
+    'ed.h.reihen': 'Each series gets its own name, unit and colour. Below that you '
+      + 'can name a different sensor for week, month and year — an instantaneous '
+      + 'power reading is useless over a year, a meter total is not.',
+    'ed.unit': 'Unit',
+    'ed.h.unit': 'Overrides the label only, nothing is converted. Leave empty and '
+      + 'the unit of the entity applies.',
+    'ed.y_axis': 'Values on the Y axis',
+    'ed.h.y_axis': 'Highest, middle and lowest value along the left edge. They '
+      + 'belong to the leading series — every series has its own scale.',
+    'ed.woche': 'Sensor for the week',
+    'ed.monat': 'Sensor for the month',
+    'ed.jahr': 'Sensor for the year',
+    'ed.h.perEntity': 'Leave empty and the entity above applies',
     'ed.fill': 'Fill the areas',
     'ed.h.fill': 'Every drawn series gets its area. Off: bare lines only. The more '
       + 'areas overlap, the fainter each one becomes.',
@@ -3316,6 +3345,25 @@ function chFarbe(entry, i) {
   return i === 0 ? 'var(--acc)' : CH_FARBEN[(i - 1) % CH_FARBEN.length];
 }
 
+/**
+ * Welcher Sensor für welchen Zeitraum. Eine Momentanleistung in Watt taugt
+ * übers Jahr nichts, ein Zählerstand in Kilowattstunden dagegen schon —
+ * deshalb darf jeder Eintrag je Zeitraum eine eigene Entität nennen.
+ * Ohne Angabe gilt `entity`.
+ */
+const CH_PERIOD_KEYS = {
+  tag:   ['tag', 'day'],
+  woche: ['woche', 'week'],
+  monat: ['monat', 'month'],
+  jahr:  ['jahr', 'year']
+};
+function chEntity(entry, period) {
+  for (const k of (CH_PERIOD_KEYS[period] || [])) {
+    if (entry && entry[k]) return String(entry[k]);
+  }
+  return entry ? entry.entity : '';
+}
+
 /** Je mehr Linien, desto höher das Diagramm — sonst verdeckt die Blase alles */
 const CH_HOEHE = [96, 96, 124, 150, 176];
 
@@ -3380,6 +3428,15 @@ class OnyxChartCard extends OnyxBase {
                line-height:15px; font-variant-numeric:tabular-nums; }
     .blase .r i{ width:6px; height:6px; border-radius:50%; flex:none; }
     .blase .r b{ font-weight:600; margin-left:auto; padding-left:11px; }
+    /* Die Y-Achse gehört der geführten Reihe — jede Reihe hat ihre eigene
+       Skala, eine gemeinsame Achse gäbe es also gar nicht. */
+    .yax{ position:absolute; left:0; top:0; right:0; pointer-events:none; }
+    .yax span{ position:absolute; left:0; transform:translateY(-50%);
+               font-size:9.5px; line-height:12px; color:#6b7a89;
+               font-variant-numeric:tabular-nums; white-space:nowrap;
+               padding:0 4px; border-radius:5px; background:rgba(12,14,18,.55); }
+    .yax i{ position:absolute; left:0; right:0; height:0;
+            border-top:1px dashed rgba(255,255,255,.07); }
     .axis{ display:flex; justify-content:space-between; margin-top:4px; }
     .axis span{ font-size:10px; color:#5d6b7a; font-variant-numeric:tabular-nums; }
 
@@ -3440,7 +3497,10 @@ class OnyxChartCard extends OnyxBase {
 
   _list() { return normList(this._config.entities) || []; }
 
-  _key() { return this._list().map((e) => e.entity).join('|') + '@' + this._period; }
+  /** Die Entitäten, wie sie für den gerade gewählten Zeitraum gelten */
+  _ids() { return this._list().map((e) => chEntity(e, this._period)); }
+
+  _key() { return this._ids().join('|') + '@' + this._period; }
 
   /** Verlauf holen: kurzer Zeitraum aus der Historie, längere aus den Statistiken */
   async _maybeFetch(force) {
@@ -3453,7 +3513,7 @@ class OnyxChartCard extends OnyxBase {
     const def = PERIODS[this._period];
     const end = new Date();
     const start = periodStart(this._period, this._hass);
-    const ids = this._list().map((e) => e.entity);
+    const ids = this._ids();
 
     try {
       let series = {};
@@ -3499,13 +3559,14 @@ class OnyxChartCard extends OnyxBase {
   _model() {
     const hass = this._hass;
     const items = this._list().map((e, i) => {
-      const st = hass.states[e.entity];
+      const id = chEntity(e, this._period);
+      const st = hass.states[id];
       const raw = st ? parseFloat(st.state) : NaN;
-      const pts = (this._series && this._series[e.entity]) || [];
+      const pts = (this._series && this._series[id]) || [];
       return {
-        id: e.entity, i,
+        id, i,
         color: chFarbe(e, i),
-        name: e.name || nameOf(hass, e.entity),
+        name: e.name || nameOf(hass, id),
         unit: e.unit || (st && st.attributes.unit_of_measurement) || '',
         value: isNaN(raw) ? null : raw,
         dead: isDead(st),
@@ -3588,7 +3649,7 @@ class OnyxChartCard extends OnyxBase {
         ((p.t - t0) / spanne) * W,
         H - pad - ((p.v - lo) / (hi - lo)) * (H - pad * 2)
       ]);
-      geo.push({ pts, xy });
+      geo.push({ pts, xy, lo, hi });
       const d = smoothPath(xy);
       const fuehrt = i === m.sel;
       if (fuellen) {
@@ -3609,6 +3670,7 @@ class OnyxChartCard extends OnyxBase {
     const hoehe = CH_HOEHE[Math.min(geo.filter(Boolean).length, 4)];
     this._geo = { t0, t1, reihen: geo };
     const ticks = this._tickLabels(t0, t1);
+    const yachse = this._yAxis(m, geo, H, pad, hoehe);
 
     return `
     <div class="chart" id="chart">
@@ -3621,10 +3683,39 @@ class OnyxChartCard extends OnyxBase {
       </svg>
       <svg class="ov" id="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
            style="height:${hoehe}px" aria-hidden="true"></svg>
+      ${yachse}
       <div class="pts" id="pts" style="height:${hoehe}px"></div>
       <div class="blase" id="blase" hidden></div>
       <div class="axis">${ticks.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
     </div>`;
+  }
+
+  /**
+   * Die Beschriftung am linken Rand. Sie gehört der geführten Reihe: weil
+   * jede Reihe auf ihre eigene Spanne gestreckt wird, gäbe es eine für alle
+   * gültige Achse gar nicht. Angeschrieben werden der höchste und der
+   * niedrigste gemessene Wert, dazu die Mitte dazwischen.
+   */
+  _yAxis(m, geo, H, pad, hoehe) {
+    if (this._config.y_axis === false) return '';
+    const g = geo[m.sel] || geo.find(Boolean);
+    if (!g) return '';
+    const it = m.items[geo.indexOf(g)] || m.items[m.sel];
+    let min = Infinity, max = -Infinity;
+    for (const p of g.pts) { if (p.v < min) min = p.v; if (p.v > max) max = p.v; }
+    if (!isFinite(min) || !isFinite(max)) return '';
+
+    // Von Wert zu Bildpunkt — dieselbe Rechnung wie bei der Kurve. Die
+    // Beschriftung wird dabei ins Bild gezogen: der höchste Messwert sitzt
+    // ganz oben, und eine halbe Zeile davon stünde sonst über dem Rand.
+    const roh = (v) => (H - pad - ((v - g.lo) / (g.hi - g.lo)) * (H - pad * 2)) / H * hoehe;
+    const y = (v) => clamp(roh(v), 7, Math.max(7, hoehe - 7));
+    const einheit = it && it.unit ? ' ' + it.unit : '';
+    const marken = max === min ? [max] : [max, (max + min) / 2, min];
+
+    return `<div class="yax" style="height:${hoehe}px">${marken.map((v) => `
+      <i style="top:${roh(v).toFixed(1)}px"></i>
+      <span style="top:${y(v).toFixed(1)}px">${esc(nfmt(v))}${esc(einheit)}</span>`).join('')}</div>`;
   }
 
   /** Die Zeit unter dem Zeiger, so genau wie der Zeitraum es hergibt */
@@ -7712,7 +7803,8 @@ const ED_HELP_KEY = {
   color: 'ed.h.color', area: 'ed.h.area', navigation_path: 'ed.h.navigation_path',
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
-  fill: 'ed.h.fill',
+  fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
+  woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
@@ -7961,6 +8053,26 @@ class OnyxEditor extends HTMLElement {
     form.data = data;
   }
 
+  /** Ein kleiner Knopf im Stil des Editors */
+  _btn(icon, text, onClick, cls, title) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (cls ? ' ' + cls : '');
+    b.type = 'button';
+    b.innerHTML = `<ha-icon icon="${icon}"></ha-icon>${text ? '<span></span>' : ''}`;
+    if (text) b.querySelector('span').textContent = text;
+    if (title) b.title = title;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  /** Eine Zwischenüberschrift */
+  _section(label) {
+    const h = document.createElement('div');
+    h.className = 'sec';
+    h.textContent = label;
+    return h;
+  }
+
   _render() {
     if (!this._config || !this._hass) return;
     const root = this._root();
@@ -8054,7 +8166,7 @@ class OnyxMediaEditor extends OnyxEditor {
  * Diagramm
  * ------------------------------------------------------------------ */
 class OnyxChartEditor extends OnyxEditor {
-  static get DEFAULTS() { return { tinted: false, fill: true }; }
+  static get DEFAULTS() { return { tinted: false, fill: true, y_axis: true }; }
 
   _schema() {
     return [
@@ -8072,7 +8184,8 @@ class OnyxChartEditor extends OnyxEditor {
           }
         },
         fieldBool('tinted'),
-        fieldBool('fill')
+        fieldBool('fill'),
+        fieldBool('y_axis')
       ),
       {
         name: 'graphs',
@@ -8098,7 +8211,8 @@ class OnyxChartEditor extends OnyxEditor {
       color: c.color || '',
       period: PERIOD_ALIAS[String(c.period || 'tag').toLowerCase()] || 'tag',
       tinted: c.tinted === true,
-      fill: c.fill !== false
+      fill: c.fill !== false,
+      y_axis: c.y_axis !== false
     };
   }
 
@@ -8115,13 +8229,121 @@ class OnyxChartEditor extends OnyxEditor {
     return cfg;
   }
 
+  /** Die Felder einer einzelnen Reihe */
+  _reiheSchema() {
+    const SENS = ['sensor', 'counter', 'input_number', 'number'];
+    return [
+      grid(fieldText('name'), fieldText('unit')),
+      fieldColor(),
+      grid(fieldEntity('woche', SENS), fieldEntity('monat', SENS)),
+      fieldEntity('jahr', SENS)
+    ];
+  }
+
+  /** Was der Streifen zeigt, solange die Reihe zu ist */
+  _reiheZeile(e) {
+    const teile = [];
+    if (e.unit) teile.push(e.unit);
+    for (const k of ['woche', 'monat', 'jahr']) {
+      if (e[k]) teile.push(t('period.' + k));
+    }
+    return teile.length ? teile.join(' \u00b7 ') : e.entity;
+  }
+
+  /** Eine Reihe schreiben — leere Felder fliegen wieder raus */
+  _setReihe(i, daten) {
+    const liste = normList(this._config.entities) || [];
+    if (!liste[i]) return;
+    const e = Object.assign({}, liste[i]);
+    for (const k of ['name', 'unit', 'color', 'woche', 'monat', 'jahr']) {
+      const v = daten[k];
+      if (v == null || v === '') delete e[k];
+      else e[k] = v;
+    }
+    const neu = liste.map((alt, k) => {
+      const o = k === i ? e : alt;
+      // Trägt der Eintrag nichts ausser der Entität, bleibt er die kurze Form
+      return Object.keys(o).length > 1 ? o : o.entity;
+    });
+    const cfg = Object.assign({}, this._config, { entities: neu });
+    this._reihenSig = null;
+    this._emit(cfg);
+  }
+
   _extra(root) {
     if (!this._note) {
       this._note = document.createElement('p');
       this._note.className = 'warn';
       root.appendChild(this._note);
+      root.appendChild(this._section(t('ed.reihen')));
+      this._reihenHint = document.createElement('p');
+      this._reihenHint.className = 'hint';
+      this._reihenHint.textContent = t('ed.h.reihen');
+      root.appendChild(this._reihenHint);
+      this._reihenBox = document.createElement('div');
+      this._reihenBox.className = 'items';
+      root.appendChild(this._reihenBox);
     }
     this._note.textContent = this._tooMany ? t('ed.tooMany') : '';
+
+    const liste = normList(this._config.entities) || [];
+    const sig = [this._reihenOffen, liste.map((e) => JSON.stringify(e)).join('|')].join('~');
+    if (sig === this._reihenSig) {
+      for (const f of this._reihenForms) this._fillForm(f.form, f.schema, f.data);
+      return;
+    }
+    this._reihenSig = sig;
+    this._reihenForms = [];
+    this._reihenBox.textContent = '';
+
+    liste.forEach((e, i) => {
+      const offen = this._reihenOffen === e.entity;
+      const box = document.createElement('div');
+      box.className = 'item' + (offen ? ' on' : '');
+
+      const strip = document.createElement('div');
+      strip.className = 'strip';
+      strip.innerHTML = `
+        <span class="ic"><ha-icon icon="mdi:chart-line"></ha-icon></span>
+        <span class="tx"><span class="n"></span><span class="d"></span></span>`;
+      strip.querySelector('.n').textContent = e.name || nameOf(this._hass, e.entity);
+      strip.querySelector('.d').textContent = this._reiheZeile(e);
+      const auf = () => {
+        this._reihenOffen = offen ? null : e.entity;
+        this._reihenSig = null;
+        this._render();
+      };
+      strip.addEventListener('click', (ev) => {
+        if (ev.target.closest('.tools')) return;
+        auf();
+      });
+      const tools = document.createElement('span');
+      tools.className = 'tools';
+      tools.appendChild(this._btn(offen ? 'mdi:chevron-up' : 'mdi:chevron-down', '',
+        auf, 'x'));
+      strip.appendChild(tools);
+      box.appendChild(strip);
+
+      if (offen) {
+        const body = document.createElement('div');
+        body.className = 'body';
+        const form = this._makeForm((d) => this._setReihe(i, d));
+        this._reihenForms.push({
+          form,
+          schema: this._reiheSchema(),
+          data: {
+            name: e.name || '', unit: e.unit || '', color: e.color || '',
+            woche: e.woche || e.week || '', monat: e.monat || e.month || '',
+            jahr: e.jahr || e.year || ''
+          }
+        });
+        body.appendChild(form);
+        box.appendChild(body);
+      }
+      this._reihenBox.appendChild(box);
+    });
+
+    for (const f of this._reihenForms) this._fillForm(f.form, f.schema, f.data);
   }
 }
 

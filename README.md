@@ -465,6 +465,7 @@ entities:
 | `entities` | — | **Pflicht.** Ein bis vier Sensoren. Mehr wird abgelehnt — die Spalte wäre sonst eine Liste |
 | `graphs` | `all` | Wie viele Linien gleichzeitig gezeichnet werden: `all` oder `1` bis `4`. Die Werte rechts erscheinen immer alle |
 | `fill` | `true` | Jede gezeichnete Reihe bekommt ihre Fläche. `false` lässt nur die blossen Linien |
+| `y_axis` | `true` | Höchster, mittlerer und tiefster Wert am linken Rand. `false` lässt die Achse weg |
 | `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch. Gemeint ist der laufende Kalenderzeitraum, nicht die letzten 24 Stunden |
 | `title` | Name des gewählten Werts | Überschrift der Karte |
 | `label` | `Verlauf` | Die kleine Zeile darüber |
@@ -509,6 +510,32 @@ Gezeichnet wird die **angetippte** Reihe und, bei mehr als einer Linie, die folg
 der Liste — am Ende geht es vorne weiter. Bei `graphs: 1` verhält sich die Karte damit
 wie früher: eine Kurve, und Antippen holt eine andere ins Bild. Keine Reihe ist je
 unerreichbar.
+
+**Die Y-Achse.** Am linken Rand stehen der höchste, der mittlere und der tiefste
+gemessene Wert, jeweils mit Einheit. Sie gehören der **geführten** Reihe — weil jede
+Reihe auf ihre eigene Spanne gestreckt wird, gäbe es eine für alle gültige Achse gar
+nicht. Tippst du einen anderen Wert an, wandert die Achse mit. `y_axis: false` lässt
+sie weg.
+
+**Ein anderer Sensor je Zeitraum.** Eine Momentanleistung in Watt taugt übers Jahr
+nichts, ein Zählerstand in Kilowattstunden dagegen schon. Deshalb darf jeder Eintrag
+für Woche, Monat und Jahr eine eigene Entität nennen; ohne Angabe gilt `entity`:
+
+```yaml
+entities:
+  - entity: sensor.leistung          # Tag: Momentanleistung
+    name: Verbrauch
+    woche: sensor.energie_woche      # optional
+    monat: sensor.energie_monat
+    jahr: sensor.energie_jahr
+```
+
+Englisch geht auch: `week`, `month`, `year`. Name, Einheit und Farbe des Eintrags
+bleiben dabei stehen; fehlt eine Einheit, gilt die des jeweils gültigen Sensors.
+
+**Im Editor** gibt es dafür unten den Abschnitt *Die einzelnen Reihen* — eine
+aufklappbare Zeile je Messwert mit Name, Einheit, Farbe und den drei Sensorfeldern.
+`unit:` überschreibt dabei nur die Beschriftung, gerechnet wird nichts um.
 
 **Flächen.** Jede gezeichnete Reihe bekommt eine Fläche in ihrer Farbe, die nach unten
 ausläuft. Je mehr Flächen übereinander liegen, desto blasser wird jede einzelne — bei
