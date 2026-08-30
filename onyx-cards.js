@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.7.0';
+const ONYX_VERSION = '1.7.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -3429,15 +3429,19 @@ class OnyxChartCard extends OnyxBase {
     .blase .r i{ width:6px; height:6px; border-radius:50%; flex:none; }
     .blase .r b{ font-weight:600; margin-left:auto; padding-left:11px; }
     /* Die Y-Achse gehört der geführten Reihe — jede Reihe hat ihre eigene
-       Skala, eine gemeinsame Achse gäbe es also gar nicht. */
-    .yax{ position:absolute; left:0; top:0; right:0; pointer-events:none; }
-    .yax span{ position:absolute; left:0; transform:translateY(-50%);
+       Skala, eine gemeinsame Achse gäbe es also gar nicht. Sie steht in einer
+       eigenen Rinne links; der Graph rückt um deren Breite nach rechts,
+       damit keine Zahl über einer Kurve liegt. */
+    .plot{ position:relative; margin-left:var(--gut,0px); }
+    .yax{ position:absolute; left:0; top:0; width:var(--gut,0px);
+          pointer-events:none; }
+    .yax span{ position:absolute; right:7px; transform:translateY(-50%);
                font-size:9.5px; line-height:12px; color:#6b7a89;
-               font-variant-numeric:tabular-nums; white-space:nowrap;
-               padding:0 4px; border-radius:5px; background:rgba(12,14,18,.55); }
-    .yax i{ position:absolute; left:0; right:0; height:0;
+               font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .yax i{ position:absolute; left:var(--gut,0px); right:0; height:0;
             border-top:1px dashed rgba(255,255,255,.07); }
-    .axis{ display:flex; justify-content:space-between; margin-top:4px; }
+    .axis{ display:flex; justify-content:space-between; margin-top:4px;
+           margin-left:var(--gut,0px); }
     .axis span{ font-size:10px; color:#5d6b7a; font-variant-numeric:tabular-nums; }
 
     .foot{ display:flex; align-items:center; justify-content:space-between; }
@@ -3670,21 +3674,23 @@ class OnyxChartCard extends OnyxBase {
     const hoehe = CH_HOEHE[Math.min(geo.filter(Boolean).length, 4)];
     this._geo = { t0, t1, reihen: geo };
     const ticks = this._tickLabels(t0, t1);
-    const yachse = this._yAxis(m, geo, H, pad, hoehe);
+    const { html: yachse, rinne } = this._yAxis(m, geo, H, pad, hoehe);
 
     return `
-    <div class="chart" id="chart">
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${hoehe}px"
-           aria-hidden="true">
-        <defs>${defs.join('')}</defs>
-        <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
-              stroke-width=".4" stroke-dasharray="1 2"/>
-        ${flaechen.join('')}${linien.join('')}${vorne.join('')}
-      </svg>
-      <svg class="ov" id="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
-           style="height:${hoehe}px" aria-hidden="true"></svg>
+    <div class="chart" id="chart" style="--gut:${rinne}px">
       ${yachse}
-      <div class="pts" id="pts" style="height:${hoehe}px"></div>
+      <div class="plot" id="plot">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${hoehe}px"
+             aria-hidden="true">
+          <defs>${defs.join('')}</defs>
+          <line x1="50" y1="0" x2="50" y2="${H}" stroke="rgba(255,255,255,.06)"
+                stroke-width=".4" stroke-dasharray="1 2"/>
+          ${flaechen.join('')}${linien.join('')}${vorne.join('')}
+        </svg>
+        <svg class="ov" id="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+             style="height:${hoehe}px" aria-hidden="true"></svg>
+        <div class="pts" id="pts" style="height:${hoehe}px"></div>
+      </div>
       <div class="blase" id="blase" hidden></div>
       <div class="axis">${ticks.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
     </div>`;
@@ -3697,13 +3703,14 @@ class OnyxChartCard extends OnyxBase {
    * niedrigste gemessene Wert, dazu die Mitte dazwischen.
    */
   _yAxis(m, geo, H, pad, hoehe) {
-    if (this._config.y_axis === false) return '';
+    const nichts = { html: '', rinne: 0 };
+    if (this._config.y_axis === false) return nichts;
     const g = geo[m.sel] || geo.find(Boolean);
-    if (!g) return '';
+    if (!g) return nichts;
     const it = m.items[geo.indexOf(g)] || m.items[m.sel];
     let min = Infinity, max = -Infinity;
     for (const p of g.pts) { if (p.v < min) min = p.v; if (p.v > max) max = p.v; }
-    if (!isFinite(min) || !isFinite(max)) return '';
+    if (!isFinite(min) || !isFinite(max)) return nichts;
 
     // Von Wert zu Bildpunkt — dieselbe Rechnung wie bei der Kurve. Die
     // Beschriftung wird dabei ins Bild gezogen: der höchste Messwert sitzt
@@ -3713,9 +3720,16 @@ class OnyxChartCard extends OnyxBase {
     const einheit = it && it.unit ? ' ' + it.unit : '';
     const marken = max === min ? [max] : [max, (max + min) / 2, min];
 
-    return `<div class="yax" style="height:${hoehe}px">${marken.map((v) => `
+    // Die Rinne so breit, wie die längste Zahl es braucht — geschätzt aus
+    // der Zeichenzahl, damit dafür nichts gemessen und neu gezeichnet werden muss.
+    const texte = marken.map((v) => nfmt(v) + einheit);
+    const laengste = texte.reduce((n, x) => Math.max(n, x.length), 0);
+    const rinne = clamp(Math.round(laengste * 5.4) + 11, 26, 68);
+
+    const html = `<div class="yax" style="height:${hoehe}px">${marken.map((v, k) => `
       <i style="top:${roh(v).toFixed(1)}px"></i>
-      <span style="top:${y(v).toFixed(1)}px">${esc(nfmt(v))}${esc(einheit)}</span>`).join('')}</div>`;
+      <span style="top:${y(v).toFixed(1)}px">${esc(texte[k])}</span>`).join('')}</div>`;
+    return { html, rinne };
   }
 
   /** Die Zeit unter dem Zeiger, so genau wie der Zeitraum es hergibt */
@@ -3785,6 +3799,7 @@ class OnyxChartCard extends OnyxBase {
 
     const chart = root.getElementById('chart');
     if (chart && this._geo) this._scrub(chart, m);
+
   }
 
   /**
@@ -3797,6 +3812,9 @@ class OnyxChartCard extends OnyxBase {
     const ov = root.getElementById('ov');
     const pts = root.getElementById('pts');
     const blase = root.getElementById('blase');
+    // Gemessen wird am Graphen, nicht an der Karte: links davon liegt die
+    // Rinne der Y-Achse, und die gehört nicht zur Zeitachse.
+    const plot = root.getElementById('plot') || box;
     if (!ov || !pts || !blase) return;
     const geo = this._geo;
     let zieht = false;
@@ -3813,7 +3831,7 @@ class OnyxChartCard extends OnyxBase {
     };
 
     const an = (ev) => {
-      const r = box.getBoundingClientRect();
+      const r = plot.getBoundingClientRect();
       if (!r.width) return;
       const x = clamp((ev.clientX - r.left) / r.width, 0, 1);
       const zeit = geo.t0 + x * (geo.t1 - geo.t0);
@@ -3844,8 +3862,10 @@ class OnyxChartCard extends OnyxBase {
       blase.hidden = false;
       // Die Blase bleibt in der Karte, auch am Rand
       const halb = blase.offsetWidth / 2;
-      blase.style.left =
-        clamp(x * r.width, halb + 2, Math.max(halb + 2, r.width - halb - 2)) + 'px';
+      const kasten = box.getBoundingClientRect();
+      const versatz = r.left - kasten.left;          // Breite der Rinne
+      blase.style.left = (versatz + clamp(x * r.width, halb + 2,
+        Math.max(halb + 2, r.width - halb - 2))) + 'px';
       this._busy = true;
     };
 

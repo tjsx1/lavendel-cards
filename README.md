@@ -511,8 +511,10 @@ der Liste — am Ende geht es vorne weiter. Bei `graphs: 1` verhält sich die Ka
 wie früher: eine Kurve, und Antippen holt eine andere ins Bild. Keine Reihe ist je
 unerreichbar.
 
-**Die Y-Achse.** Am linken Rand stehen der höchste, der mittlere und der tiefste
-gemessene Wert, jeweils mit Einheit. Sie gehören der **geführten** Reihe — weil jede
+**Die Y-Achse.** In einer schmalen Rinne links vom Diagramm stehen der höchste, der
+mittlere und der tiefste gemessene Wert, jeweils mit Einheit; der Graph rückt um die
+Breite dieser Rinne nach rechts, damit keine Zahl über einer Kurve liegt. Die Zeitachse
+darunter fluchtet mit dem Graphen. Sie gehören der **geführten** Reihe — weil jede
 Reihe auf ihre eigene Spanne gestreckt wird, gäbe es eine für alle gültige Achse gar
 nicht. Tippst du einen anderen Wert an, wandert die Achse mit. `y_axis: false` lässt
 sie weg.
