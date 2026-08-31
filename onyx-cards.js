@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.11.0';
+const ONYX_VERSION = '1.11.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -6828,9 +6828,19 @@ class OnyxStatusCard extends OnyxBase {
     .pers .p.held .k{ transform:scale(.92); }
     /* Mit Bild bleibt der Ring, der Grund darunter wird nicht gebraucht.
        Wer weg ist, wird grau und dunkel — dieselbe Aussage wie der
-       leere Kreis beim Buchstaben. */
-    .pers .k.bild{ background-size:cover; background-position:center;
-                   background-color:transparent; font-size:0; }
+       leere Kreis beim Buchstaben.
+
+       Die Auswahl nennt den Zustand ausdrücklich mit, obwohl er hier
+       nichts entscheidet: .p.da .k und .p.weg .k setzen den Grund mit der
+       Kurzform background, und die räumt Grösse, Wiederholung und Farbe
+       gleich mit ab. Eine leichtere Auswahl verlöre gegen sie —
+       das Bild stünde dann in seiner Eigengrösse oben links und würde
+       gekachelt. Bei einem 512er Foto sieht man davon nur eine graue
+       Ecke; bei einem SVG ohne Eigenmasse fällt es nicht einmal auf. */
+    .pers .k.bild{ font-size:0; }
+    .pers .p.da .k.bild, .pers .p.weg .k.bild{
+      background-size:cover; background-position:center;
+      background-repeat:no-repeat; background-color:transparent; }
     .pers .p.weg .k.bild{ filter:grayscale(1) brightness(.55); }
 
     .divide{ height:1px; background:rgba(255,255,255,.07); margin:9px 0; }

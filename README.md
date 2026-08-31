@@ -1431,6 +1431,8 @@ statt einfach weiß zu bleiben.
 
 ## Änderungen
 
+**1.11.1** — Status-Karte: die Profilbilder der Personen erschienen als graue Flächen. Die Regel für das Bild verlor gegen die Regel für den Zustand, das Bild stand darum in Eigengrösse oben links im Kreis
+
 **1.11.0** — Status-Karte: neuer Baustein `batteries` meldet alle schwachen Akkus im Haus als eine Zeile zum Aufklappen — Zigbee-Sensoren, Handys, alles mit `device_class: battery`
 
 **1.10.1** — Status-Karte: im Kreis einer Person steht ihr Profilbild aus Home Assistant, sofern eins hinterlegt ist
