@@ -1061,7 +1061,7 @@ chips:
 
 | `module` | Braucht | Zeigt |
 |---|---|---|
-| `presence` | `people: [person.…]` | Wer da ist, mit einem Köpfchen je Person |
+| `presence` | `people: [person.…]` | Wer da ist — als Kreise oben rechts, nicht als Zeile |
 | `vacuum` | `entity`, optional `room`, `done` | Putzt (mit Fortschritt), kehrt zurück, pausiert, klemmt, heute geputzt |
 | `mower` | `entity` | Mäht, kehrt zurück, pausiert, klemmt — angedockt fällt die Zeile weg |
 | `car` | `entity` (Akku), optional `charging`, `power`, `remaining`, `cable`, `climate` | Ladestand als Balken, dazu Ladeleistung, Restzeit, Kabel, Klima |
@@ -1071,6 +1071,29 @@ chips:
 
 `module: entity` und `module: template` muss man nicht hinschreiben — ein Eintrag mit
 `entity:` ist das eine, ein Eintrag ohne das andere.
+
+**Die Personen stehen oben.** Der Baustein `presence` ist der einzige, der nicht zur
+Zeile wird: Er erscheint als Reihe von Kreisen rechts auf Höhe der Überschrift, mit
+dem Anfangsbuchstaben im Kreis und *Zuhause* oder *Abwesend* darunter.
+
+![Die Personen oben rechts in der Status-Karte](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/status-personen.png)
+
+```yaml
+type: custom:onyx-status-card
+title: Haus
+head:
+  module: presence
+  people: [person.tobias, person.sarah]
+```
+
+Ob der Baustein unter `head:` oder in `rows:` steht, ändert nichts — er landet so
+oder so oben, und zwar nur einmal. Der frühere Kopfeintrag „Zuhause · Tobias" fällt
+damit weg; die Kreise sagen dasselbe, nur genauer: früher war am blassen Kreis nur zu
+erkennen, *dass* jemand fehlt, nicht mehr.
+
+Ein Tipp auf einen Kreis öffnet die Person in Home Assistant. Wird die Karte zu
+schmal — halbe Spalte, viele Personen —, rücken die Kreise unter die Überschrift,
+statt aus der Karte zu laufen.
 
 **Vorlagen für alles Übrige.** Jedes der Felder `name`, `detail`, `value`, `percent`,
 `icon`, `color` und `hide` darf statt eines festen Werts eine Jinja-Vorlage sein. Die
@@ -1359,6 +1382,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.10.0** — Status-Karte: die Personen stehen als Kreise oben rechts auf Höhe der Überschrift, mit *Zuhause* oder *Abwesend* darunter, statt als Köpfchen im Kopfeintrag
 
 **1.9.0** — Farbe im Hintergrund jeder Karte statt nur bei fünf von vierzehn, abschaltbar über `tinted`. Dazu: die Leiste der Schnellzugriff-Karte kann den Namen klein unter jedes Symbol schreiben (`rail_labels`)
 

@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.9.0';
+const ONYX_VERSION = '1.10.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -242,6 +242,7 @@ const STRINGS = {
     quick: 'Schnellzugriff',
     st: 'Status',
     'st.home': 'Zuhause',
+    'st.away': 'Abwesend',
     'st.allHome': 'alle da',
     'st.nobody': 'niemand da',
     'st.cleaning': 'putzt',
@@ -764,6 +765,7 @@ const STRINGS = {
     quick: 'Quick access',
     st: 'Status',
     'st.home': 'Home',
+    'st.away': 'Away',
     'st.allHome': 'everyone in',
     'st.nobody': 'nobody in',
     'st.cleaning': 'cleaning',
@@ -6686,13 +6688,16 @@ class OnyxStatusCard extends OnyxBase {
     @container (max-width: 240px){
       .head{ padding:10px; gap:10px; }
       .head .i{ width:34px; height:34px; --mdc-icon-size:19px; }
-      .head .who{ display:none; }
       .head .n{ font-size:13.5px; }
-      .r .who{ display:none; }
+      /* Auf einer halben Spalte rücken die Personen enger zusammen */
+      .pers{ gap:8px; }
+      .pers .k{ width:30px; height:30px; font-size:11.5px; }
     }
     .ftitle{ font-size:15px; font-weight:600; color:#dbe6f0; }
     .fsub{ font-size:11.5px; color:#6f8497; }
-    .fhead{ margin-bottom:12px; }
+    .fhead{ margin-bottom:12px; display:flex; align-items:flex-start;
+            justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .ft{ min-width:0; }
 
     /* Der Kopf: was gerade am meisten zählt, oder eine Störung */
     .head{ display:flex; align-items:center; gap:12px; padding:12px;
@@ -6729,12 +6734,31 @@ class OnyxStatusCard extends OnyxBase {
     .r .bar i{ display:block; height:100%; border-radius:99px; background:var(--t);
                transition:width .3s ease; }
 
-    /* Köpfchen für die Anwesenheit */
-    .who{ display:flex; gap:5px; flex:none; }
-    .who span{ width:26px; height:26px; border-radius:50%; display:grid;
-               place-items:center; font-size:10.5px; font-weight:700; color:#0b0d10;
-               background:var(--t); }
-    .who span.weg{ background:rgba(255,255,255,.08); color:#66798a; }
+    /* Die Personen stehen oben rechts auf Höhe der Überschrift. Umbrechen
+       dürfen sie, wenn die Karte zu schmal wird — lieber eine Zeile mehr
+       als Kreise, die aus der Karte laufen. */
+    /* Schrumpfen darf die Reihe: sonst hat sie immer ihre volle Breite und
+       findet nie einen Grund umzubrechen — die letzte Person stünde dann
+       halb ausserhalb der Karte. */
+    .pers{ display:flex; gap:10px; flex:0 1 auto; flex-wrap:wrap;
+           justify-content:flex-end; --t:#7fe0ab; }
+    /* Keine feste Breite: „Abwesend“ ist länger als „Zuhause“, und ein
+       abgeschnittenes „Abwes…“ wäre schlechter als eine Spalte, die sich
+       nach ihrem Wort richtet. */
+    .pers .p{ display:flex; flex-direction:column; align-items:center;
+              gap:4px; cursor:pointer; }
+    .pers .k{ width:34px; height:34px; border-radius:50%; display:grid;
+              place-items:center; font-size:12.5px; font-weight:700;
+              transition:transform .12s ease; }
+    .pers .p.da .k{ background:var(--t); color:#0b0d10;
+                    box-shadow:0 0 0 2px color-mix(in srgb, var(--t) 26%, transparent); }
+    .pers .p.weg .k{ background:rgba(255,255,255,.07); color:#7b8ea0;
+                     border:1px solid rgba(255,255,255,.12); }
+    .pers .s{ font-size:9.5px; line-height:1.2; text-align:center;
+              white-space:nowrap; }
+    .pers .p.da .s{ color:var(--t); }
+    .pers .p.weg .s{ color:#6f8497; }
+    .pers .p.held .k{ transform:scale(.92); }
 
     .divide{ height:1px; background:rgba(255,255,255,.07); margin:9px 0; }
     .chips{ display:flex; gap:6px; flex-wrap:wrap; }
@@ -6865,6 +6889,8 @@ class OnyxStatusCard extends OnyxBase {
       color: heim.length ? ST_C.gruen : ST_C.grau,
       who: ids.map((id) => ({
         k: initial(nameOf(hass, id)),
+        n: nameOf(hass, id).split(' ')[0],
+        id,
         da: !!(hass.states[id] && hass.states[id].state === 'home')
       })),
       id: ids[0] || null
@@ -7053,6 +7079,16 @@ class OnyxStatusCard extends OnyxBase {
     const chips = (cfg.chips || []).map((e, i) => this._entry(e, 'c' + i)).filter(Boolean);
     let head = cfg.head ? this._entry(cfg.head, 'h') : null;
 
+    // Die Anwesenheit gehört zur Überschrift, als Reihe von Kreisen. Wo sie
+    // in der Konfiguration steht — als Kopf oder als Zeile —, ist dabei
+    // gleich; sie erscheint nur einmal, und zwar oben.
+    let leute = null;
+    if (head && head.who && head.who.length) { leute = head.who; head = null; }
+    else {
+      const wo = rows.findIndex((r) => r.who && r.who.length);
+      if (wo >= 0) leute = rows.splice(wo, 1)[0].who;
+    }
+
     // Eine Störung ist wichtiger als alles andere und wandert nach oben
     const alarmAt = rows.findIndex((r) => r.alarm);
     if (alarmAt >= 0) {
@@ -7062,19 +7098,25 @@ class OnyxStatusCard extends OnyxBase {
     }
 
     // Über einer leeren Karte steht keine Zeile "0 Meldungen"
-    const n = rows.length + chips.length + (head ? 1 : 0);
+    const n = rows.length + chips.length + (head ? 1 : 0)
+      + (leute && leute.length ? 1 : 0);
     return {
       title: cfg.title || null,
       subtitle: cfg.subtitle === false ? null
         : (cfg.subtitle || (n ? t('st.nMessages', { n }) : null)),
-      head, rows, chips
+      leute, head, rows, chips
     };
   }
 
-  _who(o) {
-    if (!o.who || !o.who.length) return '';
-    return `<span class="who">${o.who.map((w) => `
-      <span class="${w.da ? '' : 'weg'}">${esc(w.k)}</span>`).join('')}</span>`;
+  /** Die Personen als Kreise, mit ihrem Zustand darunter */
+  _leute(leute) {
+    if (!leute || !leute.length) return '';
+    return `<div class="pers">${leute.map((w) => `
+      <div class="p ${w.da ? 'da' : 'weg'}" data-e="${esc(w.id || '')}"
+           title="${esc(w.n || '')}">
+        <div class="k">${esc(w.k)}</div>
+        <div class="s">${esc(t(w.da ? 'st.home' : 'st.away'))}</div>
+      </div>`).join('')}</div>`;
   }
 
   _html(m) {
@@ -7087,7 +7129,7 @@ class OnyxStatusCard extends OnyxBase {
           <div class="n">${esc(m.head.name)}</div>
           ${m.head.detail ? `<div class="d">${esc(m.head.detail)}</div>` : ''}
         </span>
-        ${this._who(m.head) || (m.head.value ? `<span class="v">${esc(m.head.value)}</span>` : '')}
+        ${m.head.value ? `<span class="v">${esc(m.head.value)}</span>` : ''}
       </div>` : '';
 
     const rows = m.rows.map((r) => `
@@ -7098,7 +7140,7 @@ class OnyxStatusCard extends OnyxBase {
           ${r.percent != null
             ? `<div class="bar"><i style="width:${clamp(r.percent, 0, 100)}%"></i></div>` : ''}
         </span>
-        ${this._who(r) || (r.value ? `<span class="v">${esc(r.value)}</span>` : '')}
+        ${r.value ? `<span class="v">${esc(r.value)}</span>` : ''}
       </div>`).join('');
 
     const chips = m.chips.length ? `
@@ -7111,13 +7153,17 @@ class OnyxStatusCard extends OnyxBase {
           </span>`).join('')}
       </div>` : '';
 
-    const title = m.title ? `
+    const leute = this._leute(m.leute);
+    const title = m.title || leute ? `
       <div class="fhead">
-        <div class="ftitle">${esc(m.title)}</div>
-        ${m.subtitle ? `<div class="fsub">${esc(m.subtitle)}</div>` : ''}
+        ${m.title ? `<div class="ft">
+          <div class="ftitle">${esc(m.title)}</div>
+          ${m.subtitle ? `<div class="fsub">${esc(m.subtitle)}</div>` : ''}
+        </div>` : ''}
+        ${leute}
       </div>` : '';
 
-    const leer = !head && !m.rows.length && !m.chips.length
+    const leer = !head && !leute && !m.rows.length && !m.chips.length
       ? `<div class="empty">${esc(t('st.quiet'))}</div>` : '';
 
     return `<ha-card class="${cls.trim()}"${style}>
