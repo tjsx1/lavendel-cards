@@ -133,6 +133,11 @@ lights:
 | `color` | `blau` | Kartenfarbe: `blau` `gruen` `gelb` `orange` `rot` `violett` `rosa` — oder ein eigener Hexwert wie `"#00b3a4"` |
 | `label` | `Raum` | Die kleine Zeile über dem Namen |
 | `navigation_path` | — | Wohin ein Tipp auf die Kopfzeile springt |
+| `history` | aus | Verlauf als Fläche hinter der Kopfzeile: `true` nimmt den Temperatur-Sensor der Karte, ein Entitätsname einen anderen |
+| `history_hours` | `24` | Wie weit der Verlauf zurückreicht |
+| `history_height` | `55` | Höhe der Fläche in Prozent der Kopfzeile |
+| `history_opacity` | `0.25` | Deckkraft der Fläche |
+| `history_min_span` | `2` | Kleinster Wertebereich, damit ruhige Räume kein Gebirge zeigen |
 
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
@@ -256,6 +261,43 @@ umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und zwar im hellen To
 gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der Blick findet sofort, was
 aktiv ist. Steht ein `navigation_path` in der Konfiguration, führt ein Tipp auf die
 Kopfzeile dorthin — einen eigenen Knopf dafür gibt es nicht.
+
+**Der Verlauf im Hintergrund.** Auf Wunsch legt die Karte den Tagesverlauf eines
+Sensors als weiche Fläche hinter ihre Kopfzeile. Standardmässig ist das **aus** —
+wer es will, setzt im visuellen Editor das Häkchen *Verlauf im Hintergrund*, und erst
+dann erscheinen die Feineinstellungen darunter.
+
+![Raum-Karte mit und ohne Verlauf](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-history.png)
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+history: true              # der Temperatur-Sensor dieser Karte
+```
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+history: sensor.aussentemperatur   # oder ein ganz anderer
+history_hours: 12
+history_height: 40
+history_opacity: 0.18
+```
+
+Die Fläche gehört zum **geschlossenen** Teil der Karte. Klappst du eine Gruppe auf,
+bleibt sie oben stehen und läuft nicht quer durch die Gerätezeilen — deshalb zählt
+`history_height` in Prozent der Kopfzeile und nicht der ganzen Karte.
+
+`history_min_span` verhindert das Gegenteil von Information: Ohne Mindestspanne
+zöge sich jede Zehntelgradschwankung auf die volle Bandhöhe hoch, und ein Zimmer,
+das den ganzen Tag zwischen 25,1 und 25,4 °C steht, sähe aus wie ein Gebirge. Erst
+ab dieser Spanne füllt der Verlauf das Band wirklich aus.
+
+Geholt werden die Werte aus dem Rekorder von Home Assistant, einmal je Karte und
+danach im Viertelstundentakt. Ohne `history:` fragt die Karte gar nichts ab.
+
+> Diese Erweiterung geht auf einen Vorschlag von
+> [@elsi06](https://github.com/elsi06) zurück.
 
 ### onyx-slider-card
 
@@ -1234,6 +1276,24 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.8.0** — Raum-Karte: der Tagesverlauf eines Sensors als Fläche hinter der Kopfzeile, über ein Häkchen zuschaltbar, Vorgabe aus. Nach einem Vorschlag von [@elsi06](https://github.com/elsi06)
+
+**1.7.1** — Diagramm-Karte: die Y-Achse bekommt eine eigene Rinne, der Graph rückt nach rechts und die Beschriftung liegt nicht mehr auf den Linien
+
+**1.7.0** — Diagramm-Karte: Y-Achse mit Werten und wählbarer Einheit, eigene Sensoren je Zeitraum, Reihen im visuellen Editor
+
+**1.6.2** — Diagramm-Karte: *Tag* meint jetzt den heutigen Tag statt der letzten 24 Stunden — dasselbe für Woche, Monat und Jahr
+
+**1.6.1** — Diagramm-Karte: Flächen unter jeder Reihe, standardmässig an, und Rosa statt Gelb für die vierte Linie
+
+**1.6.0** — Diagramm-Karte: bis zu vier Reihen, wählbar viele Linien, aktuelle Werte rechts und Werte beim Fahren über den Graphen
+
+**1.5.0** — Wunschposition mit Höhe und Lamellenwinkel, im visuellen Editor einstellbar, mit *Ist-Zustand übernehmen*
+
+**1.4.0** — Wunschposition je Store in der Raum-Karte
+
+**1.3.0** — Vorschau im Kartenwähler, und Zustandstexte kommen von Home Assistant statt roh aus der Entität
 
 **1.2.1** — Kamera-Karte: der Livestream fror alle fünf Minuten ein, weil die Token-Rotation von Home Assistant einen kompletten Neuaufbau der Karte auslöste
 

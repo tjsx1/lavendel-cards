@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.7.1';
+const ONYX_VERSION = '1.8.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -460,6 +460,13 @@ const STRINGS = {
     'ed.period': 'Zeitraum',
     'ed.temperature': 'Temperatur-Sensor',
     'ed.humidity': 'Feuchte-Sensor',
+    'ed.history_on': 'Verlauf im Hintergrund',
+    'ed.history_sensor': 'Sensor für den Verlauf',
+    'ed.history': 'Verlauf im Hintergrund',
+    'ed.history_hours': 'Zeitfenster (Stunden)',
+    'ed.history_height': 'Höhe (% der Kopfzeile)',
+    'ed.history_opacity': 'Deckkraft',
+    'ed.history_min_span': 'Kleinste Spanne',
     'ed.navigation_path': 'Ziel des Pfeils',
     'ed.groups': 'Sichtbare Gruppen',
     'ed.lights': 'Lampen',
@@ -533,6 +540,11 @@ const STRINGS = {
       + 'rechts erscheinen immer alle. Gezeichnet wird die angetippte Reihe und, '
       + 'bei mehr als einer Linie, die folgenden der Liste.',
     'ed.h.entities': 'Ein bis vier Messwerte. Der angetippte führt und bekommt die Fläche, die übrigen laufen als dünne Linien mit.',
+    'ed.h.history_on': 'Standardmässig aus. Eingeschaltet legt die Karte den Verlauf '
+      + 'eines Sensors als Fläche hinter ihre Kopfzeile.',
+    'ed.h.history_sensor': 'Leer lassen: dann gilt der Temperatur-Sensor dieser Karte',
+    'ed.h.history': 'Dessen Verlauf liegt als Fläche hinter der Karte. Leer: keine Fläche',
+    'ed.h.history_min_span': 'Damit ein Zimmer zwischen 25,1 und 25,4 °C kein Gebirge zeigt',
     'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
     'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
       + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
@@ -954,6 +966,13 @@ const STRINGS = {
     'ed.period': 'Period',
     'ed.temperature': 'Temperature sensor',
     'ed.humidity': 'Humidity sensor',
+    'ed.history_on': 'History in the background',
+    'ed.history_sensor': 'Sensor for the history',
+    'ed.history': 'History in the background',
+    'ed.history_hours': 'Time window (hours)',
+    'ed.history_height': 'Height (% of the header)',
+    'ed.history_opacity': 'Opacity',
+    'ed.history_min_span': 'Smallest span',
     'ed.navigation_path': 'Arrow target',
     'ed.groups': 'Visible groups',
     'ed.lights': 'Lights',
@@ -1025,6 +1044,11 @@ const STRINGS = {
       + 'always show all of them. Drawn are the one you tap and, with more than '
       + 'one line, the following ones in the list.',
     'ed.h.entities': 'One to four readings. The one you tap leads and gets the area, the others run along as thin lines.',
+    'ed.h.history_on': 'Off by default. Switched on, the card puts the history of a '
+      + 'sensor behind its header as an area.',
+    'ed.h.history_sensor': 'Leave empty and the temperature sensor of this card applies',
+    'ed.h.history': 'Its history lies behind the card as an area. Empty: no area',
+    'ed.h.history_min_span': 'So a room between 25.1 and 25.4 °C does not look like a mountain range',
     'ed.h.columns': 'Does not apply to tiles and rail',
     'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
       + 'in the area, alphabetically. Per-device names and icons are only available in '
@@ -1588,7 +1612,7 @@ class OnyxRoomCard extends OnyxBase {
     ha-card{
       padding:12px; border-radius:var(--onyx-r, 24px); border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:10px; overflow:hidden;
-      container-type:inline-size;
+      container-type:inline-size; position:relative;
       background:linear-gradient(to right bottom,
         color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
         color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
@@ -1597,6 +1621,21 @@ class OnyxRoomCard extends OnyxBase {
     ha-card.warm{
       background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%);
     }
+
+    /* Der Temperaturverlauf liegt als Fläche unter allem, was die Karte
+       sonst zeigt. Beschnitten wird er vom overflow:hidden der Karte,
+       also sauber an den runden Ecken. */
+    ha-card > *:not(.spark){ position:relative; z-index:1; }
+    /* Breite ausdrücklich: ein absolut gesetztes SVG mit Höhe und width:auto
+       ist über-bestimmt. Der Browser verwirft dann right:0 und rechnet die
+       Breite aus dem Seitenverhältnis der viewBox (100:100) — ein Quadrat in
+       der Ecke statt eines Bands über die ganze Karte. preserveAspectRatio
+       hilft nicht, das wirkt erst beim Zeichnen des Inhalts. */
+    .spark{ position:absolute; left:0; right:0; bottom:0; width:100%; z-index:0;
+            pointer-events:none; display:block; }
+    .spark .fill{ fill:var(--acc); }
+    .spark .line{ fill:none; stroke:var(--acc); stroke-width:1.5;
+                  stroke-linecap:round; stroke-linejoin:round; }
 
     .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
     .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
@@ -1705,6 +1744,21 @@ class OnyxRoomCard extends OnyxBase {
       throw new Error(t('err.needArea'));
     }
     this._open = this._open || null;
+
+    // Die Zahlen des Verlaufs einmal beim Einrichten auslegen statt bei
+    // jedem Bild. Unsinnige Angaben fallen dabei still auf die Vorgabe
+    // zurück — eine Karte, die wegen `history_hours: 0` nichts mehr zeigt,
+    // wäre schwerer zu verstehen als eine, die eben 24 Stunden nimmt.
+    const zahl = (v, vorgabe) => (Number(v) > 0 ? Number(v) : vorgabe);
+    this._hHours = zahl(config.history_hours, 24);
+    this._hHeight = zahl(config.history_height, 55);
+    this._hSpan = zahl(config.history_min_span, 2);
+    const deck = Number(config.history_opacity);
+    this._hOpacity = isNaN(deck) ? 0.25 : clamp(deck, 0, 1);
+    // Neuer Sensor oder neues Zeitfenster: der alte Verlauf gilt nicht mehr.
+    this._histKey = null;
+    this._hist = null;
+
     super.setConfig(config);
   }
 
@@ -1825,7 +1879,11 @@ class OnyxRoomCard extends OnyxBase {
       open: this._open,
       auto: this._flagOf(cfg.cover_auto),
       wind: this._flagOf(cfg.cover_wind),
-      path: cfg.navigation_path || null
+      path: cfg.navigation_path || null,
+      // Der geholte Verlauf selbst steht nicht im Modell — ohne eine
+      // Kennung, die sich mit jedem Abruf ändert, bliebe die Karte stehen
+      // und zeichnete ihn nie.
+      spark: this._histAt || 0
     };
   }
 
@@ -1844,6 +1902,105 @@ class OnyxRoomCard extends OnyxBase {
       if (st && st.attributes.device_class === kind) return id;
     }
     return null;
+  }
+
+  /**
+   * Der Sensor, dessen Verlauf hinter der Karte liegt. `history: true`
+   * heisst „der Temperatursensor dieser Karte“ — der eingetragene oder der
+   * selbst gefundene. Ohne Angabe bleibt der Hintergrund leer.
+   */
+  _histEntity() {
+    const want = this._config.history;
+    if (!want) return null;
+    if (want === true) return this._config.temperature || this._autoSensor('temperature');
+    return want;
+  }
+
+  /* Die Basis zeichnet im hass-Setter; hier hängt der Nachschlag daran.
+     Den Getter muss man mitliefern, sonst verdeckt der eigene Setter ihn. */
+  set hass(hass) {
+    super.hass = hass;
+    this._maybeFetch();
+  }
+
+  get hass() { return this._hass; }
+
+  /**
+   * Den Verlauf nachladen — höchstens alle fünf Minuten. Ein Temperaturband
+   * über 24 Stunden ändert sich nicht schneller, als dass es auffiele, und
+   * jeder Zustandswechsel im Haus ruft den hass-Setter erneut auf.
+   */
+  async _maybeFetch() {
+    const id = this._histEntity();
+    if (!this._hass || !id) return;
+    const key = id + '@' + this._hHours;
+    if (this._histKey === key && Date.now() - (this._histAt || 0) < 300000) return;
+    if (this._histBusy === key) return;
+    this._histBusy = key;
+
+    const end = new Date();
+    const start = new Date(end.getTime() - this._hHours * 3600 * 1000);
+    try {
+      const res = await this._hass.callWS({
+        type: 'history/history_during_period',
+        start_time: start.toISOString(), end_time: end.toISOString(),
+        entity_ids: [id], minimal_response: true, no_attributes: true
+      });
+      const raw = ((res && res[id]) || []).map((r) => ({
+        t: r.lu != null ? r.lu * 1000 : Date.parse(r.last_updated),
+        v: parseFloat(r.s != null ? r.s : r.state)
+      })).filter((p) => !isNaN(p.v) && !isNaN(p.t));
+      // Dieselbe Behandlung wie im Diagramm: zusammenfassen, dann glätten.
+      // Hinter einer Karte von rund 300 Bildpunkten Breite sagt jeder
+      // einzelne Messpunkt ohnehin nichts mehr.
+      this._hist = raw.length > 80 ? soften(resample(raw, 80)) : raw;
+    } catch (err) {
+      // Ein fehlender Verlauf darf die Karte nicht kosten — sie bleibt
+      // dann eben ohne Fläche im Rücken.
+      console.warn('[onyx-room-card]', t('historyFailed'), id, err);
+      this._hist = null;
+    }
+    this._histKey = key;
+    this._histAt = Date.now();
+    this._histBusy = null;
+    this._repaint();
+  }
+
+  /** Der Verlauf als Fläche im Hintergrund der Karte */
+  _spark() {
+    const pts = this._hist;
+    if (!pts || pts.length < 2) return '';
+
+    const W = 100, H = 100, pad = 6;
+    const t0 = pts[0].t;
+    const span = (pts[pts.length - 1].t - t0) || 1;
+    let lo = Infinity, hi = -Infinity;
+    for (const p of pts) { if (p.v < lo) lo = p.v; if (p.v > hi) hi = p.v; }
+
+    // Ohne Mindestspanne zieht sich jede Zehntelgradschwankung auf die volle
+    // Bandhöhe hoch: ein Zimmer, das zwischen 25,1 und 25,4 °C steht, sähe
+    // aus wie ein Gebirge. Erst ab `history_min_span` Unterschied füllt der
+    // Verlauf das Band wirklich aus.
+    if (hi - lo < this._hSpan) {
+      const mitte = (hi + lo) / 2;
+      lo = mitte - this._hSpan / 2;
+      hi = mitte + this._hSpan / 2;
+    }
+    const range = (hi - lo) || 1;
+
+    const xy = pts.map((p) => [
+      ((p.t - t0) / span) * W,
+      H - pad - ((p.v - lo) / range) * (H - pad * 2)
+    ]);
+    const line = smoothPath(xy);
+
+    return `
+      <svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+           style="height:${this._hHeight}%" aria-hidden="true">
+        <path class="fill" d="${line} L${W} ${H} L0 ${H} Z" opacity="${this._hOpacity}"/>
+        <path class="line" d="${line}" opacity="${Math.min(1, this._hOpacity * 2.4)}"
+              vector-effect="non-scaling-stroke"/>
+      </svg>`;
   }
 
   _summary(m) {
@@ -1971,6 +2128,7 @@ class OnyxRoomCard extends OnyxBase {
 
     return `
     <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
+      ${this._spark()}
       <div class="head">
         <div class="hleft" id="head">
           <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
@@ -1992,6 +2150,22 @@ class OnyxRoomCard extends OnyxBase {
 
   _bind(m) {
     const root = this.shadowRoot;
+
+    // Die Verlaufsfläche gehört zum geschlossenen Teil der Karte. Als
+    // Prozentwert der ganzen Karte würde sie beim Aufklappen mitwachsen und
+    // quer durch die Zeilen laufen. Also messen wir, wo der geschlossene
+    // Teil aufhört, und rechnen die Höhe daraus.
+    const flaeche = root.querySelector('.spark');
+    if (flaeche) {
+      const unten = root.querySelector('.ctl') || root.querySelector('.sub');
+      if (unten && unten.offsetHeight) {
+        const kopf = unten.offsetTop + unten.offsetHeight + 12;
+        const hoch = Math.round(kopf * this._hHeight / 100);
+        flaeche.style.height = hoch + 'px';
+        flaeche.style.bottom = 'auto';
+        flaeche.style.top = (kopf - hoch) + 'px';
+      }
+    }
 
     // Der Weg auf die Raumseite liegt auf der Kopfzeile — ein eigener
     // Knopf dafür war einer zu viel.
@@ -7825,6 +7999,8 @@ const ED_HELP_KEY = {
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
+  history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
+  history_on: 'ed.h.history_on', history_sensor: 'ed.h.history_sensor',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
@@ -8378,7 +8554,35 @@ const ROOM_LISTS = [
 ];
 
 class OnyxRoomEditor extends OnyxEditor {
+  static get DEFAULTS() {
+    return {
+      history_hours: 24, history_height: 55,
+      history_opacity: 0.25, history_min_span: 2
+    };
+  }
+
   _schema() {
+    // Der Verlauf im Hintergrund ist aus, solange niemand das Häkchen
+    // setzt. Erst dann erscheinen Sensor und Feineinstellungen — vorher
+    // stünden dort fünf Felder, die nichts bewirken.
+    const verlauf = [fieldBool('history_on')];
+    if (this._config.history) {
+      verlauf.push(fieldEntity('history_sensor', 'sensor'));
+      verlauf.push(
+        grid(
+          { name: 'history_hours',
+            selector: { number: { min: 1, max: 168, mode: 'box' } } },
+          { name: 'history_height',
+            selector: { number: { min: 10, max: 100, step: 5, mode: 'box' } } }
+        ),
+        grid(
+          { name: 'history_opacity',
+            selector: { number: { min: 0, max: 1, step: 0.05, mode: 'box' } } },
+          { name: 'history_min_span',
+            selector: { number: { min: 0.5, max: 20, step: 0.5, mode: 'box' } } }
+        )
+      );
+    }
     return [
       { name: 'area', selector: { area: {} } },
       grid(fieldText('name'), fieldText('label')),
@@ -8387,6 +8591,7 @@ class OnyxRoomEditor extends OnyxEditor {
         fieldEntity('temperature', 'sensor'),
         fieldEntity('humidity', 'sensor')
       ),
+      ...verlauf,
       fieldText('navigation_path'),
       {
         name: 'groups',
@@ -8419,6 +8624,16 @@ class OnyxRoomEditor extends OnyxEditor {
       temperature: c.temperature || '',
       humidity: c.humidity || '',
       navigation_path: c.navigation_path || '',
+      // Auf der Platte steht ein Schlüssel: `history` ist entweder nicht da,
+      // `true` (der Temperatursensor der Karte) oder eine Entität. Im
+      // Formular sind daraus zwei Felder geworden — ein Häkchen und ein
+      // Sensor —, damit sich das Häkchen auch wieder ausschalten lässt.
+      history_on: !!c.history,
+      history_sensor: typeof c.history === 'string' ? c.history : '',
+      history_hours: c.history_hours != null ? c.history_hours : 24,
+      history_height: c.history_height != null ? c.history_height : 55,
+      history_opacity: c.history_opacity != null ? c.history_opacity : 0.25,
+      history_min_span: c.history_min_span != null ? c.history_min_span : 2,
       cover_auto: c.cover_auto || '',
       cover_wind: c.cover_wind || '',
       groups: c.groups || ['light', 'cover', 'media_player', 'climate']
@@ -8449,6 +8664,16 @@ class OnyxRoomEditor extends OnyxEditor {
     // Alle vier Gruppen sichtbar ist der Normalfall — dann muss es nicht
     // in der YAML stehen.
     if (cfg.groups && cfg.groups.length === 4) delete cfg.groups;
+    // Aus den zwei Formularfeldern wird wieder der eine Schlüssel.
+    delete cfg.history_on;
+    delete cfg.history_sensor;
+    if (data.history_on) cfg.history = data.history_sensor || true;
+    else delete cfg.history;
+    // Ohne Verlauf tragen seine Zahlen nichts mehr — die YAML bleibt sauber.
+    if (!cfg.history) {
+      for (const k of ['history_hours', 'history_height',
+                       'history_opacity', 'history_min_span']) delete cfg[k];
+    }
     return cfg;
   }
 
