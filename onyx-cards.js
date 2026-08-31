@@ -2353,14 +2353,22 @@ class OnyxRoomCard extends OnyxBase {
     // Teil aufhört, und rechnen die Höhe daraus.
     const flaeche = root.querySelector('.spark');
     if (flaeche) {
-      const unten = root.querySelector('.ctl') || root.querySelector('.sub');
-      if (unten && unten.offsetHeight) {
+      // Gemessen wird im nächsten Bild. Unmittelbar nach dem Neuaufbau ist
+      // der frische Baum noch ungesetzt: alle Höhen wären null, die Messung
+      // fiele aus, und die Fläche behielte ihre Prozente von der ganzen
+      // Karte — genau das, was sie nicht haben soll.
+      const legen = () => {
+        if (!flaeche.isConnected) return;
+        const unten = root.querySelector('.ctl') || root.querySelector('.sub');
+        if (!unten || !unten.offsetHeight) return;
         const kopf = unten.offsetTop + unten.offsetHeight + 12;
         const hoch = Math.round(kopf * this._hHeight / 100);
         flaeche.style.height = hoch + 'px';
         flaeche.style.bottom = 'auto';
         flaeche.style.top = (kopf - hoch) + 'px';
-      }
+      };
+      legen();
+      if (!flaeche.style.top) requestAnimationFrame(legen);
     }
 
     // Der Weg auf die Raumseite liegt auf der Kopfzeile — ein eigener
