@@ -2541,24 +2541,37 @@ class OnyxRoomCard extends OnyxBase {
     // quer durch die Zeilen laufen. Also messen wir, wo der geschlossene
     // Teil aufhört, und rechnen die Höhe daraus. Die Zeitachse zählt nicht
     // dazu: sie gehört unter die Fläche, nicht hinein.
+    if (this._hBeob) { this._hBeob.disconnect(); this._hBeob = null; }
     const flaeche = root.querySelector('.spark');
     if (flaeche) {
-      // Gemessen wird im nächsten Bild. Unmittelbar nach dem Neuaufbau ist
-      // der frische Baum noch ungesetzt: alle Höhen wären null, die Messung
-      // fiele aus, und die Fläche behielte ihre Prozente von der ganzen
-      // Karte — genau das, was sie nicht haben soll.
       const legen = () => {
-        if (!flaeche.isConnected) return;
         const unten = root.querySelector('.ctl') || root.querySelector('.sub');
         if (!unten || !unten.offsetHeight) return;
-        const kopf = unten.offsetTop + unten.offsetHeight + 12;
+        // Mit Zeitachse endet die Fläche genau dort, wo die Achse anfängt.
+        // Gerechnet wäre es der Abstand der Zeilen, und der steht im
+        // Stilblatt — zwei Zahlen für dieselbe Kante gehen auseinander.
+        const achse = root.querySelector('.sax');
+        const kopf = achse ? achse.offsetTop
+          : unten.offsetTop + unten.offsetHeight + 12;
         const hoch = Math.round(kopf * this._hHeight / 100);
-        flaeche.style.height = hoch + 'px';
+        const hoehe = hoch + 'px', oben = (kopf - hoch) + 'px';
+        if (flaeche.style.height === hoehe && flaeche.style.top === oben) return;
+        flaeche.style.height = hoehe;
         flaeche.style.bottom = 'auto';
-        flaeche.style.top = (kopf - hoch) + 'px';
+        flaeche.style.top = oben;
       };
       legen();
-      if (!flaeche.style.top) requestAnimationFrame(legen);
+
+      // Beim ersten Anlauf ist meist nichts zu messen: Lovelace baut seine
+      // Karten fertig, bevor sie im Baum hängen, und manche Ansichten hängen
+      // sie in einen Behälter ohne Grösse. Beides ist kein Bild später
+      // vorbei — gemessen wird deshalb, sobald die Karte eine Grösse
+      // bekommt, und danach bei jeder Änderung wieder.
+      const karte = root.querySelector('ha-card');
+      if (karte && typeof ResizeObserver === 'function') {
+        this._hBeob = new ResizeObserver(legen);
+        this._hBeob.observe(karte);
+      }
     }
 
     if (this._hGeo) this._pick();
