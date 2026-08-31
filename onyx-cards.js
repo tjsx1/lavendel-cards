@@ -483,6 +483,7 @@ const STRINGS = {
     'ed.history_height': 'Höhe (% der Kopfzeile)',
     'ed.history_opacity': 'Deckkraft',
     'ed.history_min_span': 'Kleinste Spanne',
+    'ed.history_picker': 'Werte ablesen',
     'ed.navigation_path': 'Ziel des Pfeils',
     'ed.groups': 'Sichtbare Gruppen',
     'ed.lights': 'Lampen',
@@ -570,6 +571,8 @@ const STRINGS = {
     'ed.h.history_sensor': 'Leer lassen: dann gilt der Temperatur-Sensor dieser Karte',
     'ed.h.history': 'Dessen Verlauf liegt als Fläche hinter der Karte. Leer: keine Fläche',
     'ed.h.history_min_span': 'Damit ein Zimmer zwischen 25,1 und 25,4 °C kein Gebirge zeigt',
+    'ed.h.history_picker': 'Darüberfahren zeigt Wert und Uhrzeit. Dazu bekommt die Fläche '
+      + 'ihre Achsen: rechts die Spanne des Bands, unten die Zeit.',
     'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
     'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
       + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
@@ -1024,6 +1027,7 @@ const STRINGS = {
     'ed.history_height': 'Height (% of the header)',
     'ed.history_opacity': 'Opacity',
     'ed.history_min_span': 'Smallest span',
+    'ed.history_picker': 'Read values',
     'ed.navigation_path': 'Arrow target',
     'ed.groups': 'Visible groups',
     'ed.lights': 'Lights',
@@ -1109,6 +1113,8 @@ const STRINGS = {
     'ed.h.history_sensor': 'Leave empty and the temperature sensor of this card applies',
     'ed.h.history': 'Its history lies behind the card as an area. Empty: no area',
     'ed.h.history_min_span': 'So a room between 25.1 and 25.4 °C does not look like a mountain range',
+    'ed.h.history_picker': 'Pointing at the area shows value and time. The area also gets '
+      + 'its axes: the span of the area on the right, the time below.',
     'ed.h.columns': 'Does not apply to tiles and rail',
     'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
       + 'in the area, alphabetically. Per-device names and icons are only available in '
@@ -1796,7 +1802,7 @@ class OnyxRoomCard extends OnyxBase {
     /* Der Temperaturverlauf liegt als Fläche unter allem, was die Karte
        sonst zeigt. Beschnitten wird er vom overflow:hidden der Karte,
        also sauber an den runden Ecken. */
-    ha-card > *:not(.spark){ position:relative; z-index:1; }
+    ha-card > *:not(.spark):not(.sbub){ position:relative; z-index:1; }
     /* Breite ausdrücklich: ein absolut gesetztes SVG mit Höhe und width:auto
        ist über-bestimmt. Der Browser verwirft dann right:0 und rechnet die
        Breite aus dem Seitenverhältnis der viewBox (100:100) — ein Quadrat in
@@ -1807,6 +1813,45 @@ class OnyxRoomCard extends OnyxBase {
     .spark .fill{ fill:var(--acc); }
     .spark .line{ fill:none; stroke:var(--acc); stroke-width:1.5;
                   stroke-linecap:round; stroke-linejoin:round; }
+
+    /* Mit history_picker wird aus der Fläche ein Kasten: darin die Kurve,
+       darüber Zeiger und Punkt, an den Rändern die Achsen. Griffe nimmt auch
+       er keine an — abgelesen wird über der ganzen Karte, damit die Knöpfe
+       darunter ihre Tipps behalten. */
+    .spark.pick{ display:block; }
+    .spark svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+    .spark .zeiger{ stroke:color-mix(in srgb, var(--acc) 70%, #ffffff);
+                    stroke-width:1; stroke-dasharray:2 2; opacity:.75; }
+    .sdot{ position:absolute; width:7px; height:7px; border-radius:50%;
+           margin:-3.5px 0 0 -3.5px; background:var(--acc);
+           box-shadow:0 0 0 2px rgba(10,13,17,.55); }
+    .sdot[hidden]{ display:none; }
+    /* Die Werte der Y-Achse stehen rechts: links liegen Text und Knöpfe der
+       Karte, rechts ist unter der Temperatur nichts mehr. */
+    /* Die Achsen sind Beiwerk: Sie sollen dastehen, wenn man sie sucht,
+       und verschwinden, wenn man die Karte bloss ansieht. Gedämpft wird mit
+       Deckkraft statt mit einer eigenen Farbe — so bleibt der warme Fall
+       ohne zweite Farbtabelle mit gedämpft. */
+    .sy{ position:absolute; right:0; font-size:9px; line-height:11px;
+         color:#6f8497; opacity:.55; font-variant-numeric:tabular-nums; }
+    ha-card.warm .sy{ color:var(--lab); }
+    .sy.hi{ top:0; }
+    .sy.lo{ bottom:0; }
+    /* Die Zeitachse ist eine eigene Zeile im geschlossenen Teil, keine
+       Auflage: über der Fläche stünde sie sonst in den Knöpfen. */
+    .sax{ display:flex; justify-content:space-between; gap:8px;
+          font-size:9px; line-height:11px; color:#6f8497; opacity:.55;
+          font-variant-numeric:tabular-nums; pointer-events:none; }
+    ha-card.warm .sax{ color:var(--lab); }
+    .sbub{ position:absolute; z-index:3; transform:translateX(-50%);
+           display:flex; align-items:baseline; gap:6px; padding:3px 8px;
+           border-radius:9px; background:rgba(10,13,17,.86);
+           border:1px solid rgba(255,255,255,.10); pointer-events:none;
+           font-size:11px; line-height:15px; color:#dbe6f0; white-space:nowrap;
+           font-variant-numeric:tabular-nums; }
+    .sbub b{ font-weight:600; }
+    .sbub span{ font-size:10px; color:#8fa3b5; }
+    .sbub[hidden]{ display:none; }
 
     .head{ display:flex; align-items:center; justify-content:space-between; gap:11px; }
     .hleft{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
@@ -1926,6 +1971,9 @@ class OnyxRoomCard extends OnyxBase {
     this._hSpan = zahl(config.history_min_span, 2);
     const deck = Number(config.history_opacity);
     this._hOpacity = isNaN(deck) ? 0.25 : clamp(deck, 0, 1);
+    // Ablesen ist Zutat, nicht Vorgabe: ohne Häkchen bleibt die Fläche das
+    // stille Band, das sie bisher war.
+    this._hPick = config.history_picker === true;
     // Neuer Sensor oder neues Zeitfenster: der alte Verlauf gilt nicht mehr.
     this._histKey = null;
     this._hist = null;
@@ -2153,8 +2201,17 @@ class OnyxRoomCard extends OnyxBase {
     this._repaint();
   }
 
+  /** Die Einheit des Verlaufs-Sensors — für die Achse und die Blase */
+  _hUnit() {
+    const id = this._histEntity();
+    const st = id && this._hass && this._hass.states[id];
+    const einheit = st && st.attributes && st.attributes.unit_of_measurement;
+    return einheit ? ' ' + einheit : '';
+  }
+
   /** Der Verlauf als Fläche im Hintergrund der Karte */
   _spark() {
+    this._hGeo = null;
     const pts = this._hist;
     if (!pts || pts.length < 2) return '';
 
@@ -2180,14 +2237,152 @@ class OnyxRoomCard extends OnyxBase {
       H - pad - ((p.v - lo) / range) * (H - pad * 2)
     ]);
     const line = smoothPath(xy);
-
-    return `
-      <svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
-           style="height:${this._hHeight}%" aria-hidden="true">
+    const flaeche = `
         <path class="fill" d="${line} L${W} ${H} L0 ${H} Z" opacity="${this._hOpacity}"/>
         <path class="line" d="${line}" opacity="${Math.min(1, this._hOpacity * 2.4)}"
-              vector-effect="non-scaling-stroke"/>
-      </svg>`;
+              vector-effect="non-scaling-stroke"/>`;
+
+    if (!this._hPick) {
+      return `
+      <svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+           style="height:${this._hHeight}%" aria-hidden="true">${flaeche}</svg>`;
+    }
+
+    // Was der Zeiger später braucht: die Punkte, ihre Lage im Bild und die
+    // Ränder des Bands. Gerechnet wird es hier ohnehin schon.
+    this._hGeo = { t0, span, lo, hi, pts, xy };
+    const einheit = this._hUnit();
+
+    // Die zweite Ebene bleibt leer, bis jemand über die Fläche fährt: eine
+    // Linie, die dauernd dastünde, wäre nur ein Strich ohne Aussage.
+    return `
+      <div class="spark pick" style="height:${this._hHeight}%" aria-hidden="true">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${flaeche}</svg>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="sov"></svg>
+        <i class="sdot" id="sdot" hidden></i>
+        <span class="sy hi">${esc(nfmt(hi) + einheit)}</span>
+        <span class="sy lo">${esc(nfmt(lo) + einheit)}</span>
+      </div>`;
+  }
+
+  /** Die Uhrzeit an der Achse und in der Blase, so genau wie nötig */
+  _hZeit(ms, lang) {
+    const d = new Date(ms);
+    if (this._hHours <= 48) return fmtTime(d);
+    const tag = fmtDate(d, { weekday: 'short' });
+    return lang ? `${tag}, ${fmtTime(d)}` : tag;
+  }
+
+  /**
+   * Die Zeitachse unter der Fläche: Anfang, Mitte, Jetzt. Sie steht als
+   * eigene Zeile im geschlossenen Teil der Karte — dort, wo die Fläche
+   * ohnehin aufhört, und nicht quer über den Knöpfen.
+   */
+  _sax() {
+    const g = this._hGeo;
+    if (!g) return '';
+    const t1 = g.t0 + g.span;
+    return `
+      <div class="sax">
+        <span>${esc(this._hZeit(g.t0))}</span>
+        <span>${esc(this._hZeit((g.t0 + t1) / 2))}</span>
+        <span>${esc(this._hZeit(t1))}</span>
+      </div>`;
+  }
+
+  /**
+   * Über die Fläche fahren: eine senkrechte Linie, ein Punkt auf der Kurve
+   * und eine Blase mit Wert und Uhrzeit. Am Rechner reicht das Darüberfahren,
+   * am Telefon ist es Ziehen.
+   *
+   * Gehört wird auf der ganzen Karte statt auf der Fläche. Die liegt hinter
+   * den Knöpfen; eine eigene Griffebene darüber würde ihnen die Tipps
+   * wegnehmen. Ein Griff, der auf einem Knopf beginnt, gehört deshalb dem
+   * Knopf — gelesen wird erst, wo nichts anderes zuständig ist.
+   */
+  _pick() {
+    const root = this.shadowRoot;
+    const karte = root.querySelector('ha-card');
+    const band = root.querySelector('.spark');
+    const ov = root.getElementById('sov');
+    const punkt = root.getElementById('sdot');
+    const blase = root.getElementById('sbub');
+    if (!karte || !band || !ov || !punkt || !blase) return;
+    const g = this._hGeo;
+    let zieht = false;
+
+    const aus = () => {
+      zieht = false;
+      ov.textContent = '';
+      punkt.hidden = true;
+      blase.hidden = true;
+      // Die Sperre wieder lösen: Neuaufbauten sind während des Ablesens
+      // gesperrt, damit die Blase nicht bei jedem Zustandswechsel im Haus
+      // verschwindet. Bliebe sie stehen, fröre die Karte ein.
+      if (this._busy) { this._busy = false; this._tryRender(); }
+    };
+
+    const imBand = (ev) => {
+      const r = band.getBoundingClientRect();
+      return ev.clientY >= r.top - 6 && ev.clientY <= r.bottom + 6;
+    };
+
+    const an = (ev) => {
+      const r = band.getBoundingClientRect();
+      if (!r.width) return;
+      const x = clamp((ev.clientX - r.left) / r.width, 0, 1);
+      const zeit = g.t0 + x * g.span;
+
+      // Der nächstgelegene gemessene Punkt, nicht der Wert unter dem Finger:
+      // angeschrieben wird, was der Rekorder hergibt.
+      let k = 0, naechste = Infinity;
+      for (let j = 0; j < g.pts.length; j++) {
+        const d = Math.abs(g.pts[j].t - zeit);
+        if (d < naechste) { naechste = d; k = j; }
+      }
+      const [px, py] = g.xy[k];
+
+      ov.innerHTML = `<line class="zeiger" x1="${px.toFixed(2)}" y1="0"
+        x2="${px.toFixed(2)}" y2="100" vector-effect="non-scaling-stroke"/>`;
+      punkt.style.left = px.toFixed(2) + '%';
+      punkt.style.top = py.toFixed(2) + '%';
+      punkt.hidden = false;
+      blase.innerHTML = `<b>${esc(nfmt(g.pts[k].v) + this._hUnit())}</b>`
+        + `<span>${esc(this._hZeit(g.pts[k].t, true))}</span>`;
+      blase.hidden = false;
+
+      // Die Blase bleibt in der Karte, auch am Rand, und sitzt über dem Band
+      const kasten = karte.getBoundingClientRect();
+      const halb = blase.offsetWidth / 2;
+      const mitte = r.left - kasten.left + (px / 100) * r.width;
+      blase.style.left = clamp(mitte, halb + 4,
+        Math.max(halb + 4, kasten.width - halb - 4)) + 'px';
+      blase.style.top = Math.max(4,
+        r.top - kasten.top - blase.offsetHeight - 6) + 'px';
+      this._busy = true;
+    };
+
+    // Was einem Knopf gilt, gilt nicht dem Band — und zwar beim Griff wie
+    // beim blossen Darüberfahren. Die Gruppenknöpfe liegen genau in der
+    // Höhe des Bands: ohne diese Liste stünde die Blase über dem Raumnamen,
+    // sobald die Maus auf dem Lichtknopf liegt, und sperrte dabei den
+    // Neuaufbau der Karte.
+    const knoepfe = '.hleft, .gbtn, .act, .lrow, .fav';
+
+    karte.addEventListener('pointerdown', (ev) => {
+      if (ev.button != null && ev.button > 0) return;
+      if (ev.target.closest(knoepfe)) return;
+      zieht = true;
+      an(ev);
+    });
+    karte.addEventListener('pointermove', (ev) => {
+      if (zieht) an(ev);
+      else if (ev.pointerType === 'mouse') {
+        if (imBand(ev) && !ev.target.closest(knoepfe)) an(ev); else aus();
+      }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(
+      (art) => karte.addEventListener(art, aus));
   }
 
   _summary(m) {
@@ -2322,9 +2517,15 @@ class OnyxRoomCard extends OnyxBase {
 
     const { cls: pal, style } = paletteAttrs(m.color, this._config);
 
+    // Die Blase gehört zur Karte, nicht zur Fläche: sie muss über dem
+    // Text stehen, die Fläche liegt darunter. Reihenfolge zählt — `_spark`
+    // legt die Geometrie an, die `_sax` weiter unten braucht.
+    const flaeche = this._spark();
+
     return `
     <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
-      ${this._spark()}
+      ${flaeche}
+      ${this._hGeo ? '<div class="sbub" id="sbub" hidden></div>' : ''}
       <div class="head">
         <div class="hleft" id="head">
           <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
@@ -2340,6 +2541,7 @@ class OnyxRoomCard extends OnyxBase {
       </div>
       <div class="sub">${esc(this._summary(m))}</div>
       <div class="ctl">${buttons}</div>
+      ${this._sax()}
       ${panel}
     </ha-card>`;
   }
@@ -2350,18 +2552,42 @@ class OnyxRoomCard extends OnyxBase {
     // Die Verlaufsfläche gehört zum geschlossenen Teil der Karte. Als
     // Prozentwert der ganzen Karte würde sie beim Aufklappen mitwachsen und
     // quer durch die Zeilen laufen. Also messen wir, wo der geschlossene
-    // Teil aufhört, und rechnen die Höhe daraus.
+    // Teil aufhört, und rechnen die Höhe daraus. Die Zeitachse zählt nicht
+    // dazu: sie gehört unter die Fläche, nicht hinein.
+    if (this._hBeob) { this._hBeob.disconnect(); this._hBeob = null; }
     const flaeche = root.querySelector('.spark');
     if (flaeche) {
-      const unten = root.querySelector('.ctl') || root.querySelector('.sub');
-      if (unten && unten.offsetHeight) {
-        const kopf = unten.offsetTop + unten.offsetHeight + 12;
+      const legen = () => {
+        const unten = root.querySelector('.ctl') || root.querySelector('.sub');
+        if (!unten || !unten.offsetHeight) return;
+        // Mit Zeitachse endet die Fläche genau dort, wo die Achse anfängt.
+        // Gerechnet wäre es der Abstand der Zeilen, und der steht im
+        // Stilblatt — zwei Zahlen für dieselbe Kante gehen auseinander.
+        const achse = root.querySelector('.sax');
+        const kopf = achse ? achse.offsetTop
+          : unten.offsetTop + unten.offsetHeight + 12;
         const hoch = Math.round(kopf * this._hHeight / 100);
-        flaeche.style.height = hoch + 'px';
+        const hoehe = hoch + 'px', oben = (kopf - hoch) + 'px';
+        if (flaeche.style.height === hoehe && flaeche.style.top === oben) return;
+        flaeche.style.height = hoehe;
         flaeche.style.bottom = 'auto';
-        flaeche.style.top = (kopf - hoch) + 'px';
+        flaeche.style.top = oben;
+      };
+      legen();
+
+      // Beim ersten Anlauf ist meist nichts zu messen: Lovelace baut seine
+      // Karten fertig, bevor sie im Baum hängen, und manche Ansichten hängen
+      // sie in einen Behälter ohne Grösse. Beides ist kein Bild später
+      // vorbei — gemessen wird deshalb, sobald die Karte eine Grösse
+      // bekommt, und danach bei jeder Änderung wieder.
+      const karte = root.querySelector('ha-card');
+      if (karte && typeof ResizeObserver === 'function') {
+        this._hBeob = new ResizeObserver(legen);
+        this._hBeob.observe(karte);
       }
     }
+
+    if (this._hGeo) this._pick();
 
     // Der Weg auf die Raumseite liegt auf der Kopfzeile — ein eigener
     // Knopf dafür war einer zu viel.
@@ -8491,6 +8717,7 @@ const ED_HELP_KEY = {
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
   history_on: 'ed.h.history_on', history_sensor: 'ed.h.history_sensor',
+  history_picker: 'ed.h.history_picker',
   battery_entity: 'ed.h.battery_entity', room_command: 'ed.h.room_command',
   consumables: 'ed.h.consumables',
   lights: 'ed.h.lights', cover_auto: 'ed.h.cover_auto', cover_wind: 'ed.h.cover_wind',
@@ -9082,7 +9309,7 @@ class OnyxRoomEditor extends OnyxEditor {
   static get DEFAULTS() {
     return {
       history_hours: 24, history_height: 55,
-      history_opacity: 0.25, history_min_span: 2
+      history_opacity: 0.25, history_min_span: 2, history_picker: false
     };
   }
 
@@ -9105,7 +9332,8 @@ class OnyxRoomEditor extends OnyxEditor {
             selector: { number: { min: 0, max: 1, step: 0.05, mode: 'box' } } },
           { name: 'history_min_span',
             selector: { number: { min: 0.5, max: 20, step: 0.5, mode: 'box' } } }
-        )
+        ),
+        fieldBool('history_picker')
       );
     }
     return [
@@ -9161,6 +9389,7 @@ class OnyxRoomEditor extends OnyxEditor {
       history_height: c.history_height != null ? c.history_height : 55,
       history_opacity: c.history_opacity != null ? c.history_opacity : 0.25,
       history_min_span: c.history_min_span != null ? c.history_min_span : 2,
+      history_picker: c.history_picker === true,
       cover_auto: c.cover_auto || '',
       cover_wind: c.cover_wind || '',
       groups: c.groups || ROOM_GROUPS.slice()
@@ -9201,8 +9430,8 @@ class OnyxRoomEditor extends OnyxEditor {
     else delete cfg.history;
     // Ohne Verlauf tragen seine Zahlen nichts mehr — die YAML bleibt sauber.
     if (!cfg.history) {
-      for (const k of ['history_hours', 'history_height',
-                       'history_opacity', 'history_min_span']) delete cfg[k];
+      for (const k of ['history_hours', 'history_height', 'history_opacity',
+                       'history_min_span', 'history_picker']) delete cfg[k];
     }
     return cfg;
   }
