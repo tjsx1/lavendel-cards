@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.13.0';
+const ONYX_VERSION = '1.13.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -6143,22 +6143,60 @@ class OnyxLightCard extends OnyxBase {
  * ihrerseits mitbringt.
  */
 let _streamReady = null;
-function ensureStreamLoaded(entityId) {
+function ensureStreamLoaded(entityId, hass) {
+  if (customElements.get('ha-camera-stream')) return Promise.resolve();
   if (_streamReady) return _streamReady;
+  const bericht = { helfer: false, mehrInfo: false, bildKarte: false };
   _streamReady = (async () => {
-    if (customElements.get('ha-camera-stream')) return;
     try {
       const helpers = await window.loadCardHelpers();
-      await helpers.createCardElement({
-        type: 'picture-entity', entity: entityId, camera_view: 'live'
-      });
+      bericht.helfer = !!helpers;
+      // Erster Weg: die Detailansicht einer Kamera nachladen. Sie bringt
+      // das Element mit und kostet sonst nichts.
+      if (typeof helpers.importMoreInfoControl === 'function') {
+        bericht.mehrInfo = true;
+        try { helpers.importMoreInfoControl('camera'); } catch (err) { /* dann eben nicht */ }
+        await Promise.race([
+          customElements.whenDefined('ha-camera-stream'),
+          new Promise((r) => setTimeout(r, 1500))
+        ]);
+      }
+      // Zweiter Weg: eine eingebaute Bild-Karte wirklich zeichnen lassen.
+      // Sie bloss zu bauen genügt nicht — ein Element, das weder `hass`
+      // bekommt noch im Dokument hängt, zeichnet nichts und lädt darum
+      // auch nichts nach. Also hängen wir sie kurz unsichtbar ein.
+      if (!customElements.get('ha-camera-stream')) {
+        const karte = await helpers.createCardElement({
+          type: 'picture-entity', entity: entityId, camera_view: 'live'
+        });
+        bericht.bildKarte = !!karte;
+        const versteck = document.createElement('div');
+        versteck.setAttribute('aria-hidden', 'true');
+        versteck.style.cssText = 'position:absolute;left:-9999px;top:0;'
+          + 'width:1px;height:1px;overflow:hidden;pointer-events:none';
+        document.body.appendChild(versteck);
+        versteck.appendChild(karte);
+        if (hass) karte.hass = hass;
+        try {
+          await Promise.race([
+            customElements.whenDefined('ha-camera-stream'),
+            new Promise((r) => setTimeout(r, 4000))
+          ]);
+        } finally { versteck.remove(); }
+      }
     } catch (err) {
       console.warn('[onyx-cards] ' + t('log.streamLoad'), err);
     }
-    await Promise.race([
-      customElements.whenDefined('ha-camera-stream'),
-      new Promise((r) => setTimeout(r, 4000))
-    ]);
+    // Ein Fehlversuch ist ein Versuch, kein Urteil: Ist das Element danach
+    // immer noch nicht da, wird beim nächsten Anlauf neu geladen, statt
+    // die ganze Sitzung lang auf ein leeres Ergebnis zu warten.
+    if (!customElements.get('ha-camera-stream')) {
+      _streamReady = null;
+      // Einmal je Anlauf sagen, wie weit es gekommen ist. Ohne diese Zeile
+      // steht man beim nächsten Mal wieder vor einem stummen Standbild und
+      // muss raten, an welchem der drei Schritte es hängt.
+      console.warn('[onyx-cards] ha-camera-stream fehlt weiterhin', bericht);
+    }
   })();
   return _streamReady;
 }
@@ -6544,7 +6582,7 @@ class OnyxCameraCard extends OnyxBase {
    * sich dabei nicht ändert.
    */
   _anhaengen(m) {
-    ensureStreamLoaded(m.id).then(() => {
+    ensureStreamLoaded(m.id, this._hass).then(() => {
       if (!this.isConnected) return;
       const host = this.shadowRoot.getElementById('pic');
       if (!host) return;
