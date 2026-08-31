@@ -158,11 +158,12 @@ lights:
 | `cover_favorite` | — | Wunschposition aller Storen als Rückfallwert: `70`, `{position: 70, tilt: 35}` oder `stop`. Nur YAML — im Editor stellst du jede Store einzeln ein |
 | `media` | aus dem Bereich | Medienspieler |
 | `climate` | aus dem Bereich | Thermostate |
+| `devices` | — | Der Sammelplatz: jede Entität darf rein. Auch `geraete:` geschrieben. Füllt sich **nicht** von selbst aus dem Bereich |
 | `name` | Bereichsname | Überschrift der Karte |
 | `icon` | Bereichs-Icon | z. B. `mdi:sofa` |
 | `temperature` | erster Sensor des Bereichs | Anzeige oben rechts |
 | `humidity` | erster Sensor des Bereichs | dito für die Luftfeuchte |
-| `groups` | `[light, cover, media_player, climate]` | Reihenfolge der Gruppenknöpfe |
+| `groups` | `[light, cover, media_player, climate, devices]` | Reihenfolge der Gruppenknöpfe |
 | `color` | `blau` | Kartenfarbe: `blau` `gruen` `gelb` `orange` `rot` `violett` `rosa` — oder ein eigener Hexwert wie `"#00b3a4"` |
 | `label` | `Raum` | Die kleine Zeile über dem Namen |
 | `navigation_path` | — | Wohin ein Tipp auf die Kopfzeile springt |
@@ -250,6 +251,49 @@ nicht ansprechen. Der Editor bietet dann einen Knopf an, der die Storen des Bere
 als Liste übernimmt; danach lässt sich jede einzeln einstellen. Wer lieber alles auf
 einmal setzt, schreibt `cover_favorite:` in die YAML — das gilt für jede Store, die
 nichts Eigenes sagt, und `favorite: false` an einem Eintrag nimmt sie wieder aus.
+
+**Der Sammelplatz.** Licht, Storen, Musik und Klima decken den Alltag ab — aber ein
+Raum hat mehr: Saugroboter, Küchenmaschine, Luftreiniger, 3D-Drucker. Dafür gibt es
+die fünfte Gruppe `devices`, und dort darf **jede** Entität stehen, gleich aus welcher
+Domäne.
+
+![Die Gruppe Geräte, zu und aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-devices.png)
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+devices:
+  - vacuum.roborock_s8
+  - fan.luftreiniger
+  - switch.kuechenmaschine
+  - entity: switch.waschmaschine
+    name: Waschmaschine
+    icon: mdi:washing-machine
+  - sensor.verbrauch
+```
+
+Diese eine Liste **füllt sich nicht von selbst aus dem Bereich**. Die anderen Gruppen
+können das, weil sie eine Domäne haben, nach der sich suchen lässt; „alles Übrige"
+wäre hier jeder Temperatursensor und jede Automation des Raums. Was drinsteht,
+bestimmst du.
+
+**Was „läuft" heisst, entscheidet die Domäne.** Ein Saugroboter reinigt oder kehrt
+zurück, ein Mäher mäht, ein Lautsprecher spielt, ein Schalter ist an, ein Thermostat
+ist nicht aus. Stur auf `on` zu prüfen ginge daneben — der Knopf bliebe dunkel, während
+der Roboter durchs Wohnzimmer fährt. Ein Messwert läuft nie; er steht einfach da.
+
+**Tippen schaltet, wo sich etwas schalten lässt** — Steckdosen, Schalter, Lüfter,
+Ventile. Alles andere öffnet beim Tippen gleich das Detailfenster, statt einen
+Dienstaufruf ins Leere zu schicken. Halten öffnet es immer.
+
+Eine Knopfleiste gibt es hier nicht. Bei Lampen ist „alle ein" harmlos, bei gemischten
+Geräten nicht — sie startete auch den Staubsauger und die Waschmaschine. Aus demselben
+Grund öffnet ein Halten auf dem Gruppenknopf nur das erste Gerät, statt die ganze
+Gruppe umzuschalten.
+
+Das Symbol einer Zeile kommt von der Entität selbst, sonst von ihrer Domäne; mit
+`icon:` am Eintrag bestimmst du es. Gezogen wird in dieser Gruppe nicht — eine
+Küchenmaschine hat keine Helligkeit.
 
 **Was die Karte oben meldet.** Die Zeile unter dem Namen nennt nur, was vom
 Normalzustand abweicht — und der ist bei Storen *offen*. Also steht dort
@@ -1430,6 +1474,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.12.0** — Raum-Karte: neue Gruppe `devices` als Sammelplatz — Saugroboter, Küchenmaschine, Drucker, jede Entität darf rein
 
 **1.11.1** — Status-Karte: die Profilbilder der Personen erschienen als graue Flächen. Die Regel für das Bild verlor gegen die Regel für den Zustand, das Bild stand darum in Eigengrösse oben links im Kreis
 

@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.11.1';
+const ONYX_VERSION = '1.12.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -374,6 +374,10 @@ const STRINGS = {
     'group.media_player': 'Medien',
     'group.climate': 'Klima',
     'group.cover': 'Storen',
+    'group.devices': 'Geräte',
+    'devRun': 'Ein Gerät läuft',
+    'devsRun': '{n} Geräte laufen',
+    'nOfMRun': '{n} von {m} laufen',
     lightOn: '{n} Licht an',
     lightsOn: '{n} Lichter an',
     musicPlaying: 'Musik läuft',
@@ -485,6 +489,10 @@ const STRINGS = {
     'ed.covers': 'Storen',
     'ed.media': 'Medienspieler',
     'ed.climate': 'Heizung',
+    'ed.devices': 'Geräte',
+    'ed.h.devices': 'Der Sammelplatz: Saugroboter, Küchenmaschine, Drucker — jede '
+      + 'Entität darf hier stehen. Diese Liste füllt sich nicht von selbst aus '
+      + 'dem Bereich; was drin steht, bestimmst du.',
     'ed.lock_entity': 'Sperre',
     'ed.cover_auto': 'Storen-Automatik',
     'ed.favs': 'Wunschpositionen der Storen',
@@ -593,6 +601,7 @@ const STRINGS = {
     'ed.c.rosa': 'Rosa',
     'ed.g.light': 'Lampen', 'ed.g.cover': 'Storen',
     'ed.g.media_player': 'Medienspieler', 'ed.g.climate': 'Heizung',
+    'ed.g.devices': 'Geräte',
     'ed.newGroup': 'Szenen'
   },
 
@@ -906,6 +915,10 @@ const STRINGS = {
     'group.media_player': 'Media',
     'group.climate': 'Climate',
     'group.cover': 'Blinds',
+    'group.devices': 'Devices',
+    'devRun': 'One device running',
+    'devsRun': '{n} devices running',
+    'nOfMRun': '{n} of {m} running',
     lightOn: '{n} light on',
     lightsOn: '{n} lights on',
     musicPlaying: 'Music playing',
@@ -1017,6 +1030,10 @@ const STRINGS = {
     'ed.covers': 'Blinds',
     'ed.media': 'Media players',
     'ed.climate': 'Thermostats',
+    'ed.devices': 'Devices',
+    'ed.h.devices': 'The catch-all: vacuum, mixer, printer — any entity may sit '
+      + 'here. This list does not fill itself from the area; what is in it is '
+      + 'up to you.',
     'ed.lock_entity': 'Lock',
     'ed.cover_auto': 'Blind automation',
     'ed.favs': 'Favourite positions of the blinds',
@@ -1123,6 +1140,7 @@ const STRINGS = {
     'ed.c.rosa': 'Pink',
     'ed.g.light': 'Lights', 'ed.g.cover': 'Blinds',
     'ed.g.media_player': 'Media players', 'ed.g.climate': 'Thermostats',
+    'ed.g.devices': 'Devices',
     'ed.newGroup': 'Scenes'
   }
 };
@@ -1510,8 +1528,66 @@ const GROUPS = {
   light:        { icon: 'mdi:lightbulb' },
   media_player: { icon: 'mdi:music-note' },
   climate:      { icon: 'mdi:thermostat' },
-  cover:        { icon: 'mdi:window-shutter' }
+  cover:        { icon: 'mdi:window-shutter' },
+  // Der Sammelplatz: hier darf jede Entität stehen. Deshalb sucht diese
+  // Gruppe auch nichts von selbst im Bereich zusammen — sie hat keine
+  // Domäne, nach der sie suchen könnte, und "alles Übrige" wäre jeder
+  // Temperatursensor und jede Automation des Raums.
+  devices:      { icon: 'mdi:devices', frei: true }
 };
+
+/** Die Gruppen der Raum-Karte in ihrer Vorgabereihenfolge */
+const ROOM_GROUPS = ['light', 'cover', 'media_player', 'climate', 'devices'];
+
+/**
+ * Sinnvolle Sinnbilder für die Sammelgruppe. Ein eigenes Symbol an der
+ * Entität schlägt das hier; erst wenn Home Assistant keines nennt,
+ * entscheidet die Domäne.
+ */
+const DEV_ICONS = {
+  vacuum: 'mdi:robot-vacuum', lawn_mower: 'mdi:robot-mower',
+  fan: 'mdi:fan', switch: 'mdi:power-socket-eu', light: 'mdi:lightbulb',
+  media_player: 'mdi:speaker', climate: 'mdi:thermostat',
+  cover: 'mdi:window-shutter', lock: 'mdi:lock', camera: 'mdi:cctv',
+  humidifier: 'mdi:air-humidifier', water_heater: 'mdi:water-boiler',
+  valve: 'mdi:pipe-valve', siren: 'mdi:bullhorn', script: 'mdi:script-text',
+  scene: 'mdi:palette', automation: 'mdi:robot', button: 'mdi:gesture-tap-button',
+  input_boolean: 'mdi:toggle-switch-outline', binary_sensor: 'mdi:eye-outline',
+  sensor: 'mdi:gauge', person: 'mdi:account', device_tracker: 'mdi:cellphone',
+  number: 'mdi:ray-vertex', select: 'mdi:form-dropdown', text: 'mdi:form-textbox',
+  update: 'mdi:package-up', remote: 'mdi:remote', todo: 'mdi:format-list-checks'
+};
+
+/**
+ * Läuft dieses Gerät gerade? Stur auf `on` zu prüfen ginge daneben: ein
+ * Saugroboter reinigt, ein Mäher mäht, ein Lautsprecher spielt. Was die
+ * Karte hier für "läuft" hält, entscheidet die Domäne.
+ */
+const DEV_RUN = {
+  vacuum: ['cleaning', 'returning'],
+  lawn_mower: ['mowing', 'returning'],
+  media_player: ['playing', 'buffering'],
+  camera: ['recording', 'streaming'],
+  timer: ['active'],
+  person: [], device_tracker: []
+};
+
+function devLaeuft(st) {
+  if (!st || isDead(st)) return false;
+  const d = st.entity_id.split('.')[0];
+  if (DEV_RUN[d]) return DEV_RUN[d].includes(st.state);
+  if (d === 'climate' || d === 'water_heater') return st.state !== 'off';
+  if (d === 'cover') return st.state === 'open'
+    || (st.attributes.current_position || 0) > 0;
+  // Ein Messwert läuft nicht — er steht einfach da
+  if (d === 'sensor' || d === 'number' || d === 'select' || d === 'text') return false;
+  return st.state === 'on';
+}
+
+/** Lässt sich das umschalten, oder bleibt nur das Detailfenster? */
+const DEV_TOGGLE = ['switch', 'light', 'fan', 'input_boolean', 'humidifier',
+  'siren', 'valve', 'automation', 'remote', 'media_player', 'climate',
+  'water_heater', 'cover', 'lock'];
 
 /** Kartenfarben. Deutsch und englisch geschrieben führen zur selben Palette. */
 const PALETTES = {
@@ -1631,7 +1707,8 @@ const GROUP_KEYS = {
   light:        ['lights', 'lampen'],
   media_player: ['media', 'media_players'],
   climate:      ['climate'],
-  cover:        ['covers', 'storen', 'rollos']
+  cover:        ['covers', 'storen', 'rollos'],
+  devices:      ['devices', 'geraete', 'geräte']
 };
 
 /**
@@ -1874,6 +1951,10 @@ class OnyxRoomCard extends OnyxBase {
     const cfg = this._config;
     const listed = normList(this.constructor._listFor(cfg, domain));
     if (listed) return listed;
+    // Die Sammelgruppe kennt keine Domäne, nach der sie im Bereich suchen
+    // könnte. Ohne Liste bleibt sie deshalb leer, statt alles einzusammeln,
+    // was der Raum sonst noch hergibt.
+    if (GROUPS[domain] && GROUPS[domain].frei) return [];
     if (!cfg.area) return [];
     return entitiesInArea(this._hass, cfg.area, domain).map((entity) => ({ entity }));
   }
@@ -1883,7 +1964,7 @@ class OnyxRoomCard extends OnyxBase {
     const area = (hass.areas || {})[cfg.area];
     if (cfg.area && !area) throw new Error(t('err.area', { id: cfg.area }));
 
-    const wanted = cfg.groups || ['light', 'cover', 'media_player', 'climate'];
+    const wanted = cfg.groups || ROOM_GROUPS;
     const groups = [];
     for (const d of wanted) {
       if (!GROUPS[d]) continue;
@@ -1900,13 +1981,18 @@ class OnyxRoomCard extends OnyxBase {
         // es nur, wenn es tatsächlich heizt oder kühlt — sonst leuchtete der
         // Klima-Knopf rund ums Jahr.
         const act = st && st.attributes.hvac_action;
-        const on = d === 'climate' && act
-          ? (act === 'heating' || act === 'cooling' || act === 'drying')
-          : isOn(st);
+        const on = d === 'devices' ? devLaeuft(st)
+          : d === 'climate' && act
+            ? (act === 'heating' || act === 'cooling' || act === 'drying')
+            : isOn(st);
         // `on` heisst "eingeschaltet", `melden` heisst "davon will der Raum
         // oben etwas lesen". Bei Storen ist das Geschlossensein die Nachricht,
         // nicht das Offenstehen; ein pausierter Lautsprecher meldet nichts.
         const melden = isDead(st) ? false
+          // In der Sammelgruppe gilt schlicht: läuft es, ist es eine
+          // Nachricht. Die Sonderregeln der anderen Gruppen — eine Store
+          // meldet das Geschlossensein — gelten dort und nur dort.
+          : d === 'devices' ? on
           : own === 'cover' ? !on
           : own === 'media_player' ? ['playing', 'buffering'].includes(st.state)
           : on;
@@ -1915,10 +2001,17 @@ class OnyxRoomCard extends OnyxBase {
           own,
           // Ein Schalter kennt keine Helligkeit — die Zeile lässt sich
           // antippen, aber nicht ziehen.
-          dim: own === 'light' || own === 'cover',
+          dim: d !== 'devices' && (own === 'light' || own === 'cover'),
+          // In der Sammelgruppe zählt, was Home Assistant zur Entität sagt,
+          // dann die Domäne — ein Saugroboter soll nicht wie ein Mixer
+          // aussehen, bloss weil beide in derselben Liste stehen.
+          schaltbar: d !== 'devices' || DEV_TOGGLE.includes(own),
           name: entry.name || nameOf(hass, id),
-          icon: entry.icon || (own === 'switch' && d === 'light'
-            ? 'mdi:power-socket-eu' : GROUPS[d].icon),
+          icon: entry.icon
+            || (d === 'devices'
+                 ? ((st && st.attributes.icon) || DEV_ICONS[own] || GROUPS[d].icon)
+                 : (own === 'switch' && d === 'light'
+                     ? 'mdi:power-socket-eu' : GROUPS[d].icon)),
           // Nur echte Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
           glow: own === 'light' ? lightGlow(st) : null,
           // Nur Storen tragen eine Wunschposition — und nur, wenn eine
@@ -2114,6 +2207,8 @@ class OnyxRoomCard extends OnyxBase {
       } else if (g.domain === 'cover') {
         // Zu ist die Nachricht, nicht offen — offen ist der Normalzustand
         bits.push(t(n === 1 ? 'coverShut' : 'coversShut', { n }));
+      } else if (g.domain === 'devices') {
+        bits.push(t(n === 1 ? 'devRun' : 'devsRun', { n }));
       }
     }
     return bits.length ? bits.join(' · ') : t('allOff');
@@ -2121,6 +2216,12 @@ class OnyxRoomCard extends OnyxBase {
 
   _rowText(it, domain) {
     if (it.dead) return t('unavailable');
+    // In der Sammelgruppe sagt Home Assistant selbst, wie der Zustand
+    // heisst — übersetzt und mit Einheit. "cleaning" stünde sonst roh da.
+    if (domain === 'devices') {
+      const st = this._hass.states[it.id];
+      return st ? stateText(this._hass, st) : t('unavailable');
+    }
     if (domain === 'media_player') {
       if (it.melden) return it.title || t('playing');
       return it.on ? t('mediaPaused') : t('off');
@@ -2211,7 +2312,8 @@ class OnyxRoomCard extends OnyxBase {
       <div class="divide"></div>
       <div class="grp">
         <span>${esc(t('inRoom', { g: t('group.' + og.domain) }))}</span>
-        <b>${esc(t(og.domain === 'cover' ? 'nOfMShut' : 'nOfMOn',
+        <b>${esc(t(og.domain === 'cover' ? 'nOfMShut'
+                     : og.domain === 'devices' ? 'nOfMRun' : 'nOfMOn',
                      { n: og.meldeCount, m: og.items.length }))}</b>
       </div>
       <div class="rows">${rows}</div>
@@ -2353,6 +2455,14 @@ class OnyxRoomCard extends OnyxBase {
 
   _toggleOne(id, domain) {
     const own = id.split('.')[0];
+    // In der Sammelgruppe darf alles stehen — auch Entitäten, die sich gar
+    // nicht schalten lassen. Für die ist das Detailfenster die einzige
+    // sinnvolle Antwort auf einen Tipp; ein ins Leere gehender Dienstaufruf
+    // wäre die schlechtere.
+    if (domain === 'devices' && !DEV_TOGGLE.includes(own)) {
+      fireMoreInfo(this, id);
+      return;
+    }
     if (own === 'climate') { fireMoreInfo(this, id); return; }
     if (own === 'media_player') { this.call('media_player', 'media_play_pause', { entity_id: id }); return; }
     if (own === 'cover') {
@@ -2388,6 +2498,13 @@ class OnyxRoomCard extends OnyxBase {
 
   _toggleGroup(grp) {
     if (!grp) return;
+    // Bei gemischten Geräten wäre "alles umschalten" eine grobe Geste: sie
+    // startete auch den Staubsauger. Halten öffnet deshalb nur das erste
+    // Gerät, statt etwas loszuschicken.
+    if (grp.domain === 'devices') {
+      if (grp.items.length) fireMoreInfo(this, grp.items[0].id);
+      return;
+    }
     const ids = grp.items.map((i) => i.id);
     if (grp.domain === 'light') {
       // Die Liste darf Lampen und Schalter mischen — homeassistant.turn_on
@@ -8369,7 +8486,7 @@ const ED_HELP_KEY = {
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
   rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint',
-  below: 'ed.h.below', exclude: 'ed.h.exclude',
+  below: 'ed.h.below', exclude: 'ed.h.exclude', devices: 'ed.h.devices',
   shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
@@ -8957,7 +9074,8 @@ const ROOM_LISTS = [
   { field: 'lights', domain: 'light' },
   { field: 'covers', domain: 'cover' },
   { field: 'media', domain: 'media_player' },
-  { field: 'climate', domain: 'climate' }
+  { field: 'climate', domain: 'climate' },
+  { field: 'devices', domain: 'devices' }
 ];
 
 class OnyxRoomEditor extends OnyxEditor {
@@ -9006,8 +9124,7 @@ class OnyxRoomEditor extends OnyxEditor {
         selector: {
           select: {
             multiple: true,
-            options: ['light', 'cover', 'media_player', 'climate']
-              .map((v) => ({ value: v, label: t('ed.g.' + v) }))
+            options: ROOM_GROUPS.map((v) => ({ value: v, label: t('ed.g.' + v) }))
           }
         }
       },
@@ -9018,7 +9135,9 @@ class OnyxRoomEditor extends OnyxEditor {
         fieldEntity('cover_wind', ['input_boolean', 'switch', 'automation'])
       ),
       fieldEntity('media', 'media_player', true),
-      fieldEntity('climate', 'climate', true)
+      fieldEntity('climate', 'climate', true),
+      // Ohne Domäne: in diese Liste darf jede Entität
+      fieldEntity('devices', null, true)
     ];
   }
 
@@ -9044,7 +9163,7 @@ class OnyxRoomEditor extends OnyxEditor {
       history_min_span: c.history_min_span != null ? c.history_min_span : 2,
       cover_auto: c.cover_auto || '',
       cover_wind: c.cover_wind || '',
-      groups: c.groups || ['light', 'cover', 'media_player', 'climate']
+      groups: c.groups || ROOM_GROUPS.slice()
     };
     for (const { field, domain } of ROOM_LISTS) {
       const list = normList(OnyxRoomCard._listFor(c, domain)) || [];
@@ -9069,9 +9188,12 @@ class OnyxRoomEditor extends OnyxEditor {
         cfg[key] = mergeList(ids, OnyxRoomCard._listFor(this._config, domain));
       }
     }
-    // Alle vier Gruppen sichtbar ist der Normalfall — dann muss es nicht
-    // in der YAML stehen.
-    if (cfg.groups && cfg.groups.length === 4) delete cfg.groups;
+    // Alle Gruppen in ihrer Reihenfolge ist der Normalfall — dann muss es
+    // nicht in der YAML stehen. Verglichen wird der Inhalt, nicht die
+    // Länge: sonst hiesse jede beliebige Auswahl gleicher Länge "Vorgabe".
+    if (cfg.groups && cfg.groups.join(',') === ROOM_GROUPS.join(',')) {
+      delete cfg.groups;
+    }
     // Aus den zwei Formularfeldern wird wieder der eine Schlüssel.
     delete cfg.history_on;
     delete cfg.history_sensor;
