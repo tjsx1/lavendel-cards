@@ -1828,15 +1828,19 @@ class OnyxRoomCard extends OnyxBase {
     .sdot[hidden]{ display:none; }
     /* Die Werte der Y-Achse stehen rechts: links liegen Text und Knöpfe der
        Karte, rechts ist unter der Temperatur nichts mehr. */
+    /* Die Achsen sind Beiwerk: Sie sollen dastehen, wenn man sie sucht,
+       und verschwinden, wenn man die Karte bloss ansieht. Gedämpft wird mit
+       Deckkraft statt mit einer eigenen Farbe — so bleibt der warme Fall
+       ohne zweite Farbtabelle mit gedämpft. */
     .sy{ position:absolute; right:0; font-size:9px; line-height:11px;
-         color:#6f8497; font-variant-numeric:tabular-nums; }
+         color:#6f8497; opacity:.55; font-variant-numeric:tabular-nums; }
     ha-card.warm .sy{ color:var(--lab); }
     .sy.hi{ top:0; }
     .sy.lo{ bottom:0; }
     /* Die Zeitachse ist eine eigene Zeile im geschlossenen Teil, keine
        Auflage: über der Fläche stünde sie sonst in den Knöpfen. */
     .sax{ display:flex; justify-content:space-between; gap:8px;
-          font-size:9px; line-height:11px; color:#6f8497;
+          font-size:9px; line-height:11px; color:#6f8497; opacity:.55;
           font-variant-numeric:tabular-nums; pointer-events:none; }
     ha-card.warm .sax{ color:var(--lab); }
     .sbub{ position:absolute; z-index:3; transform:translateX(-50%);
