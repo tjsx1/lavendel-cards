@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.8.1';
+const ONYX_VERSION = '1.9.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -561,6 +561,15 @@ const STRINGS = {
     'ed.shape.chips': 'Chips',
     'ed.shape.tiles': 'Kacheln',
     'ed.shape.rail': 'Leiste',
+    'ed.tint': 'Farbe im Hintergrund',
+    'ed.h.tint': 'Getönt ist die Vorgabe: die Kartenfarbe liegt gedämpft im Grund. '
+      + 'Grau nimmt sie ganz heraus, Voll gefärbt zeigt sie ungedämpft.',
+    'ed.tint.auto': 'Getönt',
+    'ed.tint.off': 'Grau',
+    'ed.tint.full': 'Voll gefärbt',
+    'ed.rail_labels': 'Text unter den Symbolen',
+    'ed.h.rail_labels': 'Gilt nur für die Form „Leiste". Der Name steht klein unter '
+      + 'dem Kreis; ist er zu lang, endet er mit …',
     'ed.chip_style': 'Bauart der Chips',
     'ed.h.chip_style': 'Gilt nur für die Form „Chips"',
     'ed.cs.icon': 'Farbe im Symbol',
@@ -1070,6 +1079,15 @@ const STRINGS = {
     'ed.shape.chips': 'Chips',
     'ed.shape.tiles': 'Tiles',
     'ed.shape.rail': 'Rail',
+    'ed.tint': 'Colour in the background',
+    'ed.h.tint': 'Tinted is the default: the card colour sits muted in the ground. '
+      + 'Grey takes it out entirely, Full colour shows it undimmed.',
+    'ed.tint.auto': 'Tinted',
+    'ed.tint.off': 'Grey',
+    'ed.tint.full': 'Full colour',
+    'ed.rail_labels': 'Labels under the icons',
+    'ed.h.rail_labels': 'Only applies to the "Rail" shape. The name sits small below '
+      + 'the circle; if it is too long it ends with …',
     'ed.chip_style': 'Chip style',
     'ed.h.chip_style': 'Only applies to the "Chips" shape',
     'ed.cs.icon': 'Color in the icon',
@@ -1516,16 +1534,58 @@ ha-card.p-violett{ --w1:#1d1233; --w2:#34215c; --acc:#c3a8f5; --sub:#a48ddb; --l
                    --btn:#9b7bf5; }
 ha-card.p-rosa   { --w1:#2e1224; --w2:#521f3d; --acc:#f2a0cd; --sub:#d183b0; --lab:#b87fa2;
                    --btn:#ef6bb0; }
+
+/* ------------------------------------------------------------------
+   Der Grund jeder Karte. Die Kartenfarbe zu 72 % in den dunklen Ton
+   gemischt — dieselbe Mischung, die Raum, Klima und Energie schon immer
+   hatten. Ohne sie liefe der Verlauf zwischen zwei fast gleichen Grau,
+   also praktisch gar nicht.
+
+   Die Auswahl ist absichtlich schwerer als das schlichte ha-card der
+   einzelnen Karten, damit sie deren eigenen Grund übersteuert; deren
+   .warm bleibt dagegen gleich schwer und steht später, gewinnt also
+   weiterhin, sobald etwas läuft.
+   ------------------------------------------------------------------ */
+ha-card:not(.plain){
+  background:linear-gradient(to right bottom,
+    color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
+    color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
+}
+ha-card.tinted{
+  background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%);
+}
+/* Die doppelte Klasse verschafft tinted:false Vorrang vor dem .warm der
+   einzelnen Karten: wer Grau bestellt, bekommt Grau, auch wenn gerade
+   etwas läuft. */
+ha-card.plain.plain{
+  background:linear-gradient(to right bottom,
+    var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+}
 `;
 
 /** Farbklasse und Inline-Stil aus der Konfiguration ableiten */
-function paletteAttrs(color) {
-  if (!color) return { cls: '', style: '' };
-  if (String(color).charAt(0) === '#') return { cls: '', style: ` style="${paletteFromHex(color)}"` };
+/**
+ * `tinted` steuert den Grund der Karte und kennt drei Zustände:
+ * fehlt → die gedämpfte Tönung, `false` → das alte Grau, `true` → der
+ * volle Farbverlauf.
+ */
+function grundKlasse(cfg) {
+  if (!cfg) return '';
+  if (cfg.tinted === false) return ' plain';
+  if (cfg.tinted === true) return ' tinted';
+  return '';
+}
+
+function paletteAttrs(color, cfg) {
+  const grund = grundKlasse(cfg);
+  if (!color) return { cls: grund, style: '' };
+  if (String(color).charAt(0) === '#') {
+    return { cls: grund, style: ` style="${paletteFromHex(color)}"` };
+  }
   const key = PALETTES[String(color).toLowerCase()];
   if (!key) throw new Error(
     t('err.color', { c: color, list: [...new Set(Object.values(PALETTES))].join(', ') }));
-  return { cls: key === 'blau' ? '' : ' p-' + key, style: '' };
+  return { cls: (key === 'blau' ? '' : ' p-' + key) + grund, style: '' };
 }
 
 /** Erste Entität einer Domain — für die Startkonfiguration aus der Kartenauswahl */
@@ -2134,7 +2194,7 @@ class OnyxRoomCard extends OnyxBase {
       ${this._actions(m, og)}`;
     }
 
-    const { cls: pal, style } = paletteAttrs(m.color);
+    const { cls: pal, style } = paletteAttrs(m.color, this._config);
 
     return `
     <ha-card class="${anyOn ? 'warm' : ''}${pal}"${style}>
@@ -2344,14 +2404,24 @@ class OnyxRoomCard extends OnyxBase {
 class OnyxSliderCard extends OnyxBase {
   static get CSS() {
     return PAL_CSS + `
-    ha-card{ padding:0; background:none; border:none; box-shadow:none; overflow:visible; }
+        /* Diese Karte ist selbst durchsichtig — den Grund trägt .sl. Die
+       Auswahl muss deshalb so schwer sein wie die gemeinsame Regel aus
+       PAL_CSS, sonst bekäme der leere Rahmen die Tönung. */
+    ha-card, ha-card:not(.plain){ padding:0; background:none; border:none;
+      box-shadow:none; overflow:visible; }
     .sl{ width:100%; height:168px; border-radius:var(--onyx-r,24px);
          border:1px solid rgba(255,255,255,.09);
          background:linear-gradient(to right bottom,
-           var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
+           color-mix(in srgb, var(--w1) 72%, var(--onyx-cold-1,#141419)) 0%,
+           color-mix(in srgb, var(--w2) 72%, var(--onyx-cold-2,#17171d)) 100%);
          position:relative; overflow:hidden; display:flex; flex-direction:column;
          justify-content:space-between; align-items:center; padding:13px 0 12px;
          cursor:pointer; touch-action:pan-x; }
+    ha-card.warm .sl, ha-card.tinted .sl{
+      background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
+    ha-card.plain .sl, ha-card.plain.warm .sl{
+      background:linear-gradient(to right bottom,
+        var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%); }
     /* Der Füllstand ist die Kartenfarbe, nach oben hin dünner. So bleibt der
        Wert lesbar und der Regler wird nicht zum Farbbalken. */
     .fill{ position:absolute; left:0; right:0; bottom:0; transition:height .12s linear;
@@ -2403,7 +2473,7 @@ class OnyxSliderCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const on = !m.dead && m.pct > 0;
     const glow = m.glow ? `--btn:${m.glow}` : '';
     const styled = glow
@@ -2580,7 +2650,7 @@ class OnyxCoverCard extends OnyxBase {
     const closed = 100 - m.pos;              // Anteil, den die Store verdeckt
     const slatClass = m.tilt != null && m.tilt < 35 ? 'zu' : 'offen';
     const showTilt = m.canTilt && m.pos < 98;
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const warm = m.pos > 0 && !m.locked && !m.dead;
 
     return `
@@ -2828,7 +2898,7 @@ class OnyxMediaCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
 
     if (!m.active) {
       return `
@@ -3143,6 +3213,17 @@ class OnyxActionsCard extends OnyxBase {
     .rail{ display:flex; justify-content:space-between; gap:8px;
            background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07);
            border-radius:16px; padding:9px 12px; }
+    /* Mit Beschriftung wird aus der Leiste eine Reihe gleich breiter Spalten.
+       Von Rand zu Rand verteilte Symbole stünden sonst über Texten, die
+       ihrerseits mittig sitzen — die Zuordnung wäre nicht mehr eindeutig. */
+    .rail.lbl{ align-items:flex-start; padding:9px 10px 8px; }
+    .rail.lbl .cell{ display:flex; flex-direction:column; align-items:center; gap:6px;
+                     min-width:0; flex:1 1 0; cursor:pointer; }
+    .rail.lbl .cell > span{ font-size:10.5px; line-height:1.25; color:#8ea3b5;
+                            text-align:center; max-width:100%;
+                            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rail.lbl .cell.on > span{ color:#c8d8e6; }
+    .rail.lbl .cell.dead > span{ opacity:.45; }
     .rail .r{ width:38px; height:38px; border-radius:50%; display:grid; place-items:center;
               color:#c8d8e6; cursor:pointer; --mdc-icon-size:19px; flex:none;
               background:linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.045));
@@ -3154,6 +3235,10 @@ class OnyxActionsCard extends OnyxBase {
     .rail .r.off{ color:#8ea3b5; }
     .rail .r.dead{ opacity:.45; }
     .rail .r.held{ transform:scale(.92); }
+    /* Gedrückt wird mit Text die ganze Spalte, schrumpfen soll aber nur der
+       Kreis — ein mitschrumpfender Text flackert beim Lesen. */
+    .rail.lbl .cell.held .r{ transform:scale(.92); }
+    .rail.lbl .cell.held{ transform:none; }
     `;
   }
 
@@ -3238,6 +3323,7 @@ class OnyxActionsCard extends OnyxBase {
             : null)),
       shape: cfg.shape || (all.length > 8 ? 'chips' : 'squares'),
       chipStyle: CHIP_STYLES.includes(cfg.chip_style) ? cfg.chip_style : 'icon',
+      railLabels: cfg.rail_labels === true,
       columns: cfg.columns || 4,
       color: cfg.color || null,
       groups,
@@ -3245,7 +3331,7 @@ class OnyxActionsCard extends OnyxBase {
     };
   }
 
-  _item(it, shape, flash, chipStyle) {
+  _item(it, shape, flash, chipStyle, railLabels) {
     const flashing = flash === it.id;
     const icon = flashing ? 'mdi:check' : it.icon;
     const cls = [
@@ -3264,8 +3350,15 @@ class OnyxActionsCard extends OnyxBase {
         <span class="ci"><ha-icon icon="${esc(icon)}"></ha-icon></span>${body}</div>`;
     }
     if (shape === 'rail') {
-      return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
-        <ha-icon icon="${esc(icon)}"></ha-icon></div>`;
+      const knopf = `<div class="r ${cls}"><ha-icon icon="${esc(icon)}"></ha-icon></div>`;
+      // Ohne Text hört der Kreis selbst auf das Tippen, mit Text die ganze
+      // Spalte — sonst wäre die Beschriftung tote Fläche.
+      if (!railLabels) {
+        return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
+          <ha-icon icon="${esc(icon)}"></ha-icon></div>`;
+      }
+      return `<div class="cell ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
+        ${knopf}<span>${esc(it.name)}</span></div>`;
     }
     if (shape === 'tiles') {
       return `<div class="tile ${cls}" data-e="${esc(it.id)}">
@@ -3286,7 +3379,9 @@ class OnyxActionsCard extends OnyxBase {
   _html(m) {
     const wrapOpen = (shape, cols) => {
       if (shape === 'chips') return `<div class="chips ${m.chipStyle}">`;
-      if (shape === 'rail') return '<div class="rail">';
+      if (shape === 'rail') {
+        return `<div class="rail${m.railLabels ? ' lbl' : ''}">`;
+      }
       if (shape === 'tiles') return `<div class="grid" style="grid-template-columns:repeat(${Math.min(cols, 2)},1fr)">`;
       return `<div class="grid" style="grid-template-columns:repeat(${cols},1fr)">`;
     };
@@ -3295,7 +3390,8 @@ class OnyxActionsCard extends OnyxBase {
       ${i > 0 ? '<div class="fsep"></div>' : ''}
       ${g.label ? `<div class="flabel">${esc(g.label)}</div>` : ''}
       ${wrapOpen(m.shape, m.columns)}
-        ${g.items.map((it) => this._item(it, m.shape, m.flash, m.chipStyle)).join('')}
+        ${g.items.map((it) => this._item(it, m.shape, m.flash, m.chipStyle,
+                                          m.railLabels)).join('')}
       </div>`).join('');
 
     const head = m.title ? `
@@ -3306,7 +3402,7 @@ class OnyxActionsCard extends OnyxBase {
         </div>
       </div>` : '';
 
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     return `<ha-card class="${cls.trim()}"${style}>${head}${body}</ha-card>`;
   }
 
@@ -3560,7 +3656,6 @@ class OnyxChartCard extends OnyxBase {
       background:linear-gradient(to right bottom,
         var(--onyx-cold-1,#141419) 0%, var(--onyx-cold-2,#17171d) 100%);
     }
-    ha-card.tinted{ background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%); }
 
     .head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
     .hleft{ display:flex; align-items:center; gap:10px; min-width:0; }
@@ -3773,7 +3868,6 @@ class OnyxChartCard extends OnyxBase {
       label: this._config.label || t('history'),
       icon: this._config.icon || 'mdi:chart-line',
       color: this._config.color || null,
-      tinted: this._config.tinted === true,
       period: this._period,
       items, sel, gezeichnet,
       error: this._error || null
@@ -3958,7 +4052,7 @@ class OnyxChartCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     // Der Farbpunkt sagt, welcher Wert im Bild eine Linie hat. Bei einer
     // einzigen Reihe erklärt er nichts und bleibt weg.
     const punkte = m.items.length > 1;
@@ -3974,7 +4068,7 @@ class OnyxChartCard extends OnyxBase {
       </div>`).join('');
 
     return `
-    <ha-card class="${m.tinted ? 'tinted' : ''}${cls}"${style}>
+    <ha-card class="${cls.trim()}"${style}>
       <div class="head">
         <div class="hleft">
           <div class="hico"><ha-icon icon="${esc(m.icon)}"></ha-icon></div>
@@ -4426,7 +4520,7 @@ class OnyxVacuumCard extends OnyxBase {
     // Eine Störung übersteuert die Kartenfarbe. Ein stehender Roboter, der
     // in fröhlichem Violett leuchtet, wird übersehen — und genau das ist
     // die Meldung, die man nicht übersehen darf.
-    const { cls, style } = paletteAttrs(m.error ? 'rot' : m.color);
+    const { cls, style } = paletteAttrs(m.error ? 'rot' : m.color, this._config);
     const warm = (m.busy || m.charging) && !m.dead;
     const p = this._primary(m);
     const ringCls = [m.batt != null && m.batt < 20 ? 'low' : '',
@@ -5074,7 +5168,7 @@ class OnyxWeatherCard extends OnyxBase {
     // grauen Tag sagt mehr als jede Farbe.
     const auto = !m.color || m.color === 'auto';
     const pal = auto ? WX_PALETTE[m.cond] : m.color;
-    const { cls, style } = paletteAttrs(pal || null);
+    const { cls, style } = paletteAttrs(pal || null, this._config);
     const warm = !!pal && !m.dead;
 
     const cells = m.vals.map((v) => `
@@ -5496,9 +5590,10 @@ class OnyxLightCard extends OnyxBase {
     const auto = !m.color || m.color === 'auto';
     const { cls, style } = auto
       ? (m.on && m.tint
-          ? { cls: '', style: ` style="${paletteFromHex(m.tint)}"` }
-          : paletteAttrs(null))
-      : paletteAttrs(m.color);
+          ? { cls: grundKlasse(this._config),
+              style: ` style="${paletteFromHex(m.tint)}"` }
+          : paletteAttrs(null, this._config))
+      : paletteAttrs(m.color, this._config);
     const warm = m.on && !m.dead;
     // Die Leuchtfarbe nur dann in den Balken schreiben, wenn sie gemessen
     // ist. Sonst gilt die Regel aus dem Stylesheet: Akzentfarbe der Palette.
@@ -5982,7 +6077,7 @@ class OnyxCameraCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const alarm = (m.ring || m.motion) && !m.dead;
     const klass = (cls + (m.footer ? ' foot' : '') + (alarm ? ' alarm' : '')
       + (m.dead ? ' off' : '')).trim();
@@ -6215,6 +6310,10 @@ class OnyxLockCard extends OnyxBase {
       border:1px solid rgba(255,255,255,.09);
       display:flex; flex-direction:column; gap:12px; overflow:hidden;
       box-shadow:none; container-type:inline-size;
+    }
+    /* Diese Karte war seit jeher voll gefärbt und bleibt es; gleich
+       schwere Auswahl wie die gemeinsame Regel, aber später im Blatt. */
+    ha-card:not(.plain){
       background:linear-gradient(to right bottom, var(--w1) 0%, var(--w2) 100%);
     }
     ha-card.off{ opacity:.55; }
@@ -6355,7 +6454,7 @@ class OnyxLockCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const klass = (cls + (m.dead ? ' off' : '') + (m.busy ? ' busy' : '')).trim();
 
     let control = '';
@@ -6979,7 +7078,7 @@ class OnyxStatusCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(this._config.color || null);
+    const { cls, style } = paletteAttrs(this._config.color || null, this._config);
 
     const head = m.head ? `
       <div class="head" style="--t:${esc(m.head.color)}" data-e="${esc(m.head.id || '')}">
@@ -7378,7 +7477,7 @@ class OnyxClimateCard extends OnyxBase {
   }
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const aus = m.modus === 'off' || m.dead;
 
     const modes = m.modi.length ? `<div class="modes">${m.modi.map((k) => `
@@ -7914,7 +8013,7 @@ class OnyxEnergyCard extends OnyxBase {
   /* ---------------- Darstellung ---------------- */
 
   _html(m) {
-    const { cls, style } = paletteAttrs(m.color);
+    const { cls, style } = paletteAttrs(m.color, this._config);
     const kwh = (v) => (v == null ? null
       : `${esc(nfmt(v, v >= 100 ? 0 : 1))}<small>kWh</small>`);
 
@@ -8039,6 +8138,7 @@ const ED_HELP_KEY = {
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
+  rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint',
   shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
@@ -8138,6 +8238,12 @@ const fieldEntity = (name, domain, multiple) => ({
     domain ? { filter: { domain } } : null) }
 });
 const grid = (...schema) => ({ type: 'grid', name: '', schema });
+const TINT_MODI = ['auto', 'off', 'full'];
+const fieldTint = () => ({
+  name: 'tint',
+  selector: { select: { mode: 'dropdown',
+    options: TINT_MODI.map((v) => ({ value: v, label: t('ed.tint.' + v) })) } }
+});
 
 /**
  * Aus dem Formular zurück in die Konfiguration. Leere Felder fliegen raus,
@@ -8303,6 +8409,26 @@ class OnyxEditor extends HTMLElement {
     return b;
   }
 
+  /**
+   * Die Tönung steht in der Konfiguration als `tinted` mit drei Zuständen
+   * (fehlt, false, true) und im Formular als dreiwertige Auswahl `tint`.
+   * Beide Richtungen liegen hier, damit sie nicht in vierzehn Editoren
+   * einzeln stehen und dort auseinanderlaufen.
+   */
+  _tintEin(data) {
+    const v = this._config ? this._config.tinted : undefined;
+    data.tint = v === true ? 'full' : v === false ? 'off' : 'auto';
+    return data;
+  }
+
+  _tintAus(cfg, data) {
+    delete cfg.tint;
+    if (data.tint === 'full') cfg.tinted = true;
+    else if (data.tint === 'off') cfg.tinted = false;
+    else delete cfg.tinted;
+    return cfg;
+  }
+
   /** Eine Zwischenüberschrift */
   _section(label) {
     const h = document.createElement('div');
@@ -8315,10 +8441,12 @@ class OnyxEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     const root = this._root();
     if (!this._form) {
-      this._form = this._makeForm((d) => this._emit(this._fromForm(d)));
+      this._form = this._makeForm(
+        (d) => this._emit(this._tintAus(this._fromForm(d), d)));
       root.appendChild(this._form);
     }
-    this._fillForm(this._form, this._schema(), this._toForm(this._config));
+    this._fillForm(this._form, this._schema(),
+                   this._tintEin(this._toForm(this._config)));
     this._extra(root);
   }
 }
@@ -8334,6 +8462,7 @@ class OnyxSliderEditor extends OnyxEditor {
       fieldEntity('entity', ['light', 'cover', 'media_player']),
       grid(fieldText('name'), fieldIcon('icon')),
       fieldColor(),
+      fieldTint(),
       fieldBool('show_name')
     ];
   }
@@ -8357,6 +8486,7 @@ class OnyxCoverEditor extends OnyxEditor {
     return [
       fieldEntity('entity', 'cover'),
       grid(fieldText('name'), fieldColor()),
+      fieldTint(),
       fieldEntity('lock_entity', ['binary_sensor', 'input_boolean', 'switch']),
       fieldText('lock_label')
     ];
@@ -8384,6 +8514,7 @@ class OnyxMediaEditor extends OnyxEditor {
       fieldEntity('entity', 'media_player'),
       grid(fieldText('name'), fieldText('label')),
       fieldColor(),
+      fieldTint(),
       grid(fieldBool('show_art'), fieldBool('show_volume'))
     ];
   }
@@ -8405,7 +8536,7 @@ class OnyxMediaEditor extends OnyxEditor {
  * ------------------------------------------------------------------ */
 class OnyxChartEditor extends OnyxEditor {
   static get DEFAULTS() {
-    return { tinted: false, fill: true, y_axis: true, shared_scale: true };
+    return { fill: true, y_axis: true, shared_scale: true };
   }
 
   _schema() {
@@ -8423,11 +8554,11 @@ class OnyxChartEditor extends OnyxEditor {
             }
           }
         },
-        fieldBool('tinted'),
         fieldBool('fill'),
         fieldBool('y_axis'),
         fieldBool('shared_scale')
       ),
+      fieldTint(),
       {
         name: 'graphs',
         selector: {
@@ -8451,7 +8582,6 @@ class OnyxChartEditor extends OnyxEditor {
       icon: c.icon || '',
       color: c.color || '',
       period: PERIOD_ALIAS[String(c.period || 'tag').toLowerCase()] || 'tag',
-      tinted: c.tinted === true,
       fill: c.fill !== false,
       y_axis: c.y_axis !== false,
       shared_scale: c.shared_scale !== false
@@ -8633,6 +8763,7 @@ class OnyxRoomEditor extends OnyxEditor {
       { name: 'area', selector: { area: {} } },
       grid(fieldText('name'), fieldText('label')),
       grid(fieldIcon('icon'), fieldColor()),
+      fieldTint(),
       grid(
         fieldEntity('temperature', 'sensor'),
         fieldEntity('humidity', 'sensor')
@@ -8962,7 +9093,7 @@ const ACT_DOMAINS = ['scene', 'script', 'automation', 'button', 'input_button',
   'switch', 'input_boolean'];
 
 class OnyxActionsEditor extends OnyxEditor {
-  static get DEFAULTS() { return { chip_style: 'icon' }; }
+  static get DEFAULTS() { return { chip_style: 'icon', rail_labels: false }; }
 
   _helpKey(name) {
     return name === 'chip_style' ? 'ed.h.chip_style' : (ED_HELP_KEY[name] || '');
@@ -8994,7 +9125,9 @@ class OnyxActionsEditor extends OnyxEditor {
           }
         }
       },
+      fieldBool('rail_labels'),
       fieldColor(),
+      fieldTint(),
       fieldBool('grouped')
     ];
   }
@@ -9049,6 +9182,7 @@ class OnyxActionsEditor extends OnyxEditor {
       chip_style: CHIP_STYLES.includes(this._config.chip_style)
         ? this._config.chip_style : 'icon',
       columns: this._config.columns || 4,
+      rail_labels: this._config.rail_labels === true,
       color: this._config.color || '',
       grouped: st.grouped
     };
@@ -9074,6 +9208,7 @@ class OnyxActionsEditor extends OnyxEditor {
       shape: data.shape,
       chip_style: data.chip_style,
       columns: data.columns,
+      rail_labels: data.rail_labels,
       color: data.color
     });
     delete cfg.grouped;
@@ -9229,6 +9364,7 @@ class OnyxVacuumEditor extends OnyxEditor {
       fieldEntity('entity', 'vacuum'),
       grid(fieldText('name'), fieldText('label')),
       grid(fieldIcon('icon'), fieldColor()),
+      fieldTint(),
       fieldEntity('battery_entity', 'sensor'),
       fieldEntity('consumables', 'sensor', true),
       grid(fieldText('room_command'), fieldBool('show_fan_speed'))
@@ -9393,6 +9529,7 @@ class OnyxCameraEditor extends OnyxEditor {
       fieldEntity('cameras', 'camera', true),
       grid(fieldText('name'), fieldIcon('icon')),
       grid(fieldColor(), fieldText('aspect_ratio')),
+      fieldTint(),
       grid(fieldEntity('motion_entity', 'binary_sensor'),
            fieldEntity('doorbell_entity', 'binary_sensor')),
       grid(fieldEntity('door_entity', ['lock', 'switch', 'button', 'input_boolean']),
@@ -9442,6 +9579,7 @@ class OnyxLockEditor extends OnyxEditor {
       fieldEntity('entity', 'lock'),
       grid(fieldText('name'), fieldIcon('icon')),
       fieldColor(),
+      fieldTint(),
       grid(fieldEntity('door_entity', 'binary_sensor'),
            fieldEntity('battery_entity', 'sensor')),
       fieldBool('show_open')
@@ -9484,7 +9622,8 @@ class OnyxStatusEditor extends OnyxEditor {
   _schema() {
     return [
       fieldText('title'),
-      grid(fieldText('subtitle'), fieldColor())
+      grid(fieldText('subtitle'), fieldColor()),
+      fieldTint()
     ];
   }
 
@@ -9830,6 +9969,7 @@ class OnyxWeatherEditor extends OnyxEditor {
         { name: 'forecast', selector: { select: { mode: 'dropdown',
           options: ['daily', 'hourly', 'none']
             .map((v) => ({ value: v, label: t('ed.fc.' + v) })) } } }),
+      fieldTint(),
       { name: 'forecast_count', selector: { number: { min: 2, max: 8, mode: 'box' } } },
       grid(fieldEntity('temperature', 'sensor'), fieldEntity('humidity', 'sensor')),
       grid(fieldEntity('wind', 'sensor'), fieldEntity('illuminance', 'sensor')),
@@ -9883,6 +10023,7 @@ class OnyxLightEditor extends OnyxEditor {
       fieldEntity('entity', 'light'),
       grid(fieldText('name'), fieldIcon('icon')),
       fieldColor(),
+      fieldTint(),
       grid(fieldBool('show_color_temp'), fieldBool('show_colors')),
       grid(fieldBool('show_effects'), fieldBool('always_open'))
     ];
@@ -9930,6 +10071,7 @@ class OnyxClimateEditor extends OnyxEditor {
       fieldEntity('entity', 'climate'),
       grid(fieldText('name'), fieldText('label')),
       grid(fieldIcon('icon'), fieldColor()),
+      fieldTint(),
       grid(fieldEntity('temperature', 'sensor'), fieldEntity('humidity', 'sensor')),
       grid(fieldBool('show_modes'), fieldBool('show_presets')),
       fieldBool('show_fan')
@@ -9980,6 +10122,7 @@ class OnyxEnergyEditor extends OnyxEditor {
       p('car'),
       grid(fieldBool('invert_grid'), fieldBool('invert_battery')),
       grid(fieldText('name'), fieldColor()),
+      fieldTint(),
       grid(p('today_solar'), p('today_import')),
       grid(p('today_export'), p('today_house')),
       grid(p('cost_today'), p('saved_today')),

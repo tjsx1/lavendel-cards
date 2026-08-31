@@ -67,6 +67,39 @@ Dann Entwicklerwerkzeuge → YAML → **Themes neu laden**, und im Benutzerprofi
 Das Theme setzt auch die Variablen, aus denen die Karten ihren Verlauf und ihre Schatten lesen.
 Ohne Theme funktionieren die Karten, sehen aber neutraler aus.
 
+## Farbe im Hintergrund
+
+Jede Karte trägt ihre Farbe im Grund: ein Verlauf von links oben nach rechts unten,
+in dem die Kartenfarbe zu 72 % im dunklen Ton liegt. Das gilt für **alle vierzehn**
+Karten und braucht keine Angabe.
+
+Läuft etwas — ein Licht ist an, Musik spielt, die Heizung arbeitet —, geht die Karte
+auf den vollen Verlauf. Der gedämpfte Grund ist also der Ruhezustand, nicht die
+Abwesenheit von Farbe.
+
+![Dieselbe Karte in allen drei Zuständen](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/tinted.png)
+
+Wer es anders will, sagt es je Karte mit `tinted`:
+
+| `tinted` | Wirkung |
+|---|---|
+| — (fehlt) | Die gedämpfte Tönung. Vorgabe |
+| `false` | Kein Farbanteil, nur der dunkle Grund |
+| `true` | Der volle Verlauf, dauerhaft |
+
+```yaml
+type: custom:onyx-chart-card
+tinted: false          # diese eine Karte bleibt grau
+entities: [sensor.leistung]
+```
+
+Im visuellen Editor steht das als **Farbe im Hintergrund** mit den drei Möglichkeiten
+*Getönt*, *Grau* und *Voll gefärbt*. `tinted: false` schlägt dabei auch den
+Aktiv-Zustand: wer Grau bestellt, bekommt Grau, auch wenn gerade etwas läuft.
+
+Welche Farbe gemischt wird, bestimmt `color` — sieben Paletten oder ein eigener
+Hexwert, siehe die jeweilige Karte.
+
 ## Verwendung
 
 ### onyx-room-card
@@ -426,6 +459,7 @@ actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 | `subtitle` | „x von y aktiv" | Eigener Text, oder `false` zum Ausblenden |
 | `shape` | `squares`, ab 9 Einträgen `chips` | `squares` · `chips` · `tiles` · `rail` |
 | `chip_style` | `icon` | Nur bei `chips`: `icon` · `fill` · `ring` · `detail` |
+| `rail_labels` | `false` | Nur bei `rail`: schreibt den Namen klein unter jedes Symbol |
 | `columns` | `4` | Spalten bei `squares` |
 | `color` | `blau` | Farbe der Karte. Gleiche Werte wie bei der Raum-Karte |
 | `color` (pro Eintrag) | automatisch | Eigene Farbe eines Chips, als Hexwert oder Palettenname |
@@ -476,6 +510,37 @@ Wer eine Automation lieber auslösen als umschalten will, setzt das pro Eintrag:
 
 > Eine nie ausgelöste Szene steht in Home Assistant auf `unknown`. Die Karte wertet
 > das als Normalzustand, nicht als Fehler — grau wird nur, was wirklich `unavailable` ist.
+
+**Text unter den Symbolen der Leiste.** Die Form `rail` zeigt nur Kreise; wer den
+Namen nicht auswendig weiss, tippt raten. Auf Wunsch steht er klein darunter:
+
+```yaml
+type: custom:onyx-actions-card
+shape: rail
+rail_labels: true
+actions: [scene.netflix, scene.gute_nacht, script.kaffee]
+```
+
+![Leiste mit und ohne Text](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/actions-rail.png)
+
+Zwei Dinge ändern sich damit. Die Symbole stehen in **gleich breiten Spalten** statt
+von Rand zu Rand verteilt — sonst stünde ein Symbol neben seiner eigenen Beschriftung
+statt darüber. Und die Leiste wird um eine Zeile höher.
+
+Der Name bleibt auf **einer** Zeile und endet bei Platzmangel mit `…`; ein Umbruch
+mitten im Wort ist schlechter zu lesen als ein sauberer Abbruch, und ungleich hohe
+Spalten verziehen die ganze Reihe. Ab etwa fünf Einträgen lohnt sich deshalb ein
+kurzer eigener Name:
+
+```yaml
+actions:
+  - entity: script.staubsauger
+    name: Saugen
+```
+
+Getippt wird die ganze Spalte, nicht nur der Kreis — der Text ist keine tote Fläche.
+Für die anderen drei Formen ändert `rail_labels` nichts: Quadrate, Kacheln und Chips
+schreiben ihren Namen ohnehin.
 
 ### onyx-chart-card
 
@@ -1294,6 +1359,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.9.0** — Farbe im Hintergrund jeder Karte statt nur bei fünf von vierzehn, abschaltbar über `tinted`. Dazu: die Leiste der Schnellzugriff-Karte kann den Namen klein unter jedes Symbol schreiben (`rail_labels`)
 
 **1.8.1** — Diagramm-Karte: Reihen mit derselben Einheit stehen jetzt auf einer gemeinsamen Skala. Ein Heizkreis bei 36 °C lag bisher optisch unter der Aussenluft bei 24 °C
 
