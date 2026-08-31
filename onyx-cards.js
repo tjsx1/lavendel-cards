@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.8.0';
+const ONYX_VERSION = '1.8.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -529,6 +529,11 @@ const STRINGS = {
     'ed.monat': 'Sensor für den Monat',
     'ed.jahr': 'Sensor für das Jahr',
     'ed.h.perEntity': 'Leer lassen: dann gilt die Entität von oben',
+    'ed.shared_scale': 'Gleiche Einheit, gleiche Skala',
+    'ed.h.shared_scale': 'Reihen mit derselben Einheit stehen auf einer Achse — ein '
+      + 'Heizkreis bei 36 °C liegt dann über der Aussenluft bei 24 °C. Aus: jede '
+      + 'Reihe wird für sich auf die volle Höhe gezogen, dafür sieht man kleine '
+      + 'Schwankungen deutlicher.',
     'ed.fill': 'Flächen einfärben',
     'ed.h.fill': 'Jede gezeichnete Reihe bekommt ihre Fläche. Aus: nur die blossen '
       + 'Linien. Je mehr Flächen übereinander liegen, desto blasser wird jede.',
@@ -1033,6 +1038,11 @@ const STRINGS = {
     'ed.monat': 'Sensor for the month',
     'ed.jahr': 'Sensor for the year',
     'ed.h.perEntity': 'Leave empty and the entity above applies',
+    'ed.shared_scale': 'Same unit, same scale',
+    'ed.h.shared_scale': 'Series sharing a unit sit on one axis — a heating circuit '
+      + 'at 36 °C then lies above the outside air at 24 °C. Off: every series is '
+      + 'stretched to the full height on its own, which shows small changes more '
+      + 'clearly.',
     'ed.fill': 'Fill the areas',
     'ed.h.fill': 'Every drawn series gets its area. Off: bare lines only. The more '
       + 'areas overlap, the fainter each one becomes.',
@@ -3783,7 +3793,8 @@ class OnyxChartCard extends OnyxBase {
   }
 
   /**
-   * Alle Reihen in einem Bild. Jede wird auf ihre eigene Spanne skaliert —
+   * Alle Reihen in einem Bild. Reihen mit derselben Einheit teilen sich eine
+   * Skala; wo die Einheiten auseinandergehen, bekommt jede ihre eigene —
    * Watt neben Grad auf einer gemeinsamen Achse wäre unlesbar. Die Zeitachse
    * teilen sich alle, damit der Zeiger überall dieselbe Stunde meint.
    */
@@ -3814,12 +3825,39 @@ class OnyxChartCard extends OnyxBase {
     const wieViele = m.gezeichnet.length;
     const staerke = wieViele <= 1 ? 0.38 : wieViele === 2 ? 0.28 : 0.20;
 
+    // Reihen, die dieselbe Einheit tragen, gehören auf dieselbe Skala. Sonst
+    // landet ein Heizkreis bei 36 °C optisch unter der Aussenluft bei 24 °C,
+    // bloss weil jede Kurve für sich auf die volle Bandhöhe gezogen wurde.
+    // Watt neben Grad bleibt getrennt — dafür gibt es keine gemeinsame Achse.
+    const gemeinsam = this._config.shared_scale !== false;
+    const einheitVon = (it) => String((it && it.unit) || '').trim().toLowerCase();
+    const gruppen = new Map();
+    if (gemeinsam) {
+      m.items.forEach((it, i) => {
+        const pts = reihen[i];
+        if (pts.length < 2 || !m.gezeichnet.includes(i)) return;
+        const k = einheitVon(it);
+        if (!k) return;   // ohne Einheit weiss die Karte nichts über Vergleichbarkeit
+        const g = gruppen.get(k) || { lo: Infinity, hi: -Infinity, n: 0 };
+        for (const p of pts) { if (p.v < g.lo) g.lo = p.v; if (p.v > g.hi) g.hi = p.v; }
+        g.n += 1;
+        gruppen.set(k, g);
+      });
+    }
+
     const geo = [];
     const defs = [], flaechen = [], linien = [], vorne = [];
     m.items.forEach((it, i) => {
       const pts = reihen[i];
       if (pts.length < 2 || !m.gezeichnet.includes(i)) { geo.push(null); return; }
-      let lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
+      const grp = gemeinsam ? gruppen.get(einheitVon(it)) : null;
+      let lo, hi;
+      if (grp && grp.n > 1) { lo = grp.lo; hi = grp.hi; }
+      else { lo = Math.min(...pts.map((p) => p.v)); hi = Math.max(...pts.map((p) => p.v)); }
+      // Die gemessenen Ränder merken: die Y-Achse beschriftet die Skala, die
+      // hier tatsächlich gilt — bei geteilter Skala also beide Reihen, nicht
+      // bloss die geführte.
+      const dLo = lo, dHi = hi;
       if (hi === lo) { hi = lo + 1; lo -= 1; }
       const sp = hi - lo;
       lo -= sp * 0.12; hi += sp * 0.12;
@@ -3827,7 +3865,7 @@ class OnyxChartCard extends OnyxBase {
         ((p.t - t0) / spanne) * W,
         H - pad - ((p.v - lo) / (hi - lo)) * (H - pad * 2)
       ]);
-      geo.push({ pts, xy, lo, hi });
+      geo.push({ pts, xy, lo, hi, dLo, dHi });
       const d = smoothPath(xy);
       const fuehrt = i === m.sel;
       if (fuellen) {
@@ -3882,8 +3920,11 @@ class OnyxChartCard extends OnyxBase {
     const g = geo[m.sel] || geo.find(Boolean);
     if (!g) return nichts;
     const it = m.items[geo.indexOf(g)] || m.items[m.sel];
-    let min = Infinity, max = -Infinity;
-    for (const p of g.pts) { if (p.v < min) min = p.v; if (p.v > max) max = p.v; }
+    let min = g.dLo, max = g.dHi;
+    if (min == null || max == null) {
+      min = Infinity; max = -Infinity;
+      for (const p of g.pts) { if (p.v < min) min = p.v; if (p.v > max) max = p.v; }
+    }
     if (!isFinite(min) || !isFinite(max)) return nichts;
 
     // Von Wert zu Bildpunkt — dieselbe Rechnung wie bei der Kurve. Die
@@ -7998,6 +8039,7 @@ const ED_HELP_KEY = {
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
+  shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
   history_on: 'ed.h.history_on', history_sensor: 'ed.h.history_sensor',
@@ -8362,7 +8404,9 @@ class OnyxMediaEditor extends OnyxEditor {
  * Diagramm
  * ------------------------------------------------------------------ */
 class OnyxChartEditor extends OnyxEditor {
-  static get DEFAULTS() { return { tinted: false, fill: true, y_axis: true }; }
+  static get DEFAULTS() {
+    return { tinted: false, fill: true, y_axis: true, shared_scale: true };
+  }
 
   _schema() {
     return [
@@ -8381,7 +8425,8 @@ class OnyxChartEditor extends OnyxEditor {
         },
         fieldBool('tinted'),
         fieldBool('fill'),
-        fieldBool('y_axis')
+        fieldBool('y_axis'),
+        fieldBool('shared_scale')
       ),
       {
         name: 'graphs',
@@ -8408,7 +8453,8 @@ class OnyxChartEditor extends OnyxEditor {
       period: PERIOD_ALIAS[String(c.period || 'tag').toLowerCase()] || 'tag',
       tinted: c.tinted === true,
       fill: c.fill !== false,
-      y_axis: c.y_axis !== false
+      y_axis: c.y_axis !== false,
+      shared_scale: c.shared_scale !== false
     };
   }
 

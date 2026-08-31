@@ -508,6 +508,7 @@ entities:
 | `graphs` | `all` | Wie viele Linien gleichzeitig gezeichnet werden: `all` oder `1` bis `4`. Die Werte rechts erscheinen immer alle |
 | `fill` | `true` | Jede gezeichnete Reihe bekommt ihre Fläche. `false` lässt nur die blossen Linien |
 | `y_axis` | `true` | Höchster, mittlerer und tiefster Wert am linken Rand. `false` lässt die Achse weg |
+| `shared_scale` | `true` | Reihen mit derselben Einheit teilen sich eine Skala. `false` streckt jede für sich |
 | `period` | `tag` | Zeitraum: `tag` `woche` `monat` `jahr`. Englisch geht auch. Gemeint ist der laufende Kalenderzeitraum, nicht die letzten 24 Stunden |
 | `title` | Name des gewählten Werts | Überschrift der Karte |
 | `label` | `Verlauf` | Die kleine Zeile darüber |
@@ -554,12 +555,29 @@ wie früher: eine Kurve, und Antippen holt eine andere ins Bild. Keine Reihe ist
 unerreichbar.
 
 **Die Y-Achse.** In einer schmalen Rinne links vom Diagramm stehen der höchste, der
-mittlere und der tiefste gemessene Wert, jeweils mit Einheit; der Graph rückt um die
-Breite dieser Rinne nach rechts, damit keine Zahl über einer Kurve liegt. Die Zeitachse
-darunter fluchtet mit dem Graphen. Sie gehören der **geführten** Reihe — weil jede
-Reihe auf ihre eigene Spanne gestreckt wird, gäbe es eine für alle gültige Achse gar
-nicht. Tippst du einen anderen Wert an, wandert die Achse mit. `y_axis: false` lässt
-sie weg.
+mittlere und der tiefste Wert der geltenden Skala, jeweils mit Einheit; der Graph rückt
+um die Breite dieser Rinne nach rechts, damit keine Zahl über einer Kurve liegt. Die
+Zeitachse darunter fluchtet mit dem Graphen. Die Achse gehört der **geführten** Reihe
+und allen, die deren Einheit teilen. Tippst du einen Wert mit anderer Einheit an,
+wandert die Achse mit. `y_axis: false` lässt sie weg.
+
+**Gleiche Einheit, gleiche Skala.** Zwei Temperaturen gehören auf dieselbe Achse. Sonst
+läge ein Heizkreis bei 36 °C optisch **unter** der Aussenluft bei 24 °C, bloss weil
+jede Kurve für sich auf die volle Bandhöhe gezogen wurde. Die Karte fasst deshalb alle
+gezeichneten Reihen mit derselben Einheit zu einer Skala zusammen; Reihen mit anderer
+Einheit — Watt neben Grad — behalten ihre eigene, denn dafür gäbe es keine gemeinsame
+Achse. Reihen ohne Einheit bleiben ebenfalls für sich, weil die Karte über deren
+Vergleichbarkeit nichts weiss.
+
+Der Preis: eine Reihe, die nur um ein halbes Grad schwankt, wird neben einer, die
+zehn Grad durchläuft, zur fast geraden Linie. Wer lieber jede Kurve für sich gestreckt
+sieht, schaltet es ab — im Editor über *Gleiche Einheit, gleiche Skala*, in der YAML so:
+
+```yaml
+type: custom:onyx-chart-card
+shared_scale: false
+entities: [...]
+```
 
 **Ein anderer Sensor je Zeitraum.** Eine Momentanleistung in Watt taugt übers Jahr
 nichts, ein Zählerstand in Kilowattstunden dagegen schon. Deshalb darf jeder Eintrag
@@ -1276,6 +1294,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.8.1** — Diagramm-Karte: Reihen mit derselben Einheit stehen jetzt auf einer gemeinsamen Skala. Ein Heizkreis bei 36 °C lag bisher optisch unter der Aussenluft bei 24 °C
 
 **1.8.0** — Raum-Karte: der Tagesverlauf eines Sensors als Fläche hinter der Kopfzeile, über ein Häkchen zuschaltbar, Vorgabe aus. Nach einem Vorschlag von [@elsi06](https://github.com/elsi06)
 
