@@ -389,11 +389,17 @@ hergibt, nicht der Zwischenwert unter dem Finger. Losgelassen verschwindet alles
 wieder; solange die Blase steht, baut sich die Karte nicht neu auf, sonst wäre sie
 beim ersten Lichtschalter im Haus wieder weg.
 
-Dazu kommen die beiden Achsen, und zwar dauerhaft: rechts am Band die **Spanne des
-Sensors** — oben sein höchster, unten sein tiefster Wert im Zeitfenster, mit Einheit —,
+Dazu kommen die beiden Achsen, und zwar dauerhaft: rechts am Band die **Spanne, auf
+die das Band gestreckt ist** — oben ihr oberer, unten ihr unterer Rand, mit Einheit —,
 unter dem Band die **Zeit** in drei Marken: Anfang, Mitte, Jetzt. Bis 48 Stunden steht
 dort die Uhrzeit, darüber der Wochentag. Die Zeitachse ist eine eigene Zeile im
 geschlossenen Teil der Karte; die Karte wird dadurch um eine Zeilenhöhe grösser.
+
+Angeschrieben ist die Spanne des Bands, nicht der Messbereich des Sensors: Wo
+`history_min_span` die Spanne auseinanderzieht, weil das Zimmer kaum schwankt, stehen
+dort Werte, die so nie gemessen wurden — ein Zimmer, das den ganzen Tag zwischen 25,1
+und 25,3 °C steht, zeigt bei einer Mindestspanne von 2 die Ränder 24,2 und 26,2 °C.
+Das ist die Skala, an der die Kurve hängt, und genau die soll die Achse benennen.
 
 Gehört wird auf der ganzen Karte, nicht auf der Fläche selbst: Die liegt hinter den
 Knöpfen, und eine Griffebene darüber hätte ihnen die Tipps weggenommen. Ein Griff,

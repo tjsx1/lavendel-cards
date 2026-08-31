@@ -572,7 +572,7 @@ const STRINGS = {
     'ed.h.history': 'Dessen Verlauf liegt als Fläche hinter der Karte. Leer: keine Fläche',
     'ed.h.history_min_span': 'Damit ein Zimmer zwischen 25,1 und 25,4 °C kein Gebirge zeigt',
     'ed.h.history_picker': 'Darüberfahren zeigt Wert und Uhrzeit. Dazu bekommt die Fläche '
-      + 'ihre Achsen: rechts die Spanne des Sensors, unten die Zeit.',
+      + 'ihre Achsen: rechts die Spanne des Bands, unten die Zeit.',
     'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
     'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
       + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
@@ -1114,7 +1114,7 @@ const STRINGS = {
     'ed.h.history': 'Its history lies behind the card as an area. Empty: no area',
     'ed.h.history_min_span': 'So a room between 25.1 and 25.4 °C does not look like a mountain range',
     'ed.h.history_picker': 'Pointing at the area shows value and time. The area also gets '
-      + 'its axes: the span of the sensor on the right, the time below.',
+      + 'its axes: the span of the area on the right, the time below.',
     'ed.h.columns': 'Does not apply to tiles and rail',
     'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
       + 'in the area, alphabetically. Per-device names and icons are only available in '
