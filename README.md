@@ -172,7 +172,7 @@ lights:
 | `history_height` | `55` | Höhe der Fläche in Prozent der Kopfzeile |
 | `history_opacity` | `0.25` | Deckkraft der Fläche |
 | `history_min_span` | `2` | Kleinster Wertebereich, damit ruhige Räume kein Gebirge zeigen |
-| `history_picker` | aus | Werte ablesen: Zeiger mit Wert und Uhrzeit, dazu die beiden Achsen |
+| `history_picker` | aus | Werte ablesen: Darüberfahren zeigt Wert und Uhrzeit des nächsten Messpunkts |
 
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
@@ -372,8 +372,8 @@ das den ganzen Tag zwischen 25,1 und 25,4 °C steht, sähe aus wie ein Gebirge. 
 ab dieser Spanne füllt der Verlauf das Band wirklich aus.
 
 **Werte ablesen.** Die Fläche zeigt den Gang eines Tages, aber sie nennt keine
-Zahl: Ob die Spitze am Morgen 24 oder 27 Grad waren, steht nirgends. `history_picker`
-macht sie befragbar — und beschriftet sie:
+Zahl: Ob die Spitze am Morgen 24 oder 27 Grad waren, steht nirgends.
+`history_picker` macht sie befragbar:
 
 ```yaml
 type: custom:onyx-room-card
@@ -382,6 +382,8 @@ history: true
 history_picker: true
 ```
 
+![Werte aus dem Verlauf ablesen](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-picker.png)
+
 Am Rechner genügt das Darüberfahren, am Telefon ist es Ziehen. Unter dem Zeiger
 stehen eine gestrichelte Linie, ein Punkt auf der Kurve und eine Blase mit **Wert und
 Uhrzeit** des nächstgelegenen Messpunkts — angeschrieben wird, was der Rekorder
@@ -389,17 +391,11 @@ hergibt, nicht der Zwischenwert unter dem Finger. Losgelassen verschwindet alles
 wieder; solange die Blase steht, baut sich die Karte nicht neu auf, sonst wäre sie
 beim ersten Lichtschalter im Haus wieder weg.
 
-Dazu kommen die beiden Achsen, und zwar dauerhaft: rechts am Band die **Spanne, auf
-die das Band gestreckt ist** — oben ihr oberer, unten ihr unterer Rand, mit Einheit —,
-unter dem Band die **Zeit** in drei Marken: Anfang, Mitte, Jetzt. Bis 48 Stunden steht
-dort die Uhrzeit, darüber der Wochentag. Die Zeitachse ist eine eigene Zeile im
-geschlossenen Teil der Karte; die Karte wird dadurch um eine Zeilenhöhe grösser.
-
-Angeschrieben ist die Spanne des Bands, nicht der Messbereich des Sensors: Wo
-`history_min_span` die Spanne auseinanderzieht, weil das Zimmer kaum schwankt, stehen
-dort Werte, die so nie gemessen wurden — ein Zimmer, das den ganzen Tag zwischen 25,1
-und 25,3 °C steht, zeigt bei einer Mindestspanne von 2 die Ränder 24,2 und 26,2 °C.
-Das ist die Skala, an der die Kurve hängt, und genau die soll die Achse benennen.
+Beschriftete Achsen bekommt die Fläche dabei nicht. Sie ist der Hintergrund der
+Karte, kein Diagramm: Zahlen an ihren Rändern stünden dauernd da, für einen Blick,
+den man selten braucht — und `history_min_span` machte sie obendrein schief, weil
+das Band dann auf eine Spanne gestreckt ist, in der der Sensor nie war. Die Karte
+bleibt darum gleich hoch, und die eine Zahl, die zählt, holt man sich mit dem Finger.
 
 Gehört wird auf der ganzen Karte, nicht auf der Fläche selbst: Die liegt hinter den
 Knöpfen, und eine Griffebene darüber hätte ihnen die Tipps weggenommen. Ein Griff,
@@ -533,6 +529,7 @@ actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 | Option | Vorgabe | Wirkung |
 |---|---|---|
 | `actions` | — | Flache Liste. Einträge sind Entitäten oder Objekte mit `entity`, `name`, `icon` |
+| `state` (pro Eintrag) | — | Woran man sieht, dass die Aktion läuft — und was ein zweiter Tipp ausschaltet |
 | `groups` | — | Statt `actions`: Liste aus `{ label, actions }` mit Trennlinie dazwischen |
 | `title` | — | Überschrift des Rahmens; ohne Titel entfällt der Kopf |
 | `subtitle` | „x von y aktiv" | Eigener Text, oder `false` zum Ausblenden |
@@ -541,13 +538,14 @@ actions: [scene.kommen, scene.gehen, automation.nachtmodus]
 | `rail_labels` | `false` | Nur bei `rail`: schreibt den Namen klein unter jedes Symbol |
 | `columns` | `4` | Spalten bei `squares` |
 | `color` | `blau` | Farbe der Karte. Gleiche Werte wie bei der Raum-Karte |
-| `color` (pro Eintrag) | automatisch | Eigene Farbe eines Chips, als Hexwert oder Palettenname |
+| `color` (pro Eintrag) | automatisch | Eigene Farbe eines Eintrags, als Hexwert oder Palettenname |
 | `tap_action` | — | Pro Eintrag: `trigger` löst eine Automation aus statt sie umzuschalten |
 
-**Chips tragen ihre eigene Farbe.** Sie kommt aus der Domäne — Licht gelb, Storen
-blau, Medien violett —, bei Schloss, Alarm und Klima aus dem Zustand: ein scharfer
-Alarm ist rot, ein unscharfer grün. Szenen und Skripte haben keine eigene Farbe und
-nehmen die der Karte. Wer will, setzt sie pro Eintrag:
+**Jeder Eintrag trägt seine eigene Farbe** — in allen vier Bauarten, nicht nur bei
+den Chips. Sie kommt aus der Domäne — Licht gelb, Storen blau, Medien violett —, bei
+Schloss, Alarm und Klima aus dem Zustand: ein scharfer Alarm ist rot, ein unscharfer
+grün. Szenen und Skripte haben keine eigene Farbe und nehmen die der Karte. Wer will,
+setzt sie pro Eintrag:
 
 ```yaml
 - entity: script.netflix
@@ -620,6 +618,37 @@ actions:
 Getippt wird die ganze Spalte, nicht nur der Kreis — der Text ist keine tote Fläche.
 Für die anderen drei Formen ändert `rail_labels` nichts: Quadrate, Kacheln und Chips
 schreiben ihren Namen ohnehin.
+
+**Woran man sieht, dass etwas läuft.** Ein Skript hat keinen Zustand, den man ablesen
+könnte: `script.musik` steht auf `on`, solange das Skript *selbst* läuft — zwei
+Sekunden —, und ist danach wieder aus, während die Musik weiterspielt. Der Eintrag
+bliebe also dunkel, und ein zweiter Tipp startete das Skript bloss noch einmal.
+`state:` sagt der Karte, wo sie stattdessen hinschauen soll:
+
+```yaml
+type: custom:onyx-actions-card
+actions:
+  - entity: script.musik
+    name: Musik
+    icon: mdi:music
+    state: media_player.wohnzimmer
+```
+
+![Ein Eintrag, der am Lautsprecher abgelesen wird](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/actions-state.png)
+
+Fünf Regeln, mehr ist es nicht:
+
+1. **Lampe, Farbe und Untertitel** kommen vom genannten Gerät — hier vom Lautsprecher.
+2. **Ein Tipp, während nichts läuft:** wie bisher, das Skript startet.
+3. **Ein Tipp, während etwas läuft:** das genannte Gerät geht aus. Kein zweites Skript
+   nötig. Ein ausdrückliches `tap_action:` am Eintrag geht weiterhin vor.
+4. **Halten** öffnet das Detailfenster des genannten Geräts — dort steht ja der Zustand.
+5. Der Eintrag zählt in „2 von 3 aktiv" mit, wie ein Schalter.
+
+Das gilt für jeden Eintrag, nicht nur für Skripte: eine Szene „Abendlicht" kann
+`state: light.wohnzimmer` nennen, ein Skript „Rasen mähen" `state: lawn_mower.goat`.
+Ist das genannte Gerät gerade nicht erreichbar, bleibt der Eintrag dunkel — bedienbar
+bleibt er trotzdem.
 
 ### onyx-chart-card
 
@@ -1509,6 +1538,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.13.0** — Kamera-Karte: der Live-Stream blieb manchmal bis zum nächsten Neuladen ein Standbild. Das Stream-Element kommt asynchron, und beim Aufbau eines Dashboards hängt die Karte in diesem Moment kurz nicht im Dokument — dann lief der einzige Versuch ins Leere. Jetzt versucht es der Zehnsekundentakt erneut, und beim Wiedereinhängen sowieso. Dazu Schnellzugriff-Karte: `state:` an einem Eintrag sagt, woran man sieht, dass er läuft — ein Skript «Musik» leuchtet dann, solange der Lautsprecher spielt, und ein zweiter Tipp schaltet ihn aus. Dazu tragen Quadrate, Kacheln und Leiste jetzt dieselbe Farbe je Eintrag wie die Chips. Und Raum-Karte: `history_picker` macht die Verlaufsfläche befragbar — Darüberfahren oder Ziehen zeigt Wert und Uhrzeit des nächsten Messpunkts. Und die Fläche misst ihre Höhe jetzt zuverlässig: sie blieb bisher auf 55 % der ganzen Karte stehen, wenn die Karte beim ersten Aufbau noch keine Grösse hatte (Beitrag von [@elsi06](https://github.com/elsi06))
 
 **1.12.0** — Raum-Karte: neue Gruppe `devices` als Sammelplatz — Saugroboter, Küchenmaschine, Drucker, jede Entität darf rein
 

@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.12.0';
+const ONYX_VERSION = '1.13.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -468,6 +468,7 @@ const STRINGS = {
     'ed.name': 'Name',
     'ed.label': 'Beschriftung',
     'ed.icon': 'Symbol',
+    'ed.state': 'Zustand von',
     'ed.color': 'Farbe',
     'ed.title': 'Titel',
     'ed.subtitle': 'Untertitel',
@@ -571,8 +572,10 @@ const STRINGS = {
     'ed.h.history_sensor': 'Leer lassen: dann gilt der Temperatur-Sensor dieser Karte',
     'ed.h.history': 'Dessen Verlauf liegt als Fläche hinter der Karte. Leer: keine Fläche',
     'ed.h.history_min_span': 'Damit ein Zimmer zwischen 25,1 und 25,4 °C kein Gebirge zeigt',
-    'ed.h.history_picker': 'Darüberfahren zeigt Wert und Uhrzeit. Dazu bekommt die Fläche '
-      + 'ihre Achsen: rechts die Spanne des Bands, unten die Zeit.',
+    'ed.h.history_picker': 'Über die Fläche fahren zeigt Wert und Uhrzeit des '
+      + 'nächsten Messpunkts. Am Telefon: ziehen',
+    'ed.h.state': 'Woran man sieht, dass die Aktion läuft — bei einem Skript «Musik» '
+      + 'der Lautsprecher. Ein Tipp schaltet dann dieses Gerät aus. Leer: die Aktion selbst',
     'ed.h.columns': 'Gilt nicht für Kacheln und Leiste',
     'ed.roomHint': 'Die vier Listen leer lassen: dann zeigt die Karte alle passenden Geräte '
       + 'des Bereichs, alphabetisch. Eigene Namen und Symbole je Gerät gibt es nur im '
@@ -1012,6 +1015,7 @@ const STRINGS = {
     'ed.name': 'Name',
     'ed.label': 'Caption',
     'ed.icon': 'Icon',
+    'ed.state': 'State from',
     'ed.color': 'Color',
     'ed.title': 'Title',
     'ed.subtitle': 'Subtitle',
@@ -1113,8 +1117,10 @@ const STRINGS = {
     'ed.h.history_sensor': 'Leave empty and the temperature sensor of this card applies',
     'ed.h.history': 'Its history lies behind the card as an area. Empty: no area',
     'ed.h.history_min_span': 'So a room between 25.1 and 25.4 °C does not look like a mountain range',
-    'ed.h.history_picker': 'Pointing at the area shows value and time. The area also gets '
-      + 'its axes: the span of the area on the right, the time below.',
+    'ed.h.history_picker': 'Pointing at the area shows value and time of the nearest '
+      + 'reading. On a phone: drag',
+    'ed.h.state': 'What shows that the action is running — for a "Music" script, the '
+      + 'speaker. A tap then turns that device off. Empty: the action itself',
     'ed.h.columns': 'Does not apply to tiles and rail',
     'ed.roomHint': 'Leave the four lists empty and the card shows every matching device '
       + 'in the area, alphabetically. Per-device names and icons are only available in '
@@ -1815,9 +1821,9 @@ class OnyxRoomCard extends OnyxBase {
                   stroke-linecap:round; stroke-linejoin:round; }
 
     /* Mit history_picker wird aus der Fläche ein Kasten: darin die Kurve,
-       darüber Zeiger und Punkt, an den Rändern die Achsen. Griffe nimmt auch
-       er keine an — abgelesen wird über der ganzen Karte, damit die Knöpfe
-       darunter ihre Tipps behalten. */
+       darüber Zeiger und Punkt. Griffe nimmt auch er keine an — abgelesen
+       wird über der ganzen Karte, damit die Knöpfe darunter ihre Tipps
+       behalten. */
     .spark.pick{ display:block; }
     .spark svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
     .spark .zeiger{ stroke:color-mix(in srgb, var(--acc) 70%, #ffffff);
@@ -1826,23 +1832,9 @@ class OnyxRoomCard extends OnyxBase {
            margin:-3.5px 0 0 -3.5px; background:var(--acc);
            box-shadow:0 0 0 2px rgba(10,13,17,.55); }
     .sdot[hidden]{ display:none; }
-    /* Die Werte der Y-Achse stehen rechts: links liegen Text und Knöpfe der
-       Karte, rechts ist unter der Temperatur nichts mehr. */
-    /* Die Achsen sind Beiwerk: Sie sollen dastehen, wenn man sie sucht,
-       und verschwinden, wenn man die Karte bloss ansieht. Gedämpft wird mit
-       Deckkraft statt mit einer eigenen Farbe — so bleibt der warme Fall
-       ohne zweite Farbtabelle mit gedämpft. */
-    .sy{ position:absolute; right:0; font-size:9px; line-height:11px;
-         color:#6f8497; opacity:.55; font-variant-numeric:tabular-nums; }
-    ha-card.warm .sy{ color:var(--lab); }
-    .sy.hi{ top:0; }
-    .sy.lo{ bottom:0; }
-    /* Die Zeitachse ist eine eigene Zeile im geschlossenen Teil, keine
-       Auflage: über der Fläche stünde sie sonst in den Knöpfen. */
-    .sax{ display:flex; justify-content:space-between; gap:8px;
-          font-size:9px; line-height:11px; color:#6f8497; opacity:.55;
-          font-variant-numeric:tabular-nums; pointer-events:none; }
-    ha-card.warm .sax{ color:var(--lab); }
+    /* Beschriftete Achsen hat die Fläche bewusst nicht: Sie ist der
+       Hintergrund der Karte, kein Diagramm. Wer eine Zahl will, fährt
+       darüber — dann steht sie in der Blase, mit Uhrzeit. */
     .sbub{ position:absolute; z-index:3; transform:translateX(-50%);
            display:flex; align-items:baseline; gap:6px; padding:3px 8px;
            border-radius:9px; background:rgba(10,13,17,.86);
@@ -2251,7 +2243,6 @@ class OnyxRoomCard extends OnyxBase {
     // Was der Zeiger später braucht: die Punkte, ihre Lage im Bild und die
     // Ränder des Bands. Gerechnet wird es hier ohnehin schon.
     this._hGeo = { t0, span, lo, hi, pts, xy };
-    const einheit = this._hUnit();
 
     // Die zweite Ebene bleibt leer, bis jemand über die Fläche fährt: eine
     // Linie, die dauernd dastünde, wäre nur ein Strich ohne Aussage.
@@ -2260,34 +2251,14 @@ class OnyxRoomCard extends OnyxBase {
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${flaeche}</svg>
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="sov"></svg>
         <i class="sdot" id="sdot" hidden></i>
-        <span class="sy hi">${esc(nfmt(hi) + einheit)}</span>
-        <span class="sy lo">${esc(nfmt(lo) + einheit)}</span>
       </div>`;
   }
 
-  /** Die Uhrzeit an der Achse und in der Blase, so genau wie nötig */
-  _hZeit(ms, lang) {
+  /** Die Uhrzeit in der Blase, so genau wie nötig */
+  _hZeit(ms) {
     const d = new Date(ms);
     if (this._hHours <= 48) return fmtTime(d);
-    const tag = fmtDate(d, { weekday: 'short' });
-    return lang ? `${tag}, ${fmtTime(d)}` : tag;
-  }
-
-  /**
-   * Die Zeitachse unter der Fläche: Anfang, Mitte, Jetzt. Sie steht als
-   * eigene Zeile im geschlossenen Teil der Karte — dort, wo die Fläche
-   * ohnehin aufhört, und nicht quer über den Knöpfen.
-   */
-  _sax() {
-    const g = this._hGeo;
-    if (!g) return '';
-    const t1 = g.t0 + g.span;
-    return `
-      <div class="sax">
-        <span>${esc(this._hZeit(g.t0))}</span>
-        <span>${esc(this._hZeit((g.t0 + t1) / 2))}</span>
-        <span>${esc(this._hZeit(t1))}</span>
-      </div>`;
+    return `${fmtDate(d, { weekday: 'short' })}, ${fmtTime(d)}`;
   }
 
   /**
@@ -2348,7 +2319,7 @@ class OnyxRoomCard extends OnyxBase {
       punkt.style.top = py.toFixed(2) + '%';
       punkt.hidden = false;
       blase.innerHTML = `<b>${esc(nfmt(g.pts[k].v) + this._hUnit())}</b>`
-        + `<span>${esc(this._hZeit(g.pts[k].t, true))}</span>`;
+        + `<span>${esc(this._hZeit(g.pts[k].t))}</span>`;
       blase.hidden = false;
 
       // Die Blase bleibt in der Karte, auch am Rand, und sitzt über dem Band
@@ -2519,7 +2490,7 @@ class OnyxRoomCard extends OnyxBase {
 
     // Die Blase gehört zur Karte, nicht zur Fläche: sie muss über dem
     // Text stehen, die Fläche liegt darunter. Reihenfolge zählt — `_spark`
-    // legt die Geometrie an, die `_sax` weiter unten braucht.
+    // legt die Geometrie an, an der die Blase weiter unten hängt.
     const flaeche = this._spark();
 
     return `
@@ -2541,7 +2512,6 @@ class OnyxRoomCard extends OnyxBase {
       </div>
       <div class="sub">${esc(this._summary(m))}</div>
       <div class="ctl">${buttons}</div>
-      ${this._sax()}
       ${panel}
     </ha-card>`;
   }
@@ -2560,12 +2530,7 @@ class OnyxRoomCard extends OnyxBase {
       const legen = () => {
         const unten = root.querySelector('.ctl') || root.querySelector('.sub');
         if (!unten || !unten.offsetHeight) return;
-        // Mit Zeitachse endet die Fläche genau dort, wo die Achse anfängt.
-        // Gerechnet wäre es der Abstand der Zeilen, und der steht im
-        // Stilblatt — zwei Zahlen für dieselbe Kante gehen auseinander.
-        const achse = root.querySelector('.sax');
-        const kopf = achse ? achse.offsetTop
-          : unten.offsetTop + unten.offsetHeight + 12;
+        const kopf = unten.offsetTop + unten.offsetHeight + 12;
         const hoch = Math.round(kopf * this._hHeight / 100);
         const hoehe = hoch + 'px', oben = (kopf - hoch) + 'px';
         if (flaeche.style.height === hoehe && flaeche.style.top === oben) return;
@@ -3486,8 +3451,11 @@ class OnyxActionsCard extends OnyxBase {
     .flabel{ font-size:11px; color:#6f8497; margin-bottom:9px; }
     .fsep{ height:1px; background:rgba(255,255,255,.09); margin:14px 0 12px; }
 
-    /* Glas ist der Ruhezustand. Gefüllt in der Kartenfarbe ist nur, was
-       gerade läuft — so bleibt die Fläche ruhig und das Aktive springt heraus. */
+    /* Glas ist der Ruhezustand. Gefüllt ist nur, was gerade läuft — so
+       bleibt die Fläche ruhig und das Aktive springt heraus. Gefüllt wird
+       in der Farbe der Aktion — aus ihrer Domäne oder aus color: —, und wo
+       keine herauskommt, in der Farbe der Karte. Jede Bauart hält sich
+       daran, nicht nur die Chips. */
 
     /* Quadrate */
     .grid{ display:grid; gap:12px; }
@@ -3499,10 +3467,10 @@ class OnyxActionsCard extends OnyxBase {
               -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
               border:1px solid rgba(255,255,255,.11);
               transition:transform .12s ease, background .18s ease; }
-    .sq.on .box{ background:color-mix(in srgb, var(--btn) 60%, transparent);
-                 border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff;
-                 box-shadow:0 0 0 1px color-mix(in srgb, var(--btn) 22%, transparent),
-                            0 10px 26px color-mix(in srgb, var(--btn) 26%, transparent); }
+    .sq.on .box{ background:color-mix(in srgb, var(--t) 60%, transparent);
+                 border-color:color-mix(in srgb, var(--t) 78%, transparent); color:#fff;
+                 box-shadow:0 0 0 1px color-mix(in srgb, var(--t) 22%, transparent),
+                            0 10px 26px color-mix(in srgb, var(--t) 26%, transparent); }
     .sq.off .box{ color:#7b8fa0; }
     .sq.dead .box{ opacity:.45; color:#7b8fa0; }
     .sq.held .box{ transform:scale(.94); }
@@ -3510,7 +3478,7 @@ class OnyxActionsCard extends OnyxBase {
     .sq.off span{ color:#7b8fa0; }
     .sq.dead span{ color:#7b8fa0; opacity:.7; }
     .dot{ position:absolute; top:9px; right:9px; width:7px; height:7px; border-radius:50%;
-          background:var(--btn); box-shadow:0 0 0 2px rgba(0,0,0,.3); }
+          background:var(--t); box-shadow:0 0 0 2px rgba(0,0,0,.3); }
     .dot.hollow{ background:none; border:1.5px solid rgba(255,255,255,.38); box-shadow:none; }
     .slash{ position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
     .slash::after{ content:""; width:58%; height:1.5px; background:rgba(255,255,255,.38);
@@ -3562,19 +3530,19 @@ class OnyxActionsCard extends OnyxBase {
            background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.07);
            transition:transform .12s ease, background .18s ease; }
     .tile.on{ background:linear-gradient(150deg,
-                color-mix(in srgb, var(--btn) 24%, transparent) 0%, rgba(255,255,255,.05) 62%);
-              border-color:color-mix(in srgb, var(--btn) 30%, transparent); }
+                color-mix(in srgb, var(--t) 24%, transparent) 0%, rgba(255,255,255,.05) 62%);
+              border-color:color-mix(in srgb, var(--t) 30%, transparent); }
     .tile.dead{ opacity:.45; }
     .tile.held{ transform:scale(.97); }
     .tico{ width:34px; height:34px; border-radius:11px; display:grid; place-items:center;
            color:#8ea3b5; --mdc-icon-size:19px;
            background:linear-gradient(rgba(255,255,255,.12), rgba(255,255,255,.04));
            border:1px solid rgba(255,255,255,.10); }
-    .tile.on .tico{ background:color-mix(in srgb, var(--btn) 60%, transparent);
-                    border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .tile.on .tico{ background:color-mix(in srgb, var(--t) 60%, transparent);
+                    border-color:color-mix(in srgb, var(--t) 78%, transparent); color:#fff; }
     .tname{ font-size:13px; font-weight:600; margin-top:12px; color:#c8d8e6; }
     .tstate{ font-size:11.5px; color:#72879a; }
-    .tstate.hot{ color:var(--acc); font-weight:500; }
+    .tstate.hot{ color:var(--t); font-weight:500; }
 
     /* Leiste */
     .rail{ display:flex; justify-content:space-between; gap:8px;
@@ -3597,8 +3565,8 @@ class OnyxActionsCard extends OnyxBase {
               -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
               border:1px solid rgba(255,255,255,.11);
               transition:transform .12s ease, background .18s ease; }
-    .rail .r.on{ background:color-mix(in srgb, var(--btn) 60%, transparent);
-                 border-color:color-mix(in srgb, var(--btn) 78%, transparent); color:#fff; }
+    .rail .r.on{ background:color-mix(in srgb, var(--t) 60%, transparent);
+                 border-color:color-mix(in srgb, var(--t) 78%, transparent); color:#fff; }
     .rail .r.off{ color:#8ea3b5; }
     .rail .r.dead{ opacity:.45; }
     .rail .r.held{ transform:scale(.92); }
@@ -3632,16 +3600,34 @@ class OnyxActionsCard extends OnyxBase {
     const id = cfg.entity;
     const st = hass.states[id];
     const domain = id.split('.')[0];
-    const kind = TRIGGER_DOMAINS.includes(domain) ? 'trigger' : 'switch';
+
+    // `state:` sagt, woran man sieht, dass die Aktion läuft. Ein Skript,
+    // das Musik startet, ist zwei Sekunden lang an und danach wieder aus,
+    // während die Musik weiterspielt — abgelesen wird darum am
+    // Lautsprecher, nicht am Skript.
+    const spiegelId = cfg.state || cfg.state_entity || null;
+    const spiegel = spiegelId ? hass.states[spiegelId] : null;
+    const spiegelDom = spiegelId ? spiegelId.split('.')[0] : null;
+
+    const eigenArt = TRIGGER_DOMAINS.includes(domain) ? 'trigger' : 'switch';
+    // Mit Spiegel hat auch ein Auslöser einen Zustand: er zählt dann mit
+    // und bekommt den Punkt statt des Schrägstrichs.
+    const kind = spiegelId ? 'switch' : eigenArt;
     // Eine nie ausgelöste Szene steht auf "unknown" — das ist ihr Normalzustand,
     // nicht etwa ein Fehler. Nur "unavailable" heisst wirklich nicht erreichbar.
+    // Erreichbar sein muss die Aktion selbst; ein stiller Spiegel macht sie
+    // nicht unbedienbar, er lässt sie nur dunkel.
     const dead = !st || st.state === 'unavailable'
-      || (kind === 'switch' && st.state === 'unknown');
-    const on = !dead && actionOn(st, domain);
+      || (eigenArt === 'switch' && st.state === 'unknown');
+    const on = !dead && (spiegelId ? actionOn(spiegel, spiegelDom)
+                                   : actionOn(st, domain));
 
     // Untertitel für die Kachelform
     let sub = '';
     if (dead) sub = t('unavailable');
+    // Mit Spiegel steht dort, was Home Assistant über das Gerät schreibt —
+    // "Spielt" statt "An", und "Bereit" wäre ohnehin falsch.
+    else if (spiegelId) sub = spiegel ? stateText(hass, spiegel) : t('unavailable');
     else if (domain === 'automation') sub = t(on ? 'armed' : 'disabled');
     else if (domain === 'script') sub = t(on ? 'running' : 'ready');
     else if (domain === 'scene') {
@@ -3660,13 +3646,17 @@ class OnyxActionsCard extends OnyxBase {
 
     return {
       id, domain, kind, on, dead, sub,
-      tint: actionTint(st, domain, cfg.color),
+      mirror: spiegelId,
+      tint: spiegelId ? actionTint(spiegel, spiegelDom, cfg.color)
+                      : actionTint(st, domain, cfg.color),
       name: cfg.name || nameOf(hass, id),
       icon: cfg.icon || (st && st.attributes.icon) || ACT_ICON[domain] || 'mdi:flash',
       tap: cfg.tap_action || null,
       // Punkt nur bei Dingen mit Zustand — beim Skript nur solange es läuft
       showDot: kind === 'switch' || (domain === 'script' && on),
-      running: domain === 'script' && on
+      // Das Pulsen gilt dem laufenden Skript. Mit Spiegel meint "an" die
+      // Musik, und die pulste dann stundenlang.
+      running: !spiegelId && domain === 'script' && on
     };
   }
 
@@ -3701,6 +3691,9 @@ class OnyxActionsCard extends OnyxBase {
   _item(it, shape, flash, chipStyle, railLabels) {
     const flashing = flash === it.id;
     const icon = flashing ? 'mdi:check' : it.icon;
+    // Die Farbe der Aktion hängt am äussersten Element der Zeile — bei der
+    // Leiste mit Text also an der Spalte, der Kreis darin erbt sie.
+    const farbe = ` style="--t:${esc(it.tint || 'var(--btn)')}"`;
     const cls = [
       it.dead ? 'dead' : '',
       it.running ? 'run' : '',
@@ -3712,8 +3705,7 @@ class OnyxActionsCard extends OnyxBase {
       const body = chipStyle === 'detail'
         ? `<span class="tx"><b>${esc(it.name)}</b><i>${esc(it.sub)}</i></span>`
         : esc(it.name);
-      return `<div class="chip ${cls}" data-e="${esc(it.id)}"
-           style="--t:${esc(it.tint || 'var(--btn)')}">
+      return `<div class="chip ${cls}" data-e="${esc(it.id)}"${farbe}>
         <span class="ci"><ha-icon icon="${esc(icon)}"></ha-icon></span>${body}</div>`;
     }
     if (shape === 'rail') {
@@ -3721,14 +3713,14 @@ class OnyxActionsCard extends OnyxBase {
       // Ohne Text hört der Kreis selbst auf das Tippen, mit Text die ganze
       // Spalte — sonst wäre die Beschriftung tote Fläche.
       if (!railLabels) {
-        return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
+        return `<div class="r ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}"${farbe}>
           <ha-icon icon="${esc(icon)}"></ha-icon></div>`;
       }
-      return `<div class="cell ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}">
+      return `<div class="cell ${cls}" data-e="${esc(it.id)}" title="${esc(it.name)}"${farbe}>
         ${knopf}<span>${esc(it.name)}</span></div>`;
     }
     if (shape === 'tiles') {
-      return `<div class="tile ${cls}" data-e="${esc(it.id)}">
+      return `<div class="tile ${cls}" data-e="${esc(it.id)}"${farbe}>
         <div class="tico"><ha-icon icon="${esc(icon)}"></ha-icon></div>
         <div class="tname">${esc(it.name)}</div>
         <div class="tstate ${it.on && !it.dead ? 'hot' : ''}">${esc(it.sub)}</div>
@@ -3737,7 +3729,7 @@ class OnyxActionsCard extends OnyxBase {
     const dot = it.showDot && !it.dead
       ? `<span class="dot ${it.on ? '' : 'hollow'}"></span>` : '';
     const slash = it.kind === 'switch' && !it.on && !it.dead ? '<div class="slash"></div>' : '';
-    return `<div class="sq ${cls}" data-e="${esc(it.id)}">
+    return `<div class="sq ${cls}" data-e="${esc(it.id)}"${farbe}>
       <div class="box">${dot}<ha-icon icon="${esc(icon)}"></ha-icon>${slash}</div>
       <span>${esc(it.name)}</span>
     </div>`;
@@ -3781,7 +3773,10 @@ class OnyxActionsCard extends OnyxBase {
       this._press(el, {
         onTap: () => this._run(it),
         onHold: () => {
-          if (it.domain === 'script' && it.on) this.call('script', 'turn_off', { entity_id: it.id });
+          // Mit Spiegel gehört das Detailfenster dem Gerät: dort steht der
+          // Zustand, den die Kachel zeigt. Beim Skript wäre nichts zu sehen.
+          if (it.mirror) fireMoreInfo(this, it.mirror);
+          else if (it.domain === 'script' && it.on) this.call('script', 'turn_off', { entity_id: it.id });
           else fireMoreInfo(this, it.id);
         }
       });
@@ -3798,6 +3793,13 @@ class OnyxActionsCard extends OnyxBase {
       return;
     }
     if (it.tap === 'toggle') { this.call('homeassistant', 'toggle', { entity_id: it.id }); return; }
+
+    // Läuft schon etwas, schaltet der zweite Tipp es aus. Das Skript noch
+    // einmal zu starten, während die Musik läuft, wäre der seltenere Wunsch.
+    if (it.mirror && it.on) {
+      this.call('homeassistant', 'turn_off', { entity_id: it.mirror });
+      return;
+    }
 
     if (it.domain === 'scene') { this.call('scene', 'turn_on', { entity_id: it.id }); this._blink(it.id); return; }
     if (it.domain === 'script') { this.call('script', 'turn_on', { entity_id: it.id }); this._blink(it.id); return; }
@@ -6315,6 +6317,17 @@ class OnyxCameraCard extends OnyxBase {
     super.setConfig(config);
   }
 
+  /**
+   * Beim Aufbau eines Dashboards nimmt das Sections-Layout Karten kurz aus
+   * dem Dokument und hängt sie wieder ein. Kam der Player genau dazwischen
+   * an, hat ihn niemand eingehängt — und da die Signatur der Karte gleich
+   * bleibt, gäbe es von selbst keinen zweiten Versuch. Also einer hier.
+   */
+  connectedCallback() {
+    super.connectedCallback();
+    if (this._hass && this._config) this._repaint();
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._poll) { clearInterval(this._poll); this._poll = null; }
@@ -6515,14 +6528,29 @@ class OnyxCameraCard extends OnyxBase {
   _fill(m) {
     const box = this.shadowRoot.getElementById('pic');
     if (!box || m.dead) return;
-    const st = this._hass.states[m.id];
+    this._anhaengen(m);
+    // Bis der Stream steht — und falls er nie steht — das Standbild.
+    // Auch dann, wenn ein früherer Stream unterwegs abhandengekommen ist.
+    if (!this._streamLebt()) this._warten(box, m);
+  }
 
+  /**
+   * Ein Versuch, den Player einzuhängen. Er darf misslingen: das
+   * Stream-Element kommt asynchron, und wenn die Karte in genau diesem
+   * Moment nicht im Dokument hängt — beim Aufbau eines Dashboards wandern
+   * Karten kurz hinaus und wieder hinein —, wäre es ein Element im Nichts.
+   * Wiederholt wird der Versuch vom Zähler in `_warten` und beim
+   * Wiedereinhängen; von selbst käme keiner, weil die Signatur der Karte
+   * sich dabei nicht ändert.
+   */
+  _anhaengen(m) {
     ensureStreamLoaded(m.id).then(() => {
       if (!this.isConnected) return;
       const host = this.shadowRoot.getElementById('pic');
       if (!host) return;
-      const Cls = customElements.get('ha-camera-stream');
-      if (!Cls) { this._still(host, m); return; }
+      const st = this._hass && this._hass.states[m.id];
+      if (!st) return;
+      if (!customElements.get('ha-camera-stream')) return;
       // Baut sich die Karte neu auf, verlässt das Stream-Element das
       // Dokument und Home Assistant reisst den Player darin ab. Wieder
       // anhängen weckt ihn nicht — es braucht ein frisches Element.
@@ -6538,35 +6566,37 @@ class OnyxCameraCard extends OnyxBase {
       if (this._stream.parentNode !== host) host.appendChild(this._stream);
       if (this._poll) { clearInterval(this._poll); this._poll = null; }
     });
-
-    // Bis der Stream steht — und falls er nie steht — das Standbild.
-    // Auch dann, wenn ein früherer Stream unterwegs abhandengekommen ist.
-    if (!this._streamLebt()) this._still(box, m);
   }
 
-  /** Rückfall: das Standbild, das sich von selbst erneuert */
-  _still(host, m) {
-    if (!m.pic) return;
-    let img = host.querySelector('img');
-    if (!img) {
-      img = document.createElement('img');
-      img.alt = '';
-      host.insertBefore(img, host.firstChild);
-    }
+  /**
+   * Solange kein Stream läuft: das Standbild zeigen, es alle zehn Sekunden
+   * erneuern — und bei jeder Runde noch einmal versuchen, den Player
+   * einzuhängen. Der Zähler läuft auch ohne Standbild: er ist der zweite
+   * Anlauf, nicht bloss die Bildauffrischung.
+   */
+  _warten(host, m) {
     // Nicht jede Bildadresse trägt schon ein Fragezeichen, und ein
     // eingebettetes Bild verträgt gar keinen Anhang.
-    const bust = () => {
+    const bild = () => {
+      if (!m.pic) return;
+      let img = host.querySelector('img');
+      if (!img) {
+        img = document.createElement('img');
+        img.alt = '';
+        host.insertBefore(img, host.firstChild);
+      }
       const u = m.pic;
       img.src = /^data:/.test(u) ? u
         : u + (u.indexOf('?') < 0 ? '?' : '&') + '_onyx=' + Date.now();
     };
-    bust();
+    bild();
     if (this._poll) clearInterval(this._poll);
     this._poll = setInterval(() => {
       if (!this.isConnected || this._streamLebt()) {
         clearInterval(this._poll); this._poll = null; return;
       }
-      bust();
+      bild();
+      this._anhaengen(m);
     }, CAM_POLL);
   }
 
@@ -8711,7 +8741,7 @@ const ED_HELP_KEY = {
   lock_entity: 'ed.h.lock_entity', temperature: 'ed.h.sensor', humidity: 'ed.h.sensor',
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
-  rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint',
+  rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint', state: 'ed.h.state',
   below: 'ed.h.below', exclude: 'ed.h.exclude', devices: 'ed.h.devices',
   shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
@@ -9817,7 +9847,10 @@ class OnyxActionsEditor extends OnyxEditor {
   _rowSchema() {
     return [
       fieldEntity('entity', ACT_DOMAINS),
-      grid(fieldText('name'), fieldIcon('icon'))
+      grid(fieldText('name'), fieldIcon('icon')),
+      // Ohne Domänenfilter: abgelesen werden darf an allem, was einen
+      // Zustand hat — Lautsprecher, Lampe, Mäher, Sensor.
+      fieldEntity('state')
     ];
   }
 
@@ -9876,11 +9909,16 @@ class OnyxActionsEditor extends OnyxEditor {
           const row = document.createElement('div');
           row.className = 'row';
           const rf = this._makeForm((d) => {
-            st.groups[gi].actions[ai] = {
+            // Was der Editor nicht kennt — `color:`, `tap_action:` aus der
+            // YAML —, bleibt am Eintrag stehen, statt beim ersten Tippen im
+            // Namensfeld zu verschwinden.
+            const alt = st.groups[gi].actions[ai] || {};
+            st.groups[gi].actions[ai] = Object.assign({}, alt, {
               entity: d.entity || '',
               name: d.name || '',
-              icon: d.icon || ''
-            };
+              icon: d.icon || '',
+              state: d.state || ''
+            });
             this._commit();
           });
           this._forms.push({
@@ -9888,7 +9926,8 @@ class OnyxActionsEditor extends OnyxEditor {
             schema: this._rowSchema(),
             data: () => {
               const it = st.groups[gi].actions[ai] || {};
-              return { entity: it.entity || '', name: it.name || '', icon: it.icon || '' };
+              return { entity: it.entity || '', name: it.name || '',
+                       icon: it.icon || '', state: it.state || '' };
             }
           });
           row.appendChild(rf);
@@ -9903,7 +9942,7 @@ class OnyxActionsEditor extends OnyxEditor {
         const adds = document.createElement('div');
         adds.className = 'adds';
         adds.appendChild(this._btn('mdi:plus', t('ed.addAction'), () => {
-          st.groups[gi].actions.push({ entity: '', name: '', icon: '' });
+          st.groups[gi].actions.push({ entity: '', name: '', icon: '', state: '' });
           this._listSig = null;
           this._render();
         }));
@@ -9927,6 +9966,9 @@ class OnyxActionsEditor extends OnyxEditor {
       if (f.schema) this._fillForm(f.form, f.schema, f.data());
       else { f.form.hass = this._hass; f.form.data = f.data(); }
       f.form.computeLabel = (x) => (x.name ? t('ed.' + x.name) : '');
+      // In den Zeilen gibt es sonst keine Hilfetexte — «Zustand von» allein
+      // sagt aber niemandem, wofür das Feld da ist.
+      f.form.computeHelper = (x) => (x.name === 'state' ? t('ed.h.state') : '');
     }
   }
 }
