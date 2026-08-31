@@ -1091,6 +1091,11 @@ oder so oben, und zwar nur einmal. Der frühere Kopfeintrag „Zuhause · Tobias
 damit weg; die Kreise sagen dasselbe, nur genauer: früher war am blassen Kreis nur zu
 erkennen, *dass* jemand fehlt, nicht mehr.
 
+Ist bei einer Person in Home Assistant ein **Bild** hinterlegt, steht es im Kreis;
+sonst bleibt es beim Buchstaben. Wer abwesend ist, wird grau und dunkel — dieselbe
+Aussage wie der leere Kreis beim Buchstaben. Einzurichten gibt es dafür nichts: die
+Karte nimmt, was Home Assistant zur Person hat.
+
 Ein Tipp auf einen Kreis öffnet die Person in Home Assistant. Wird die Karte zu
 schmal — halbe Spalte, viele Personen —, rücken die Kreise unter die Überschrift,
 statt aus der Karte zu laufen.
@@ -1382,6 +1387,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.10.1** — Status-Karte: im Kreis einer Person steht ihr Profilbild aus Home Assistant, sofern eins hinterlegt ist
 
 **1.10.0** — Status-Karte: die Personen stehen als Kreise oben rechts auf Höhe der Überschrift, mit *Zuhause* oder *Abwesend* darunter, statt als Köpfchen im Kopfeintrag
 

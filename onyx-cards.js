@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.10.0';
+const ONYX_VERSION = '1.10.1';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -6668,6 +6668,21 @@ const ST_C = {
 };
 
 /**
+ * Die Adresse eines Profilbilds, sofern sie sich gefahrlos in ein
+ * CSS-`url()` schreiben lässt. Home Assistant liefert hier entweder einen
+ * eigenen Pfad (`/api/image/serve/…`) oder eine vollständige Adresse;
+ * alles, was Anführungszeichen, Klammern oder Leerraum enthält, könnte aus
+ * der Deklaration ausbrechen und wird deshalb verworfen — dann bleibt es
+ * beim Buchstaben.
+ */
+function bildUrl(u) {
+  if (!u || typeof u !== 'string') return null;
+  if (!/^(\/[^/]|https:\/\/)/.test(u)) return null;
+  if (/["'()\\\s]/.test(u)) return null;
+  return u;
+}
+
+/**
  * Aus einem Text ein Kürzel machen: "Tobias Jordi" → "T". Für die
  * Köpfchen der Anwesenheit, wo kein Platz für Namen ist.
  */
@@ -6759,6 +6774,12 @@ class OnyxStatusCard extends OnyxBase {
     .pers .p.da .s{ color:var(--t); }
     .pers .p.weg .s{ color:#6f8497; }
     .pers .p.held .k{ transform:scale(.92); }
+    /* Mit Bild bleibt der Ring, der Grund darunter wird nicht gebraucht.
+       Wer weg ist, wird grau und dunkel — dieselbe Aussage wie der
+       leere Kreis beim Buchstaben. */
+    .pers .k.bild{ background-size:cover; background-position:center;
+                   background-color:transparent; font-size:0; }
+    .pers .p.weg .k.bild{ filter:grayscale(1) brightness(.55); }
 
     .divide{ height:1px; background:rgba(255,255,255,.07); margin:9px 0; }
     .chips{ display:flex; gap:6px; flex-wrap:wrap; }
@@ -6887,12 +6908,16 @@ class OnyxStatusCard extends OnyxBase {
       name: e.name || t('st.home'),
       detail,
       color: heim.length ? ST_C.gruen : ST_C.grau,
-      who: ids.map((id) => ({
-        k: initial(nameOf(hass, id)),
-        n: nameOf(hass, id).split(' ')[0],
-        id,
-        da: !!(hass.states[id] && hass.states[id].state === 'home')
-      })),
+      who: ids.map((id) => {
+        const p = hass.states[id];
+        return {
+          k: initial(nameOf(hass, id)),
+          n: nameOf(hass, id).split(' ')[0],
+          bild: bildUrl(p && p.attributes.entity_picture),
+          id,
+          da: !!(p && p.state === 'home')
+        };
+      }),
       id: ids[0] || null
     };
   }
@@ -7108,13 +7133,32 @@ class OnyxStatusCard extends OnyxBase {
     };
   }
 
+  /**
+   * Wie bei der Kamera-Karte kann in der Adresse eines Bildes ein
+   * Zugriffszeichen stecken, das Home Assistant regelmässig neu vergibt.
+   * Zählte es zur Signatur, baute sich die Karte in diesem Takt neu auf,
+   * ohne dass sich etwas geändert hätte. Für die Signatur zählt darum nur
+   * der Pfad ohne Anhang.
+   */
+  _sigOf(model) {
+    if (!model || !model.leute) return JSON.stringify(model);
+    const flach = Object.assign({}, model, {
+      leute: model.leute.map((w) => Object.assign({}, w, {
+        bild: typeof w.bild === 'string' ? w.bild.split('?')[0] : w.bild
+      }))
+    });
+    return JSON.stringify(flach);
+  }
+
   /** Die Personen als Kreise, mit ihrem Zustand darunter */
   _leute(leute) {
     if (!leute || !leute.length) return '';
     return `<div class="pers">${leute.map((w) => `
       <div class="p ${w.da ? 'da' : 'weg'}" data-e="${esc(w.id || '')}"
            title="${esc(w.n || '')}">
-        <div class="k">${esc(w.k)}</div>
+        ${w.bild
+          ? `<div class="k bild" style="background-image:url(${w.bild})"></div>`
+          : `<div class="k">${esc(w.k)}</div>`}
         <div class="s">${esc(t(w.da ? 'st.home' : 'st.away'))}</div>
       </div>`).join('')}</div>`;
   }
