@@ -172,6 +172,7 @@ lights:
 | `history_height` | `55` | Höhe der Fläche in Prozent der Kopfzeile |
 | `history_opacity` | `0.25` | Deckkraft der Fläche |
 | `history_min_span` | `2` | Kleinster Wertebereich, damit ruhige Räume kein Gebirge zeigen |
+| `history_picker` | aus | Werte ablesen: Zeiger mit Wert und Uhrzeit, dazu die beiden Achsen |
 
 Ohne `area` musst du mindestens eine Liste angeben — sonst wüsste die Karte nicht,
 was sie zeigen soll. Ohne Listen sortiert sie die Geräte des Bereichs alphabetisch;
@@ -369,6 +370,34 @@ bleibt sie oben stehen und läuft nicht quer durch die Gerätezeilen — deshalb
 zöge sich jede Zehntelgradschwankung auf die volle Bandhöhe hoch, und ein Zimmer,
 das den ganzen Tag zwischen 25,1 und 25,4 °C steht, sähe aus wie ein Gebirge. Erst
 ab dieser Spanne füllt der Verlauf das Band wirklich aus.
+
+**Werte ablesen.** Die Fläche zeigt den Gang eines Tages, aber sie nennt keine
+Zahl: Ob die Spitze am Morgen 24 oder 27 Grad waren, steht nirgends. `history_picker`
+macht sie befragbar — und beschriftet sie:
+
+```yaml
+type: custom:onyx-room-card
+area: wohnzimmer
+history: true
+history_picker: true
+```
+
+Am Rechner genügt das Darüberfahren, am Telefon ist es Ziehen. Unter dem Zeiger
+stehen eine gestrichelte Linie, ein Punkt auf der Kurve und eine Blase mit **Wert und
+Uhrzeit** des nächstgelegenen Messpunkts — angeschrieben wird, was der Rekorder
+hergibt, nicht der Zwischenwert unter dem Finger. Losgelassen verschwindet alles
+wieder; solange die Blase steht, baut sich die Karte nicht neu auf, sonst wäre sie
+beim ersten Lichtschalter im Haus wieder weg.
+
+Dazu kommen die beiden Achsen, und zwar dauerhaft: rechts am Band die **Spanne des
+Sensors** — oben sein höchster, unten sein tiefster Wert im Zeitfenster, mit Einheit —,
+unter dem Band die **Zeit** in drei Marken: Anfang, Mitte, Jetzt. Bis 48 Stunden steht
+dort die Uhrzeit, darüber der Wochentag. Die Zeitachse ist eine eigene Zeile im
+geschlossenen Teil der Karte; die Karte wird dadurch um eine Zeilenhöhe grösser.
+
+Gehört wird auf der ganzen Karte, nicht auf der Fläche selbst: Die liegt hinter den
+Knöpfen, und eine Griffebene darüber hätte ihnen die Tipps weggenommen. Ein Griff,
+der auf einem Knopf beginnt, gehört deshalb dem Knopf.
 
 Geholt werden die Werte aus dem Rekorder von Home Assistant, einmal je Karte und
 danach im Viertelstundentakt. Ohne `history:` fragt die Karte gar nichts ab.
