@@ -2358,15 +2358,24 @@ class OnyxRoomCard extends OnyxBase {
       this._busy = true;
     };
 
+    // Was einem Knopf gilt, gilt nicht dem Band — und zwar beim Griff wie
+    // beim blossen Darüberfahren. Die Gruppenknöpfe liegen genau in der
+    // Höhe des Bands: ohne diese Liste stünde die Blase über dem Raumnamen,
+    // sobald die Maus auf dem Lichtknopf liegt, und sperrte dabei den
+    // Neuaufbau der Karte.
+    const knoepfe = '.hleft, .gbtn, .act, .lrow, .fav';
+
     karte.addEventListener('pointerdown', (ev) => {
       if (ev.button != null && ev.button > 0) return;
-      if (ev.target.closest('.hleft, .gbtn, .act, .lrow, .fav')) return;
+      if (ev.target.closest(knoepfe)) return;
       zieht = true;
       an(ev);
     });
     karte.addEventListener('pointermove', (ev) => {
       if (zieht) an(ev);
-      else if (ev.pointerType === 'mouse') { if (imBand(ev)) an(ev); else aus(); }
+      else if (ev.pointerType === 'mouse') {
+        if (imBand(ev) && !ev.target.closest(knoepfe)) an(ev); else aus();
+      }
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(
       (art) => karte.addEventListener(art, aus));
