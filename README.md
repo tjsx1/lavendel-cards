@@ -1066,6 +1066,7 @@ chips:
 | `mower` | `entity` | Mäht, kehrt zurück, pausiert, klemmt — angedockt fällt die Zeile weg |
 | `car` | `entity` (Akku), optional `charging`, `power`, `remaining`, `cable`, `climate` | Ladestand als Balken, dazu Ladeleistung, Restzeit, Kabel, Klima |
 | `battery` | `entity` (Sensor in %), optional `charging` | Füllstand als Balken — grün, ab 40 % orange, ab 15 % rot |
+| `batteries` | nichts | Alle schwachen Akkus im Haus als **eine** Zeile zum Aufklappen |
 | `entity` | `entity` | Irgendeine Entität: Name, Symbol und Farbe frei wählbar |
 | `template` | — | Gar keine Entität, nur Vorlagen |
 
@@ -1099,6 +1100,48 @@ Karte nimmt, was Home Assistant zur Person hat.
 Ein Tipp auf einen Kreis öffnet die Person in Home Assistant. Wird die Karte zu
 schmal — halbe Spalte, viele Personen —, rücken die Kreise unter die Überschrift,
 statt aus der Karte zu laufen.
+
+**Schwache Akkus, alle auf einmal.** Der Baustein `batteries` durchsucht das ganze
+Haus nach Akkusensoren und meldet die schwachen als **eine** Zeile. Ein Tipp klappt
+sie auf und zeigt, welche Geräte gemeint sind — das schwächste zuoberst.
+
+![Die Sammelzeile zu und aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/status-akku.png)
+
+```yaml
+rows:
+  - module: batteries
+```
+
+Aufzuzählen gibt es nichts: gesucht wird nach `device_class: battery`, und das setzt
+Home Assistant an jeden Akkusensor — Zigbee-Fenstergriff, Bewegungsmelder, Handy.
+Neue Geräte sind damit ohne Zutun dabei.
+
+| Option | Vorgabe | Wirkung |
+|---|---|---|
+| `below` | `15` | Ab welchem Ladestand ein Gerät als schwach gilt |
+| `exclude` | — | Geräte, die aussen vor bleiben |
+
+```yaml
+rows:
+  - module: batteries
+    below: 25
+    exclude:
+      - sensor.handy_akku          # hängt ohnehin jeden Abend am Kabel
+      - sensor.tablet_kueche
+```
+
+Zwei Bauarten kommen vor. Sensoren mit **Prozentzahl** — die meisten — bekommen einen
+kurzen Balken und ihren Wert. **Binärsensoren**, die nur *voll* oder *leer* kennen,
+zeigen `leer` ohne Balken; für sie gilt `below` nicht, denn sie haben keine Zahl, an
+der sich eine Schwelle messen liesse. Sie melden sich, wenn das Gerät selbst sagt,
+dass der Akku leer ist.
+
+Ein Sensor, der gerade nichts liefert, zählt nicht mit — sonst stünde bei jedem
+Neustart „Akku schwach" für Geräte, die nur kurz nichts gesagt haben. Und sind alle
+Akkus voll, fällt die Zeile weg wie jede andere auch.
+
+Ein Tipp auf ein einzelnes Gerät in der Liste öffnet es in Home Assistant. Auf einer
+halben Spalte entfallen die kleinen Balken; Name und Wert bleiben.
 
 **Vorlagen für alles Übrige.** Jedes der Felder `name`, `detail`, `value`, `percent`,
 `icon`, `color` und `hide` darf statt eines festen Werts eine Jinja-Vorlage sein. Die
@@ -1387,6 +1430,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.11.0** — Status-Karte: neuer Baustein `batteries` meldet alle schwachen Akkus im Haus als eine Zeile zum Aufklappen — Zigbee-Sensoren, Handys, alles mit `device_class: battery`
 
 **1.10.1** — Status-Karte: im Kreis einer Person steht ihr Profilbild aus Home Assistant, sofern eins hinterlegt ist
 

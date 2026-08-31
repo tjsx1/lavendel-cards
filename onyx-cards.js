@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.10.1';
+const ONYX_VERSION = '1.11.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -250,11 +250,22 @@ const STRINGS = {
     'st.notYetCleaned': 'heute noch nicht geputzt',
     'st.mowing': 'mäht gerade',
     'st.charging': 'lädt',
+    'ed.m.batteries': 'Schwache Akkus',
+    'ed.below': 'Meldet ab',
+    'ed.h.below': 'Ab welchem Ladestand ein Gerät als schwach gilt. Geräte, die nur '
+      + 'voll oder leer kennen, melden sich unabhängig davon.',
+    'ed.exclude': 'Ausgenommen',
+    'ed.h.exclude': 'Diese Geräte bleiben aussen vor — etwa das Handy, das ohnehin '
+      + 'jeden Abend am Kabel hängt',
+    'st.lowBattery': '{n} Geräte mit schwachem Akku',
+    'st.lowBattery1': 'Ein Gerät mit schwachem Akku',
+    'st.batEmpty': 'leer',
     'st.stillMin': 'noch {n} Min',
     'st.pluggedIn': 'angesteckt',
     'st.climateOn': 'Klima läuft',
     'st.quiet': 'Nichts zu melden',
     'st.nMessages': '{n} Meldungen',
+    'st.nMessages1': 'Eine Meldung',
     'err.needRows': 'Bitte "rows:", "chips:" oder "head:" angeben.',
     'card.status': 'Onyx Status-Karte',
     'card.status.d': 'Mehrere Zustände in einer Karte, mit Bausteinen und Vorlagen',
@@ -773,11 +784,22 @@ const STRINGS = {
     'st.notYetCleaned': 'not cleaned yet today',
     'st.mowing': 'mowing',
     'st.charging': 'charging',
+    'ed.m.batteries': 'Low batteries',
+    'ed.below': 'Reports below',
+    'ed.h.below': 'The charge level at which a device counts as low. Devices that only '
+      + 'know full or empty report regardless.',
+    'ed.exclude': 'Excluded',
+    'ed.h.exclude': 'These devices stay out of it — the phone, say, that is on the '
+      + 'cable every evening anyway',
+    'st.lowBattery': '{n} devices low on battery',
+    'st.lowBattery1': 'One device low on battery',
+    'st.batEmpty': 'empty',
     'st.stillMin': '{n} min left',
     'st.pluggedIn': 'plugged in',
     'st.climateOn': 'climate running',
     'st.quiet': 'Nothing to report',
     'st.nMessages': '{n} messages',
+    'st.nMessages1': 'One message',
     'err.needRows': 'Please set "rows:", "chips:" or "head:".',
     'card.status': 'Onyx Status Card',
     'card.status.d': 'Several states in one card, from modules and templates',
@@ -6631,6 +6653,13 @@ const ST_MODULES = {
       { n: 'charging', sel: 'entity' }
     ]
   },
+  batteries: {
+    icon: 'mdi:battery-alert-variant-outline',
+    fields: [
+      { n: 'below', sel: 'number', min: 1, max: 90 },
+      { n: 'exclude', sel: 'entity', multiple: true }
+    ]
+  },
   entity: {
     icon: 'mdi:information-outline',
     fields: [{ n: 'entity', sel: 'entity' }],
@@ -6748,6 +6777,29 @@ class OnyxStatusCard extends OnyxBase {
              margin-top:5px; overflow:hidden; }
     .r .bar i{ display:block; height:100%; border-radius:99px; background:var(--t);
                transition:width .3s ease; }
+
+    /* Eine Sammelzeile klappt auf. Der Winkel dreht sich dabei, damit man
+       sieht, dass die Liste darunter zu dieser Zeile gehört. */
+    .r.tipp{ cursor:pointer; }
+    .chev{ color:#5f7385; flex:none; display:grid; place-items:center;
+           --mdc-icon-size:18px; transition:transform .15s ease; }
+    .chev.auf{ transform:rotate(180deg); }
+    /* Eingerückt und an einer Kante entlang: die Zeilen gehören sichtbar
+       zu der darüber, ohne dass es dafür einen Rahmen braucht. */
+    .sub{ margin:2px 0 6px 17px; padding:6px 4px 4px 23px;
+          border-left:1px solid rgba(255,255,255,.08); }
+    .sr{ display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; }
+    .sr .n{ flex:1; min-width:0; font-size:12px; color:#a9bccb;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sr .b{ width:52px; height:3px; border-radius:2px; flex:none;
+            background:rgba(255,255,255,.09); }
+    .sr .b i{ display:block; height:100%; border-radius:2px; background:var(--t); }
+    .sr .v{ font-size:12px; font-weight:600; color:var(--t); flex:none; }
+    .sr.held{ opacity:.6; }
+    @container (max-width: 240px){
+      .sub{ padding-left:12px; margin-left:8px; }
+      .sr .b{ display:none; }
+    }
 
     /* Die Personen stehen oben rechts auf Höhe der Überschrift. Umbrechen
        dürfen sie, wenn die Karte zu schmal wird — lieber eine Zeile mehr
@@ -7044,6 +7096,59 @@ class OnyxStatusCard extends OnyxBase {
     };
   }
 
+  /**
+   * Alle schwachen Akkus im Haus, als eine Zeile zum Aufklappen. Gesucht
+   * wird nach `device_class: battery` — Home Assistant setzt das an jeden
+   * Akkusensor, gleich ob Zigbee-Fenstergriff oder Handy. Zwei Bauarten
+   * kommen vor: Sensoren mit Prozentzahl und Binärsensoren, die nur voll
+   * oder leer kennen; letztere zählen als leer und bekommen keinen Balken.
+   */
+  _modBatteries(e, key) {
+    const hass = this._hass;
+    const grenze = e.below == null ? 15 : Number(e.below);
+    const raus = new Set([].concat(e.exclude || []).filter(Boolean));
+    const schwach = [];
+
+    for (const id of Object.keys(hass.states)) {
+      if (raus.has(id)) continue;
+      const st = hass.states[id];
+      if (!st || st.attributes.device_class !== 'battery' || isDead(st)) continue;
+      const bereich = id.slice(0, id.indexOf('.'));
+      if (bereich === 'binary_sensor') {
+        // Hier heisst "an" nicht voll, sondern leer — so herum ist es in
+        // Home Assistant definiert, und so herum ist es auch gemeint.
+        if (isOn(st)) {
+          schwach.push({ id, name: nameOf(hass, id), percent: null, color: ST_C.rot });
+        }
+        continue;
+      }
+      const n = Number(st.state);
+      if (isNaN(n) || n > grenze) continue;
+      schwach.push({ id, name: nameOf(hass, id), percent: n,
+        color: n <= 10 ? ST_C.rot : ST_C.orange });
+    }
+    if (!schwach.length) return null;
+
+    // Das schwächste zuerst; wer nur leer meldet, steht hinter den Zahlen
+    schwach.sort((a, b) => (a.percent == null ? 1 : b.percent == null ? -1
+      : a.percent - b.percent));
+    const tiefste = schwach[0].percent;
+    const n = schwach.length;
+
+    return {
+      icon: 'mdi:battery-alert-variant-outline',
+      name: e.name || (n === 1 ? t('st.lowBattery1') : t('st.lowBattery', { n })),
+      detail: '',
+      color: tiefste == null || tiefste <= 10 ? ST_C.rot : ST_C.orange,
+      percent: tiefste,
+      value: tiefste == null ? t('st.batEmpty') : nfmt(tiefste, 0) + ' %',
+      kinder: schwach,
+      auf: this._auf === key,
+      key,
+      id: null
+    };
+  }
+
   /** Ein einfacher Eintrag: Entität, Vorlagen, oder beides gemischt */
   _plain(e, key) {
     const hass = this._hass;
@@ -7083,6 +7188,7 @@ class OnyxStatusCard extends OnyxBase {
     else if (e.module === 'mower') out = this._modMower(e);
     else if (e.module === 'car') out = this._modCar(e);
     else if (e.module === 'battery') out = this._modBattery(e);
+    else if (e.module === 'batteries') out = this._modBatteries(e, key);
     else out = this._plain(e, key);
     if (!out) return null;
 
@@ -7128,7 +7234,8 @@ class OnyxStatusCard extends OnyxBase {
     return {
       title: cfg.title || null,
       subtitle: cfg.subtitle === false ? null
-        : (cfg.subtitle || (n ? t('st.nMessages', { n }) : null)),
+        : (cfg.subtitle
+            || (n ? t(n === 1 ? 'st.nMessages1' : 'st.nMessages', { n }) : null)),
       leute, head, rows, chips
     };
   }
@@ -7148,6 +7255,18 @@ class OnyxStatusCard extends OnyxBase {
       }))
     });
     return JSON.stringify(flach);
+  }
+
+  /** Die einzelnen Geräte unter einer aufgeklappten Sammelzeile */
+  _kinder(liste) {
+    return `<div class="sub">${liste.map((g) => `
+      <div class="sr" style="--t:${esc(g.color || ST_C.orange)}" data-e="${esc(g.id)}">
+        <span class="n">${esc(g.name)}</span>
+        ${g.percent == null ? ''
+          : `<span class="b"><i style="width:${clamp(g.percent, 0, 100)}%"></i></span>`}
+        <span class="v">${esc(g.percent == null
+          ? t('st.batEmpty') : nfmt(g.percent, 0) + ' %')}</span>
+      </div>`).join('')}</div>`;
   }
 
   /** Die Personen als Kreise, mit ihrem Zustand darunter */
@@ -7177,7 +7296,8 @@ class OnyxStatusCard extends OnyxBase {
       </div>` : '';
 
     const rows = m.rows.map((r) => `
-      <div class="r" style="--t:${esc(r.color)}" data-e="${esc(r.id || '')}">
+      <div class="r${r.kinder ? ' tipp' : ''}" style="--t:${esc(r.color)}"
+           ${r.kinder ? `data-auf="${esc(r.key)}"` : `data-e="${esc(r.id || '')}"`}>
         <span class="i"><ha-icon icon="${esc(r.icon)}"></ha-icon></span>
         <span class="tx">
           <div class="n">${esc(r.name)}${r.detail ? ' · ' + esc(r.detail) : ''}</div>
@@ -7185,7 +7305,10 @@ class OnyxStatusCard extends OnyxBase {
             ? `<div class="bar"><i style="width:${clamp(r.percent, 0, 100)}%"></i></div>` : ''}
         </span>
         ${r.value ? `<span class="v">${esc(r.value)}</span>` : ''}
-      </div>`).join('');
+        ${r.kinder ? `<span class="chev${r.auf ? ' auf' : ''}">
+          <ha-icon icon="mdi:chevron-down"></ha-icon></span>` : ''}
+      </div>
+      ${r.kinder && r.auf ? this._kinder(r.kinder) : ''}`).join('');
 
     const chips = m.chips.length ? `
       ${m.rows.length || head ? '<div class="divide"></div>' : ''}
@@ -7221,6 +7344,13 @@ class OnyxStatusCard extends OnyxBase {
       if (!id) return;
       const go = () => fireMoreInfo(this, id);
       this._press(el, { onTap: go, onHold: go });
+    });
+    // Eine Sammelzeile hat keine eigene Entität — sie klappt auf
+    this.shadowRoot.querySelectorAll('[data-auf]').forEach((el) => {
+      const key = el.dataset.auf;
+      this._press(el, {
+        onTap: () => { this._auf = this._auf === key ? null : key; this._repaint(); }
+      });
     });
   }
 
@@ -8229,6 +8359,7 @@ const ED_HELP_KEY = {
   entities: 'ed.h.entities', columns: 'ed.h.columns', graphs: 'ed.h.graphs',
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
   rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint',
+  below: 'ed.h.below', exclude: 'ed.h.exclude',
   shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
@@ -9786,6 +9917,11 @@ class OnyxStatusEditor extends OnyxEditor {
       if (f.sel === 'entity') return fieldEntity(f.n, f.domain, f.multiple);
       if (f.sel === 'icon') return fieldIcon(f.n);
       if (f.sel === 'color') return fieldColor();
+      if (f.sel === 'number') {
+        return { name: f.n, selector: { number: {
+          min: f.min == null ? 0 : f.min,
+          max: f.max == null ? 100 : f.max, mode: 'box' } } };
+      }
       return fieldText(f.n);
     };
     const schema = [{
