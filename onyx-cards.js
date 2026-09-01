@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.13.2';
+const ONYX_VERSION = '1.14.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -251,6 +251,7 @@ const STRINGS = {
     'st.mowing': 'mäht gerade',
     'st.charging': 'lädt',
     'ed.m.batteries': 'Schwache Akkus',
+    'ed.m.media': 'Musik',
     'ed.below': 'Meldet ab',
     'ed.h.below': 'Ab welchem Ladestand ein Gerät als schwach gilt. Geräte, die nur '
       + 'voll oder leer kennen, melden sich unabhängig davon.',
@@ -800,6 +801,7 @@ const STRINGS = {
     'st.mowing': 'mowing',
     'st.charging': 'charging',
     'ed.m.batteries': 'Low batteries',
+    'ed.m.media': 'Music',
     'ed.below': 'Reports below',
     'ed.h.below': 'The charge level at which a device counts as low. Devices that only '
       + 'know full or empty report regardless.',
@@ -1917,6 +1919,58 @@ class OnyxRoomCard extends OnyxBase {
     .lrow.dead .fav{ pointer-events:none; }
     .lrow.off .lname, .lrow.off .lval{ color:#7b8fa0; }
     .lrow.dead{ opacity:.45; }
+    /* Zweite Ebene: eine Zeile lässt sich noch einmal aufklappen. Was
+       darin steht, hängt am Gerät — Farbe beim Licht, Lamellen bei der
+       Store, Lautstärke bei der Musik. Die Zeile behält ihre drei Griffe;
+       aufgeklappt wird über den Winkel an ihrem rechten Rand, und der
+       hält seine Ereignisse bei sich. */
+    .rcar{ width:26px; height:26px; border-radius:8px; flex:none; display:grid;
+           place-items:center; cursor:pointer; --mdc-icon-size:16px;
+           color:rgba(255,255,255,.34);
+           transition:transform .2s ease, color .2s ease; }
+    .rcar.auf{ transform:rotate(180deg); color:rgba(255,255,255,.7); }
+    .rcar.held{ opacity:.6; }
+    .sub2{ display:flex; flex-direction:column; gap:8px; padding:10px;
+           border-radius:12px; background:rgba(255,255,255,.035);
+           border:1px solid rgba(255,255,255,.06); }
+    .tbar{ position:relative; height:38px; border-radius:11px; overflow:hidden;
+           cursor:pointer; touch-action:pan-y;
+           background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.06); }
+    .tfill{ position:absolute; left:0; top:0; bottom:0;
+            background:color-mix(in srgb, var(--btn) 45%, transparent); }
+    .tcap{ position:absolute; inset:0; display:flex; align-items:center; gap:7px;
+           padding:0 12px; font-size:12px; font-weight:600; color:#e9f1f8;
+           --mdc-icon-size:15px; pointer-events:none; white-space:nowrap; }
+    .knob{ position:absolute; top:50%; transform:translate(-50%,-50%); width:18px;
+           height:26px; border-radius:99px; z-index:2; border:2.5px solid #fff;
+           box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
+    .wheelbox{ display:flex; justify-content:center; padding:2px 0; }
+    .wheel{ position:relative; width:clamp(96px, 56%, 150px); aspect-ratio:1;
+            border-radius:50%; cursor:pointer; touch-action:none;
+            box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);
+            background:
+              radial-gradient(circle closest-side, #ffffff 0%, rgba(255,255,255,0) 100%),
+              conic-gradient(from 90deg, #ff0000, #ffff00, #00ff00,
+                             #00ffff, #0000ff, #ff00ff, #ff0000); }
+    .cdot{ position:absolute; transform:translate(-50%,-50%); width:20px; height:20px;
+           border-radius:50%; border:2.5px solid #fff; z-index:2;
+           box-shadow:0 2px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.22); }
+    .fx{ display:flex; gap:6px; flex-wrap:wrap; }
+    .fxi{ height:28px; border-radius:9px; display:flex; align-items:center;
+          padding:0 10px; font-size:11px; color:#8ea3b5; cursor:pointer;
+          max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+          background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.07); }
+    .fxi.on{ background:color-mix(in srgb, var(--btn) 45%, transparent);
+             border-color:color-mix(in srgb, var(--btn) 65%, transparent);
+             color:#fff; font-weight:600; }
+    .fxi.held{ opacity:.6; }
+    .mrow{ display:flex; gap:7px; }
+    .mbtn{ flex:1; height:34px; border-radius:10px; display:grid; place-items:center;
+           cursor:pointer; color:#cfe0ee; --mdc-icon-size:18px;
+           background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.09); }
+    .mbtn.held{ opacity:.6; }
+    .mbtn.aus{ opacity:.35; pointer-events:none; }
+
     /* Knöpfe unter den Zeilen, paarweise nebeneinander */
     .acts{ display:flex; gap:7px; }
     .act{ flex:1; min-width:0; height:42px; border-radius:12px;
@@ -1966,6 +2020,8 @@ class OnyxRoomCard extends OnyxBase {
     // Ablesen ist Zutat, nicht Vorgabe: ohne Häkchen bleibt die Fläche das
     // stille Band, das sie bisher war.
     this._hPick = config.history_picker === true;
+    // Welche Zeile aufgeklappt ist, überlebt eine neue Konfiguration nicht.
+    this._offen = null;
     // Neuer Sensor oder neues Zeitfenster: der alte Verlauf gilt nicht mehr.
     this._histKey = null;
     this._hist = null;
@@ -2062,6 +2118,11 @@ class OnyxRoomCard extends OnyxBase {
             ? Math.round(st.attributes.current_tilt_position) : null,
           on,
           melden,
+          // Aufklappen gibt es nur in den Gruppen mit eigener Domäne. In
+          // der Sammelgruppe steht alles Mögliche nebeneinander; dort wäre
+          // ein Winkel bei jeder zweiten Zeile ein anderes Versprechen.
+          mehr: d === 'devices' ? null : this._mehr(own, st),
+          offen: this._offen === id,
           dead: isDead(st),
           pct: pctOf(st),
           state: st ? st.state : 'unavailable',
@@ -2112,6 +2173,68 @@ class OnyxRoomCard extends OnyxBase {
       // und zeichnete ihn nie.
       spark: this._histAt || 0
     };
+  }
+
+  /**
+   * Was sich unter einer Zeile noch aufklappen lässt — oder nichts.
+   *
+   * Die Regel ist überall dieselbe: aufgeklappt steht dort, was die Zeile
+   * selbst nicht kann. Die Zeile regelt Helligkeit und Höhe; darunter
+   * kommen Farbe, Lamellenwinkel, Lautstärke. Kann ein Gerät davon nichts,
+   * bekommt es keinen Winkel — ein Knopf, hinter dem nichts steht, ist
+   * schlimmer als keiner.
+   */
+  _mehr(own, st) {
+    if (!st || isDead(st)) return null;
+    const a = st.attributes || {};
+
+    if (own === 'light') {
+      const modes = a.supported_color_modes || [];
+      const canTemp = modes.includes('color_temp');
+      const canColor = modes.some((x) => LT_COLOR_MODES.includes(x));
+      const fx = Array.isArray(a.effect_list) ? a.effect_list.slice(0, 8) : [];
+      if (!canTemp && !canColor && !fx.length) return null;
+      const kMin = a.min_color_temp_kelvin || 2000;
+      const kMax = a.max_color_temp_kelvin || 6500;
+      return {
+        art: 'light', canTemp, canColor, fx,
+        kMin, kMax,
+        kelvin: a.color_temp_kelvin || null,
+        mode: a.color_mode || null,
+        // Die Schiene zeigt den Verlauf der Farbtemperatur dieser Lampe,
+        // nicht irgendeinen — jede kann anders warm und anders kalt.
+        ramp: [0, 0.25, 0.5, 0.75, 1]
+          .map((f) => ltHex(kelvinRgb(kMin + (kMax - kMin) * f))).join(','),
+        hs: LT_COLOR_MODES.includes(a.color_mode)
+          ? (a.hs_color || (a.rgb_color ? rgbToHs(a.rgb_color) : null)) : null,
+        effect: a.effect || null
+      };
+    }
+
+    if (own === 'cover') {
+      const f = a.supported_features || 0;
+      const tilt = a.current_tilt_position;
+      // Bit 16 ist "Lamellen lassen sich stellen". Meldet die Store einen
+      // Winkel, glauben wir ihr das auch ohne Bit.
+      if (!((f & 16) !== 0 || tilt != null)) return null;
+      return { art: 'cover', tilt: tilt == null ? 0 : Math.round(tilt) };
+    }
+
+    if (own === 'media_player') {
+      const f = a.supported_features || 0;
+      const canVol = (f & MF.VOLUME_SET) !== 0;
+      const canPrev = (f & MF.PREV) !== 0;
+      const canNext = (f & MF.NEXT) !== 0;
+      const canPlay = (f & (MF.PAUSE | MF.PLAY)) !== 0;
+      if (!canVol && !canPrev && !canNext && !canPlay) return null;
+      return {
+        art: 'media', canVol, canPrev, canNext, canPlay,
+        vol: a.volume_level == null ? 0 : Math.round(a.volume_level * 100),
+        spielt: st.state === 'playing'
+      };
+    }
+
+    return null;
   }
 
   /** Ein Schalter, der nur an oder aus kennt — Automatik, Windwächter */
@@ -2411,6 +2534,114 @@ class OnyxRoomCard extends OnyxBase {
    * Automatik und Windwächter erscheinen nur, wenn sie konfiguriert sind,
    * und leuchten mit, wenn sie eingeschaltet sind.
    */
+  /**
+   * Die Bedienelemente im ausgeklappten Teil. Sie stehen bewusst nicht in
+   * der Licht-Karte drin: die hat ihre eigenen und keine Tests, und ein
+   * gemeinsamer Unterbau hätte heute zwei Karten auf einmal bewegt.
+   */
+  _bindPanel(m) {
+    const root = this.shadowRoot;
+    const offen = m.groups.reduce((n, g) => n.concat(g.items), [])
+      .find((x) => x.offen && x.mehr);
+    if (!offen) return;
+    const e = offen.mehr;
+    const id = offen.id;
+
+    if (e.art === 'light') {
+      const call = (data) => this.call('light', 'turn_on',
+        Object.assign({ entity_id: id }, data));
+
+      const temp = root.getElementById('rtemp');
+      if (temp) {
+        // Leuchtet die Lampe farbig, steht kein Ring auf der Schiene — ein
+        // Kelvin-Wert wäre dort gelogen. Beim Ziehen erscheint er.
+        let knob = temp.querySelector('.knob');
+        const setzen = (v) => {
+          if (!knob) {
+            knob = document.createElement('div');
+            knob.className = 'knob';
+            temp.appendChild(knob);
+          }
+          knob.style.left = LT_KNOB(v);
+        };
+        this._press(temp, {
+          axis: 'x',
+          onDrag: setzen,
+          onDrop: (v) => call({
+            color_temp_kelvin: Math.round(e.kMin + ((e.kMax - e.kMin) * v) / 100)
+          })
+        });
+      }
+
+      const wheel = root.getElementById('rwheel');
+      if (wheel) {
+        let dot = wheel.querySelector('.cdot');
+        const setzen = (hs) => {
+          if (!dot) {
+            dot = document.createElement('div');
+            dot.className = 'cdot';
+            wheel.appendChild(dot);
+          }
+          const pt = hsToWheel(hs[0], hs[1]);
+          dot.style.left = pt.left + '%';
+          dot.style.top = pt.top + '%';
+        };
+        const bei = (pt) => wheelToHs(pt.x, pt.y);
+        this._press(wheel, {
+          axis: 'xy',
+          onTap: (pt) => { const hs = bei(pt); setzen(hs); call({ hs_color: hs }); },
+          onHold: () => fireMoreInfo(this, id),
+          onDrag: (pt) => setzen(bei(pt)),
+          onDrop: (pt) => call({ hs_color: bei(pt) })
+        });
+      }
+
+      root.querySelectorAll('[data-fx]').forEach((el) => {
+        this._press(el, { onTap: () => call({ effect: el.dataset.fx }) });
+      });
+      return;
+    }
+
+    if (e.art === 'cover') {
+      const tilt = root.getElementById('rtilt');
+      if (!tilt) return;
+      const fill = tilt.querySelector('.tfill');
+      const out = tilt.querySelector('.tcap span');
+      this._press(tilt, {
+        axis: 'x',
+        onDrag: (v) => {
+          if (fill) fill.style.width = v + '%';
+          if (out) out.textContent = t('slats') + ' ' + v + ' %';
+        },
+        onDrop: (v) => this.call('cover', 'set_cover_tilt_position',
+          { entity_id: id, tilt_position: v })
+      });
+      return;
+    }
+
+    const vol = root.getElementById('rvol');
+    if (vol) {
+      const fill = vol.querySelector('.tfill');
+      const out = vol.querySelector('.tcap span');
+      this._press(vol, {
+        axis: 'x',
+        onDrag: (v) => {
+          if (fill) fill.style.width = v + '%';
+          if (out) out.textContent = v + ' %';
+        },
+        onDrop: (v) => this.call('media_player', 'volume_set',
+          { entity_id: id, volume_level: v / 100 })
+      });
+    }
+    const dienst = { prev: 'media_previous_track', play: 'media_play_pause',
+                     next: 'media_next_track' };
+    root.querySelectorAll('[data-m]').forEach((el) => {
+      this._press(el, {
+        onTap: () => this.call('media_player', dienst[el.dataset.m], { entity_id: id })
+      });
+    });
+  }
+
   _actions(m, og) {
     const btn = (id, icon, key, on) => `
       <div class="act${on ? ' on' : ''}" data-act="${id}">
@@ -2437,6 +2668,78 @@ class OnyxRoomCard extends OnyxBase {
       return reihe(btn('alloff', 'mdi:music-note-off', 'turnAllOff'));
     }
     return '';
+  }
+
+  /**
+   * Der ausgeklappte Teil einer Zeile. Ids statt Klassen: es ist immer
+   * höchstens einer offen, also gibt es jedes Bedienelement genau einmal.
+   */
+  _panel(it) {
+    const e = it.mehr;
+    if (!e) return '';
+
+    if (e.art === 'light') {
+      return `
+      <div class="sub2">
+        ${e.canTemp ? `
+          <div class="tbar" id="rtemp"
+               style="background:linear-gradient(90deg,${esc(e.ramp)})">
+            ${e.mode === 'color_temp' && e.kelvin
+              ? `<div class="knob" style="left:${LT_KNOB(this._kPct(e))}"></div>` : ''}
+          </div>` : ''}
+        ${e.canColor ? `
+          <div class="wheelbox">
+            <div class="wheel" id="rwheel">
+              ${e.hs ? (() => {
+                const p = hsToWheel(e.hs[0], e.hs[1]);
+                return `<div class="cdot" style="left:${p.left}%; top:${p.top}%"></div>`;
+              })() : ''}
+            </div>
+          </div>` : ''}
+        ${e.fx.length ? `
+          <div class="fx">
+            ${e.fx.map((f) => `
+              <div class="fxi ${f === e.effect ? 'on' : ''}"
+                   data-fx="${esc(f)}">${esc(f)}</div>`).join('')}
+          </div>` : ''}
+      </div>`;
+    }
+
+    if (e.art === 'cover') {
+      return `
+      <div class="sub2">
+        <div class="tbar" id="rtilt">
+          <div class="tfill" style="width:${e.tilt}%"></div>
+          <div class="tcap"><ha-icon icon="mdi:format-line-weight"></ha-icon>
+            <span>${esc(t('slats'))} ${e.tilt} %</span></div>
+        </div>
+      </div>`;
+    }
+
+    return `
+      <div class="sub2">
+        ${e.canVol ? `
+          <div class="tbar" id="rvol">
+            <div class="tfill" style="width:${e.vol}%"></div>
+            <div class="tcap"><ha-icon icon="mdi:volume-high"></ha-icon>
+              <span>${e.vol} %</span></div>
+          </div>` : ''}
+        ${e.canPrev || e.canPlay || e.canNext ? `
+          <div class="mrow">
+            <div class="mbtn ${e.canPrev ? '' : 'aus'}" data-m="prev">
+              <ha-icon icon="mdi:skip-previous"></ha-icon></div>
+            <div class="mbtn ${e.canPlay ? '' : 'aus'}" data-m="play">
+              <ha-icon icon="${e.spielt ? 'mdi:pause' : 'mdi:play'}"></ha-icon></div>
+            <div class="mbtn ${e.canNext ? '' : 'aus'}" data-m="next">
+              <ha-icon icon="mdi:skip-next"></ha-icon></div>
+          </div>` : ''}
+      </div>`;
+  }
+
+  /** Farbtemperatur als Anteil der Schiene */
+  _kPct(e) {
+    if (!e.kelvin || e.kMax <= e.kMin) return 0;
+    return clamp(Math.round(((e.kelvin - e.kMin) / (e.kMax - e.kMin)) * 100), 0, 100);
   }
 
   _html(m) {
@@ -2471,7 +2774,12 @@ class OnyxRoomCard extends OnyxBase {
                data-fav="${esc(it.id)}" title="${esc(favTitel(it.fav))}">
             <ha-icon icon="mdi:star"></ha-icon>
           </div>`}
-        </div>`;
+          ${it.mehr ? `<div class="rcar ${it.offen ? 'auf' : ''}"
+               data-car="${esc(it.id)}">
+            <ha-icon icon="mdi:chevron-down"></ha-icon>
+          </div>` : ''}
+        </div>
+        ${it.offen ? this._panel(it) : ''}`;
       }).join('');
 
       panel = `
@@ -2560,7 +2868,7 @@ class OnyxRoomCard extends OnyxBase {
     if (head) {
       this._press(head, {
         onTap: () => { if (m.path) navigate(this, m.path); },
-        onHold: () => { this._open = null; this._repaint(); }
+        onHold: () => { this._open = null; this._offen = null; this._repaint(); }
       });
     }
 
@@ -2570,7 +2878,13 @@ class OnyxRoomCard extends OnyxBase {
       this._press(chip, {
         // Tippen klappt auf — das ist der häufigere Wunsch.
         // Schalten ist der seltenere und der folgenreichere Griff, also Halten.
-        onTap: () => { this._open = this._open === domain ? null : domain; this._repaint(); },
+        onTap: () => {
+          this._open = this._open === domain ? null : domain;
+          // Eine andere Gruppe heisst eine andere Liste — die offene Zeile
+          // von vorhin steht dann gar nicht mehr da.
+          this._offen = null;
+          this._repaint();
+        },
         onHold: () => this._toggleGroup(grp)
       });
     });
@@ -2586,6 +2900,25 @@ class OnyxRoomCard extends OnyxBase {
         knopf.addEventListener(art, (ev) => ev.stopPropagation()));
       this._press(knopf, { onTap: () => this._favorite(it) });
     });
+
+    // Der Winkel klappt die Zeile auf. Wie der Stern hält er seine
+    // Ereignisse bei sich — sonst schaltete jeder Griff auf ihn zugleich
+    // das Gerät.
+    root.querySelectorAll('.rcar[data-car]').forEach((knopf) => {
+      const id = knopf.dataset.car;
+      ['pointerdown', 'pointerup', 'click'].forEach((art) =>
+        knopf.addEventListener(art, (ev) => ev.stopPropagation()));
+      this._press(knopf, {
+        onTap: () => {
+          // Höchstens einer offen: sonst wird die Karte bei vier Farblampen
+          // länger als der Bildschirm.
+          this._offen = this._offen === id ? null : id;
+          this._repaint();
+        }
+      });
+    });
+
+    this._bindPanel(m);
 
     root.querySelectorAll('.lrow').forEach((row) => {
       const id = row.dataset.ent;
@@ -2726,7 +3059,10 @@ class OnyxRoomCard extends OnyxBase {
   getCardSize() {
     const og = this._open;
     if (!og) return 3;
-    try { return 3 + this._groupItems(og).length; } catch (e) { return 4; }
+    // Eine aufgeklappte Zeile trägt gut vier weitere Reihen — Schiene,
+    // Rad und Effekte brauchen Platz, und das Raster soll ihn kennen.
+    const auf = this._offen ? 4 : 0;
+    try { return 3 + this._groupItems(og).length + auf; } catch (e) { return 4; }
   }
 }
 
@@ -7081,6 +7417,11 @@ const ST_MODULES = {
       { n: 'exclude', sel: 'entity', multiple: true }
     ]
   },
+  media: {
+    icon: 'mdi:music',
+    fields: [{ n: 'exclude', sel: 'entity', domain: 'media_player',
+               multiple: true }]
+  },
   entity: {
     icon: 'mdi:information-outline',
     fields: [{ n: 'entity', sel: 'entity' }],
@@ -7187,6 +7528,14 @@ class OnyxStatusCard extends OnyxBase {
     .r .i{ width:26px; height:26px; border-radius:8px; flex:none; display:grid;
            place-items:center; --mdc-icon-size:15px; color:var(--t);
            background:color-mix(in srgb, var(--t) 18%, transparent); }
+    /* Liefert der Lautsprecher ein Albumbild, tritt es an die Stelle des
+       Symbols. Grösse, Wiederholung und Grundfarbe stehen ausdrücklich
+       da: die Regel darüber setzt background als Kurzschreibweise, und
+       die räumt beim Erben alles andere ab — genau daran sind die
+       Profilbilder der Personen schon einmal gescheitert. */
+    .r .i.cover{ background-size:cover; background-position:center;
+                 background-repeat:no-repeat; background-color:transparent;
+                 font-size:0; }
     .r .tx{ flex:1; min-width:0; }
     .r .n{ font-size:12.5px; color:#c3ccd6; line-height:16px;
            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -7580,6 +7929,59 @@ class OnyxStatusCard extends OnyxBase {
     };
   }
 
+  /**
+   * Was gerade spielt — eine Zeile je Lautsprecher, der wirklich läuft.
+   *
+   * Wie bei den schwachen Akkus schaut der Baustein von selbst im ganzen
+   * Haus nach; wer nicht gemeint ist, kommt in `exclude`. Pausiert zählt
+   * nicht als "läuft": eine Zeile für einen angehaltenen Lautsprecher wäre
+   * eine Meldung ohne Nachricht.
+   */
+  _modMedia(e) {
+    const hass = this._hass;
+    const raus = new Set([].concat(e.exclude || []).filter(Boolean));
+    const zeilen = [];
+
+    for (const id of Object.keys(hass.states)) {
+      if (raus.has(id) || id.slice(0, id.indexOf('.')) !== 'media_player') continue;
+      const st = hass.states[id];
+      if (!st || st.state !== 'playing') continue;
+      const a = st.attributes || {};
+
+      // Was läuft: Titel und Künstler, sonst der Sender, sonst die App.
+      // Ein Radiosender ohne Titel soll nicht als leere Zeile dastehen.
+      const teile = [];
+      if (a.media_title) teile.push(a.media_title);
+      if (a.media_artist) teile.push(a.media_artist);
+      else if (a.media_album_name) teile.push(a.media_album_name);
+      if (!teile.length && a.media_channel) teile.push(a.media_channel);
+      if (!teile.length && a.app_name) teile.push(a.app_name);
+
+      zeilen.push({
+        icon: 'mdi:music',
+        // Das Albumbild, wenn der Lautsprecher eines liefert — beim Radio
+        // und bei vielen Podcasts liefert er keines, dann bleibt die Note.
+        bild: bildUrl(a.entity_picture),
+        name: nameOf(hass, id),
+        detail: teile.join(' · ') || stateText(hass, st),
+        // Zwei Zeilen: der Lautsprecher oben, was er spielt darunter. In
+        // einer Zeile nebeneinander wäre es fast immer abgeschnitten.
+        zweizeilig: true,
+        // Rechts steht nichts. Die Lautstärke wäre die einzige Zahl, die
+        // sich anböte — und sie sagt über das, was läuft, nichts aus.
+        value: '',
+        color: ST_C.blau,
+        id
+      });
+    }
+
+    if (!zeilen.length) return null;
+    // In der Reihenfolge, in der die Lautsprecher heissen — nicht in der,
+    // in der Home Assistant sie zufällig führt.
+    zeilen.sort((x, y) => x.name.localeCompare(y.name, LANG));
+    return zeilen;
+  }
+
   /** Ein einfacher Eintrag: Entität, Vorlagen, oder beides gemischt */
   _plain(e, key) {
     const hass = this._hass;
@@ -7620,26 +8022,41 @@ class OnyxStatusCard extends OnyxBase {
     else if (e.module === 'car') out = this._modCar(e);
     else if (e.module === 'battery') out = this._modBattery(e);
     else if (e.module === 'batteries') out = this._modBatteries(e, key);
+    else if (e.module === 'media') out = this._modMedia(e);
     else out = this._plain(e, key);
     if (!out) return null;
 
-    // Was ausdrücklich in der Konfiguration steht, schlägt den Baustein
-    for (const f of ['name', 'detail', 'value', 'icon']) {
-      const v = this._field(e, f, key);
-      if (v != null && v !== '') out[f] = v;
-    }
-    const col = this._field(e, 'color', key);
-    if (col) out.color = ST_C[col] || col;
+    // Die meisten Bausteine liefern eine Zeile, die Musik liefert eine je
+    // Lautsprecher. Von hier an werden beide gleich behandelt.
+    const viele = Array.isArray(out);
+    const liste = viele ? out : [out];
 
-    if (!out.name && !out.detail) return null;
-    return out;
+    // Was ausdrücklich in der Konfiguration steht, schlägt den Baustein
+    for (const zeile of liste) {
+      for (const f of ['name', 'detail', 'value', 'icon']) {
+        const v = this._field(e, f, key);
+        if (v != null && v !== '') zeile[f] = v;
+      }
+      const col = this._field(e, 'color', key);
+      if (col) zeile.color = ST_C[col] || col;
+    }
+
+    const gut = liste.filter((z) => z.name || z.detail);
+    if (!gut.length) return null;
+    return viele ? gut : gut[0];
   }
 
   _model() {
     const cfg = this._config;
-    const rows = (cfg.rows || []).map((e, i) => this._entry(e, 'r' + i)).filter(Boolean);
-    const chips = (cfg.chips || []).map((e, i) => this._entry(e, 'c' + i)).filter(Boolean);
+    // `flat` statt `map`: die Musik bringt eine Zeile je Lautsprecher mit.
+    const rows = (cfg.rows || []).map((e, i) => this._entry(e, 'r' + i))
+      .filter(Boolean).flat();
+    const chips = (cfg.chips || []).map((e, i) => this._entry(e, 'c' + i))
+      .filter(Boolean).flat();
     let head = cfg.head ? this._entry(cfg.head, 'h') : null;
+    // Im Kopf steht genau eine Zeile. Liefert ein Baustein dort mehrere,
+    // gilt die erste — der Rest hätte keinen Platz.
+    if (Array.isArray(head)) head = head[0] || null;
 
     // Die Anwesenheit gehört zur Überschrift, als Reihe von Kreisen. Wo sie
     // in der Konfiguration steht — als Kopf oder als Zeile —, ist dabei
@@ -7679,12 +8096,15 @@ class OnyxStatusCard extends OnyxBase {
    * der Pfad ohne Anhang.
    */
   _sigOf(model) {
-    if (!model || !model.leute) return JSON.stringify(model);
-    const flach = Object.assign({}, model, {
-      leute: model.leute.map((w) => Object.assign({}, w, {
-        bild: typeof w.bild === 'string' ? w.bild.split('?')[0] : w.bild
-      }))
-    });
+    if (!model) return JSON.stringify(model);
+    const ohne = (o) => (o && typeof o.bild === 'string'
+      ? Object.assign({}, o, { bild: o.bild.split('?')[0] }) : o);
+    const flach = Object.assign({}, model);
+    if (model.leute) flach.leute = model.leute.map(ohne);
+    // Auch das Albumbild trägt ein Zeichen im Anhang. Zählte es mit, baute
+    // sich die Karte im Takt der Zeichenvergabe neu auf.
+    if (model.rows) flach.rows = model.rows.map(ohne);
+    if (model.head) flach.head = ohne(model.head);
     return JSON.stringify(flach);
   }
 
@@ -7729,9 +8149,15 @@ class OnyxStatusCard extends OnyxBase {
     const rows = m.rows.map((r) => `
       <div class="r${r.kinder ? ' tipp' : ''}" style="--t:${esc(r.color)}"
            ${r.kinder ? `data-auf="${esc(r.key)}"` : `data-e="${esc(r.id || '')}"`}>
-        <span class="i"><ha-icon icon="${esc(r.icon)}"></ha-icon></span>
+        <span class="i${r.bild ? ' cover' : ''}"${r.bild
+          ? ` style="background-image:url(${r.bild})"` : ''}>${r.bild
+          ? '' : `<ha-icon icon="${esc(r.icon)}"></ha-icon>`}</span>
         <span class="tx">
-          <div class="n">${esc(r.name)}${r.detail ? ' · ' + esc(r.detail) : ''}</div>
+          ${r.zweizeilig
+            ? `<div class="n">${esc(r.name)}</div>
+               ${r.detail ? `<div class="d">${esc(r.detail)}</div>` : ''}`
+            : `<div class="n">${esc(r.name)}${
+                r.detail ? ' · ' + esc(r.detail) : ''}</div>`}
           ${r.percent != null
             ? `<div class="bar"><i style="width:${clamp(r.percent, 0, 100)}%"></i></div>` : ''}
         </span>

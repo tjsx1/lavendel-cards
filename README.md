@@ -316,6 +316,27 @@ quer ziehen = Helligkeit oder Storenhöhe, Halten = Detailfenster.
 > Tippen klappt auf, weil das der häufigere Wunsch ist. Alles auf einmal umzuschalten
 > ist seltener und folgenreicher — das bekommt die absichtsvollere Geste.
 
+**Und jede Zeile klappt noch einmal auf.** Am rechten Rand steht dann ein Winkel;
+darunter erscheint, was die Zeile selbst nicht kann:
+
+![Eine Zeile aufgeklappt: Farbe, Lamellen, Lautstärke](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-expand.png)
+
+- **Licht** — Schiene für die Farbtemperatur, Farbrad, Effekte. Also alles, was auch
+  die Licht-Karte kann, bis auf den Helligkeitsbalken: den ersetzt die Zeile.
+- **Store** — der Lamellenwinkel. Die Höhe stellt die Zeile.
+- **Musik** — Lautstärke, dazu zurück, anhalten und weiter.
+
+Gezeigt wird nur, was das Gerät wirklich beherrscht: eine Lampe ohne Farbe bekommt
+keinen Winkel, eine Store ohne Lamellen auch nicht, und ein Schalter in der
+Lampenliste erst recht nicht. In der Gruppe **Geräte** gibt es das Aufklappen gar
+nicht — dort steht alles Mögliche nebeneinander, und ein Winkel wäre bei jeder
+zweiten Zeile ein anderes Versprechen.
+
+Offen ist immer höchstens **eine** Zeile: klappst du die nächste auf, schliesst sich
+die vorige. Sonst wäre die Karte bei vier Farblampen länger als der Bildschirm. Die
+drei Griffe der Zeile bleiben, wie sie waren — der Winkel hält seine Ereignisse bei
+sich, genau wie der Stern bei den Storen.
+
 **Farbe.** Jede Karte darf ihre eigene bekommen; sinnvoll, wenn du Räume auf einen
 Blick auseinanderhalten willst:
 
@@ -1175,6 +1196,7 @@ chips:
 | `car` | `entity` (Akku), optional `charging`, `power`, `remaining`, `cable`, `climate` | Ladestand als Balken, dazu Ladeleistung, Restzeit, Kabel, Klima |
 | `battery` | `entity` (Sensor in %), optional `charging` | Füllstand als Balken — grün, ab 40 % orange, ab 15 % rot |
 | `batteries` | nichts | Alle schwachen Akkus im Haus als **eine** Zeile zum Aufklappen |
+| `media` | nichts, optional `exclude` | Was gerade läuft — eine Zeile je spielendem Lautsprecher, mit Albumbild |
 | `entity` | `entity` | Irgendeine Entität: Name, Symbol und Farbe frei wählbar |
 | `template` | — | Gar keine Entität, nur Vorlagen |
 
@@ -1250,6 +1272,35 @@ Akkus voll, fällt die Zeile weg wie jede andere auch.
 
 Ein Tipp auf ein einzelnes Gerät in der Liste öffnet es in Home Assistant. Auf einer
 halben Spalte entfallen die kleinen Balken; Name und Wert bleiben.
+
+**Was gerade läuft.** Der Baustein `media` schaut im ganzen Haus nach spielenden
+Lautsprechern — ohne dass du einen davon aufzählen musst:
+
+![Musik in der Status-Karte](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/status-media.png)
+
+```yaml
+type: custom:onyx-status-card
+title: Haus
+rows:
+  - module: vacuum
+    entity: vacuum.roborock_s8
+  - module: media
+    exclude:
+      - media_player.fernseher     # läuft abends sowieso
+      - media_player.handy_tobias
+```
+
+Je spielender Lautsprecher eine Zeile: oben der Lautsprecher, darunter **Titel und
+Künstler**. Fehlt der Titel — Radio, Podcast —, steht dort der Sender, sonst der Name
+der App. Links das **Albumbild**, wenn der Lautsprecher eines liefert; sonst die Note.
+Ein Tipp öffnet den Lautsprecher in Home Assistant.
+
+Als „läuft" zählt nur `playing`. Ein **pausierter** Lautsprecher meldet nichts — eine
+Zeile für angehaltene Musik wäre eine Meldung ohne Nachricht. Und spielt nirgends
+etwas, fällt die Zeile weg wie jede andere auch.
+
+> Rechts steht bewusst keine Zahl. Die Lautstärke wäre die einzige, die sich anböte,
+> und sie sagt über das, was läuft, nichts aus.
 
 **Vorlagen für alles Übrige.** Jedes der Felder `name`, `detail`, `value`, `percent`,
 `icon`, `color` und `hide` darf statt eines festen Werts eine Jinja-Vorlage sein. Die
@@ -1538,6 +1589,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.14.0** — Raum-Karte: jede Zeile in einer aufgeklappten Gruppe lässt sich selbst noch einmal aufklappen. Beim Licht kommen Farbtemperatur, Farbrad und Effekte, bei der Store der Lamellenwinkel, bei der Musik Lautstärke und Titelsprünge — für Farbe muss man die Karte nicht mehr verlassen. Dazu Status-Karte: neuer Baustein `media` zeigt, was gerade spielt — eine Zeile je Lautsprecher, mit Titel, Künstler und Albumbild
 
 **1.13.2** — Kamera-Karte: **das** war der Grund für das Standbild. Das Standbild und der Player lagen nicht übereinander, sondern untereinander: Im normalen Fluss nimmt das Standbild die volle Höhe des 16:9-Kastens ein, und der danach angehängte `<ha-camera-stream>` landete einen Kasten tiefer — vom `overflow:hidden` abgeschnitten. Er lief die ganze Zeit, nur sah ihn niemand. Jetzt liegen beide übereinander, und das Standbild räumt den Platz, sobald der Player hängt
 
