@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.13.1';
+const ONYX_VERSION = '1.13.2';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -6232,7 +6232,13 @@ class OnyxCameraCard extends OnyxBase {
     .pic{ position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
           background:#0e1116; cursor:pointer; }
     ha-card.foot .pic{ border-radius:14px; }
+    /* Standbild und Player liegen ÜBEREINANDER, nicht untereinander. Im
+       normalen Fluss nimmt das Standbild die volle Höhe des 16:9-Kastens
+       ein, und der danach angehängte Player landet einen Kasten tiefer —
+       vom overflow:hidden abgeschnitten und damit unsichtbar. Genau das
+       war der Grund, warum die Karte nur ein Standbild zeigte. */
     .pic img, .pic video, .pic ha-camera-stream{
+      position:absolute; inset:0;
       display:block; width:100%; height:100%; object-fit:cover; }
     .pic ha-camera-stream video{ width:100%; height:100%; object-fit:cover; }
 
@@ -6602,6 +6608,10 @@ class OnyxCameraCard extends OnyxBase {
       this._stream.stateObj = st;
       this._stream.muted = this._muted;
       if (this._stream.parentNode !== host) host.appendChild(this._stream);
+      // Das Standbild hat seine Schuldigkeit getan. Es läge sonst als
+      // eingefrorener Augenblick hinter dem laufenden Bild.
+      const standbild = host.querySelector('img');
+      if (standbild) standbild.remove();
       if (this._poll) { clearInterval(this._poll); this._poll = null; }
     });
   }
