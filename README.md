@@ -14,7 +14,7 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 
 | Karte | Was sie kann |
 |---|---|
-| `onyx-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt |
+| `onyx-room-card` | Raumübersicht, die pro Gerätegruppe **aufklappt** und jedes Gerät einzeln zeigt — inklusive Wasserventilen |
 | `onyx-slider-card` | Vertikaler Zieh-Regler für Licht, Storen oder Lautstärke |
 | `onyx-cover-card` | Storen mit Höhe, Lamellenwinkel, Fahrtasten und Windsperre |
 | `onyx-media-card` | Medienspieler; der Kartengrund kommt aus dem Cover |
@@ -26,6 +26,8 @@ Keine Abhängigkeiten — weder button-card noch card-mod nötig. Alle Karten la
 | `onyx-camera-card` | Kamera mit Livebild, Bewegung, Licht und Türöffner |
 | `onyx-lock-card` | Schloss: schieben zum Entriegeln, mit Tür- und Akkustand |
 | `onyx-status-card` | Mehrere Zustände in einer Karte, aus Bausteinen und Vorlagen |
+| `onyx-climate-card` | Thermostat mit Ring, Betriebsarten und Voreinstellungen |
+| `onyx-energy-card` | Energiefluss zwischen Netz, PV, Batterie, Haus und Wallbox |
 
 ## Installation über HACS
 
@@ -38,7 +40,7 @@ HACS trägt die Ressource selbst ein — der Schritt unter Einstellungen → Das
 
 ### Ohne HACS
 
-`dist/onyx-cards.js` nach `/config/www/` kopieren, dann unter
+`onyx-cards.js` nach `/config/www/` kopieren, dann unter
 Einstellungen → Dashboards → ⋮ → Ressourcen hinzufügen:
 
 ```
@@ -253,9 +255,69 @@ als Liste übernimmt; danach lässt sich jede einzeln einstellen. Wer lieber all
 einmal setzt, schreibt `cover_favorite:` in die YAML — das gilt für jede Store, die
 nichts Eigenes sagt, und `favorite: false` an einem Eintrag nimmt sie wieder aus.
 
+**Wasser.** Smarte Wasserventile bekommen eine eigene Gruppe — der Rasensprenger
+im Garten, der Tropfschlauch im Hochbeet, der Absperrhahn hinter der Waschmaschine.
+
+![Die Gruppe Wasser, zu und aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-water.png)
+
+```yaml
+type: custom:onyx-room-card
+area: garten
+water:
+  - entity: valve.rasen_nord
+    name: Rasen Nord
+    water: sensor.rasen_nord_heute        # Liter heute — steht in der Zeile
+    water_total: sensor.rasen_nord_gesamt # Zählerstand
+    flow: sensor.rasen_nord_durchfluss    # was gerade fliesst
+    schedules:
+      - schedule.rasen_morgens
+      - entity: schedule.rasen_abends
+        name: Abends
+    run_script: script.giessen            # für die Laufzeiten
+    run_minutes: [5, 10, 20]
+  - switch.beete                          # Gardena, Eve Aqua, Tuya
+  - valve.hochbeet
+```
+
+In der Liste dürfen **`valve.`** und **`switch.`** stehen: neuere Ventile melden sich
+in Home Assistant als Ventil, Gardena, Eve Aqua und die meisten Tuya-Ventile als
+Schalter. Ohne Liste sammelt die Gruppe die `valve.`-Entitäten des Bereichs — nach
+Schaltern sucht sie nicht, denn welche Steckdose ein Ventil schaltet, weiss nur, wer
+sie eingerichtet hat.
+
+**Die Zeile.** Tippen öffnet und schliesst, Halten öffnet das Detailfenster. Rechts
+stehen die Liter von heute, dort wo bei der Lampe die Prozente stehen; ohne Zähler
+steht dort schlicht *Offen* oder *Zu*. Ein offenes Ventil füllt seine Zeile — meldet
+es eine Stellung, füllt sie sich nur so weit.
+
+**Aufgeklappt** steht darunter, was die Zeile selbst nicht kann:
+
+- **Der Knopf** — *Öffnen* oder *Schliessen*, über die volle Breite. Derselbe Befehl
+  wie beim Tippen, nur ohne Zielen.
+- **Die Laufzeiten** — `run_minutes` neben einem `run_script`. Ein Tipp ruft dein
+  Skript mit den Minuten auf: `script.turn_on` mit den Variablen `minutes` und
+  `valve`. Die Uhr läuft damit in Home Assistant, nicht im Browser — ein gesperrtes
+  Handy darf kein Ventil vergessen, das noch offen ist. Ohne `run_script` erscheinen
+  die Minuten gar nicht: ein Knopf, der nichts aufruft, ist schlimmer als kein Knopf.
+- **Die Zeitpläne** — bis zu vier. Der Schieber legt sie um (`homeassistant.toggle`),
+  Halten öffnet das Detailfenster. Nennt die Entität ein `next_event` — die
+  Zeitplan-Helfer von Home Assistant tun das —, steht die nächste Zeit daneben:
+  *heute 20:00*, *morgen 06:00*, ab übermorgen mit Wochentag. Automationen und
+  Schalter nennen keine, dann bleibt die Spalte leer statt eine Zeit zu erfinden.
+- **Der Verbrauch** — je Sensor eine Kachel: heute, gesamt, jetzt. Wo kein Sensor
+  steht, fehlt die Kachel; die übrigen teilen sich die Breite.
+
+Ein Ventil ohne Pläne, ohne Zähler und ohne Skript bekommt **keinen Winkel** — auf
+und zu kann seine Zeile schon selbst.
+
+Unter den Zeilen steht ein einziger Knopf: **Alle Ventile zu**. „Alle auf" gibt es
+nicht — das ist die Geste, die man nie will und im falschen Moment teuer bezahlt.
+Weil die Liste gemischt sein darf, geht der Befehl geteilt hinaus: `valve.close_valve`
+an die Ventile, `homeassistant.turn_off` an die Schalter.
+
 **Der Sammelplatz.** Licht, Storen, Musik und Klima decken den Alltag ab — aber ein
 Raum hat mehr: Saugroboter, Küchenmaschine, Luftreiniger, 3D-Drucker. Dafür gibt es
-die fünfte Gruppe `devices`, und dort darf **jede** Entität stehen, gleich aus welcher
+die letzte Gruppe `devices`, und dort darf **jede** Entität stehen, gleich aus welcher
 Domäne.
 
 ![Die Gruppe Geräte, zu und aufgeklappt](https://raw.githubusercontent.com/tjsx1/onyx-cards/main/docs/room-devices.png)
@@ -355,7 +417,7 @@ hineingemischt. Dass gerade etwas läuft, sagen der volle Verlauf, die gefüllte
 Gruppenknöpfe und die Zeile darunter; dafür braucht es nicht auch noch den Wechsel
 nach Grau.
 
-Die Gruppenknöpfe stehen in der Reihenfolge Licht, Storen, Musik, Klima. Sie sind
+Die Gruppenknöpfe stehen in der Reihenfolge Licht, Storen, Wasser, Musik, Klima. Sie sind
 umrandete Kreise; **gefüllt ist nur, was gerade läuft**, und zwar im hellen Ton der
 gewählten Farbe. Dadurch bleibt die Knopfreihe ruhig und der Blick findet sofort, was
 aktiv ist. Steht ein `navigation_path` in der Konfiguration, führt ein Tipp auf die
@@ -1589,6 +1651,8 @@ Passiert es doch, meldet sich die Karte in der Browser-Konsole mit einem Hinweis
 statt einfach weiß zu bleiben.
 
 ## Änderungen
+
+**1.15.0** — Raum-Karte: neue Gruppe **Wasser** für smarte Ventile — Rasensprenger, Tropfschlauch, Absperrhahn. Die Zeile öffnet und schliesst, rechts stehen die Liter von heute; aufgeklappt kommen der Ventilknopf, Laufzeiten über ein eigenes Skript, bis zu vier Zeitpläne mit ihrer nächsten Zeit und der Verbrauch als Kacheln. In der Liste dürfen `valve.` und `switch.` stehen; ohne Liste sammelt die Gruppe die Ventile des Bereichs. Unter den Zeilen steht «Alle Ventile zu» — «alle auf» gibt es bewusst nicht
 
 **1.14.0** — Raum-Karte: jede Zeile in einer aufgeklappten Gruppe lässt sich selbst noch einmal aufklappen. Beim Licht kommen Farbtemperatur, Farbrad und Effekte, bei der Store der Lamellenwinkel, bei der Musik Lautstärke und Titelsprünge — für Farbe muss man die Karte nicht mehr verlassen. Dazu Status-Karte: neuer Baustein `media` zeigt, was gerade spielt — eine Zeile je Lautsprecher, mit Titel, Künstler und Albumbild
 

@@ -25,7 +25,7 @@
  *   3. Browser hart neu laden (Strg/Cmd + Shift + R)
  */
 
-const ONYX_VERSION = '1.14.0';
+const ONYX_VERSION = '1.15.0';
 
 console.info(
   `%c ONYX-CARDS %c ${ONYX_VERSION} `,
@@ -375,7 +375,24 @@ const STRINGS = {
     'group.media_player': 'Medien',
     'group.climate': 'Klima',
     'group.cover': 'Storen',
+    'group.water': 'Wasser',
     'group.devices': 'Geräte',
+    valveOpen: '{n} Ventil offen',
+    valvesOpen: '{n} Ventile offen',
+    nOfMOpen: '{n} von {m} offen',
+    openValve: 'Öffnen',
+    closeValve: 'Schliessen',
+    closeAllValves: 'Alle Ventile zu',
+    closeAllValvesShort: 'Alle zu',
+    schedules: 'Zeitpläne',
+    consumption: 'Verbrauch',
+    runTime: 'Laufzeit',
+    minutes: '{n} Min',
+    todayAt: 'heute {z}',
+    tomorrowAt: 'morgen {z}',
+    today: 'Heute',
+    total: 'Gesamt',
+    nowFlow: 'Jetzt',
     'devRun': 'Ein Gerät läuft',
     'devsRun': '{n} Geräte laufen',
     'nOfMRun': '{n} von {m} laufen',
@@ -492,6 +509,10 @@ const STRINGS = {
     'ed.covers': 'Storen',
     'ed.media': 'Medienspieler',
     'ed.climate': 'Heizung',
+    'ed.water': 'Ventile',
+    'ed.h.water': 'Wasserventile — Rasen, Beete, Absperrhahn. Ohne Eintrag sammelt '
+      + 'die Gruppe die valve-Entitäten des Bereichs; Ventile an einem Schalter '
+      + 'trägst du hier ein. Zeitpläne und Zähler je Ventil gibt es im YAML.',
     'ed.devices': 'Geräte',
     'ed.h.devices': 'Der Sammelplatz: Saugroboter, Küchenmaschine, Drucker — jede '
       + 'Entität darf hier stehen. Diese Liste füllt sich nicht von selbst aus '
@@ -608,7 +629,7 @@ const STRINGS = {
     'ed.c.rosa': 'Rosa',
     'ed.g.light': 'Lampen', 'ed.g.cover': 'Storen',
     'ed.g.media_player': 'Medienspieler', 'ed.g.climate': 'Heizung',
-    'ed.g.devices': 'Geräte',
+    'ed.g.water': 'Wasser', 'ed.g.devices': 'Geräte',
     'ed.newGroup': 'Szenen'
   },
 
@@ -923,7 +944,24 @@ const STRINGS = {
     'group.media_player': 'Media',
     'group.climate': 'Climate',
     'group.cover': 'Blinds',
+    'group.water': 'Water',
     'group.devices': 'Devices',
+    valveOpen: '{n} valve open',
+    valvesOpen: '{n} valves open',
+    nOfMOpen: '{n} of {m} open',
+    openValve: 'Open',
+    closeValve: 'Close',
+    closeAllValves: 'Close all valves',
+    closeAllValvesShort: 'Close all',
+    schedules: 'Schedules',
+    consumption: 'Consumption',
+    runTime: 'Run time',
+    minutes: '{n} min',
+    todayAt: 'today {z}',
+    tomorrowAt: 'tomorrow {z}',
+    today: 'Today',
+    total: 'Total',
+    nowFlow: 'Now',
     'devRun': 'One device running',
     'devsRun': '{n} devices running',
     'nOfMRun': '{n} of {m} running',
@@ -1040,6 +1078,10 @@ const STRINGS = {
     'ed.covers': 'Blinds',
     'ed.media': 'Media players',
     'ed.climate': 'Thermostats',
+    'ed.water': 'Valves',
+    'ed.h.water': 'Water valves — lawn, beds, stopcock. Left empty, the group '
+      + 'collects the valve entities of the area; valves behind a switch go in '
+      + 'here. Schedules and meters per valve live in YAML.',
     'ed.devices': 'Devices',
     'ed.h.devices': 'The catch-all: vacuum, mixer, printer — any entity may sit '
       + 'here. This list does not fill itself from the area; what is in it is '
@@ -1154,7 +1196,7 @@ const STRINGS = {
     'ed.c.rosa': 'Pink',
     'ed.g.light': 'Lights', 'ed.g.cover': 'Blinds',
     'ed.g.media_player': 'Media players', 'ed.g.climate': 'Thermostats',
-    'ed.g.devices': 'Devices',
+    'ed.g.water': 'Water', 'ed.g.devices': 'Devices',
     'ed.newGroup': 'Scenes'
   }
 };
@@ -1262,6 +1304,9 @@ function isOn(st) {
   if (d === 'media_player') return ['playing', 'paused', 'buffering', 'on'].includes(st.state);
   if (d === 'climate') return st.state !== 'off';
   if (d === 'cover') return st.state === 'open' || (st.attributes.current_position || 0) > 0;
+  // Ein Ventil ist offen, während es öffnet — sonst spränge die Zeile beim
+  // Anfahren kurz auf "Zu" zurück, obwohl schon Wasser unterwegs ist.
+  if (d === 'valve') return st.state === 'open' || st.state === 'opening';
   return st.state === 'on';
 }
 
@@ -1282,7 +1327,54 @@ function pctOf(st) {
     const v = st.attributes.volume_level;
     return v == null ? -1 : Math.round(v * 100);
   }
+  // Nur wenige Ventile melden eine Stellung. Die anderen kennen bloss auf
+  // und zu — dann ist offen ganz offen.
+  if (d === 'valve') {
+    const p = st.attributes.current_position;
+    return p == null ? (isOn(st) ? 100 : 0) : Math.round(p);
+  }
   return -1;
+}
+
+/**
+ * Ein Messwert samt Einheit — oder nichts. Ein Sensor, der gerade nicht
+ * erreichbar ist, gibt hier `null`: eine Kachel, in der "Nicht erreichbar"
+ * steht, sagt weniger als gar keine Kachel.
+ */
+function readNum(hass, id) {
+  if (!id || !hass) return null;
+  const st = hass.states[id];
+  if (!st || isDead(st)) return null;
+  const einheit = st.attributes.unit_of_measurement || '';
+  const num = Number(st.state);
+  if (isNaN(num)) return { text: st.state, einheit, num: null };
+  // Die Genauigkeit gibt der Sensor vor, nicht die Karte: "28" bleibt 28
+  // und wird nicht zu "28,0", "4.2" behält seine Stelle. Selbst gerundet
+  // wird nur, wo der Sensor mehr Stellen liefert, als jemand liest.
+  const roh = String(st.state);
+  const punkt = roh.indexOf('.');
+  const stellen = punkt < 0 ? 0 : Math.min(2, roh.length - punkt - 1);
+  return { text: nfmt(num, stellen), einheit, num };
+}
+
+/**
+ * Wann der Zeitplan das nächste Mal greift. Ein volles Datum sagt hier
+ * weniger als ein Wort: "morgen 06:00" liest sich schneller als
+ * "2.9.2026, 06:00". Ab übermorgen genügt der Wochentag.
+ */
+function nextText(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  const tag = new Date(d);
+  tag.setHours(0, 0, 0, 0);
+  const diff = Math.round((tag - heute) / 86400000);
+  const zeit = fmtTime(d);
+  if (diff === 0) return t('todayAt', { z: zeit });
+  if (diff === 1) return t('tomorrowAt', { z: zeit });
+  return `${fmtDate(d, { weekday: 'short' })} ${zeit}`;
 }
 
 function nameOf(hass, id, fallback) {
@@ -1543,6 +1635,13 @@ const GROUPS = {
   media_player: { icon: 'mdi:music-note' },
   climate:      { icon: 'mdi:thermostat' },
   cover:        { icon: 'mdi:window-shutter' },
+  // Wasser heisst die Gruppe, nicht Ventil: dieselbe Zeile trägt den
+  // Rasensprenger im Garten und den Absperrhahn hinter der Waschmaschine.
+  // Ihre Geräte stehen in zwei Domänen — `valve.` bei den neueren, `switch.`
+  // bei Gardena, Eve Aqua und den meisten Tuya-Ventilen. Selbst suchen darf
+  // sie deshalb nur nach `valve.`: welche Steckdose ein Ventil schaltet,
+  // weiss nur der, der sie eingerichtet hat.
+  water:        { icon: 'mdi:water', such: 'valve' },
   // Der Sammelplatz: hier darf jede Entität stehen. Deshalb sucht diese
   // Gruppe auch nichts von selbst im Bereich zusammen — sie hat keine
   // Domäne, nach der sie suchen könnte, und "alles Übrige" wäre jeder
@@ -1551,7 +1650,7 @@ const GROUPS = {
 };
 
 /** Die Gruppen der Raum-Karte in ihrer Vorgabereihenfolge */
-const ROOM_GROUPS = ['light', 'cover', 'media_player', 'climate', 'devices'];
+const ROOM_GROUPS = ['light', 'cover', 'water', 'media_player', 'climate', 'devices'];
 
 /**
  * Sinnvolle Sinnbilder für die Sammelgruppe. Ein eigenes Symbol an der
@@ -1722,6 +1821,7 @@ const GROUP_KEYS = {
   media_player: ['media', 'media_players'],
   climate:      ['climate'],
   cover:        ['covers', 'storen', 'rollos'],
+  water:        ['water', 'wasser', 'valves', 'ventile'],
   devices:      ['devices', 'geraete', 'geräte']
 };
 
@@ -1964,6 +2064,43 @@ class OnyxRoomCard extends OnyxBase {
              border-color:color-mix(in srgb, var(--btn) 65%, transparent);
              color:#fff; font-weight:600; }
     .fxi.held{ opacity:.6; }
+    /* Wasser: eine Überschrift, die Zeitpläne und die Verbrauchskacheln.
+       Die Überschrift gibt es nur hier — bei Licht und Store steht unter
+       dem Winkel jeweils nur eine Sorte Bedienelement, hier drei. */
+    .plab{ font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+           color:#5f7d92; font-weight:700; margin:2px 0 -2px 2px; }
+    .plan{ display:flex; align-items:center; gap:9px; height:34px; padding:0 10px;
+           border-radius:10px; cursor:pointer;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
+    .plan.dead{ opacity:.45; pointer-events:none; }
+    .plan.held{ opacity:.6; }
+    .plan .pi{ width:22px; height:22px; border-radius:7px; flex:none; display:grid;
+               place-items:center; --mdc-icon-size:13px; color:#93aabd;
+               background:rgba(255,255,255,.07); }
+    .plan.on .pi{ background:color-mix(in srgb, var(--btn) 55%, transparent); color:#fff; }
+    .plan .pn{ flex:1; min-width:0; font-size:12px; color:#b8cbdb;
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .plan.on .pn{ color:#dfeaf3; font-weight:600; }
+    .plan .pt{ font-size:11.5px; color:var(--sub); flex:none;
+               font-variant-numeric:tabular-nums; }
+    /* Der Schieber ist gezeichnet, kein <input>: er soll aussehen wie der
+       Rest der Karte und nicht wie das Betriebssystem. */
+    .plan .ps{ width:30px; height:17px; border-radius:99px; flex:none; position:relative;
+               background:rgba(255,255,255,.13); transition:background .18s ease; }
+    .plan .ps i{ position:absolute; top:2.5px; left:2.5px; width:12px; height:12px;
+                 border-radius:50%; background:#8ea3b5; transition:left .18s ease; }
+    .plan.on .ps{ background:color-mix(in srgb, var(--btn) 80%, transparent); }
+    .plan.on .ps i{ left:15.5px; background:#fff; }
+
+    .stats{ display:flex; gap:7px; }
+    .stat{ flex:1; min-width:0; border-radius:10px; padding:7px 9px;
+           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
+    .stat .k{ font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+              color:#5f7d92; font-weight:700; }
+    .stat .w{ font-size:13.5px; font-weight:700; color:#dbe8f2; white-space:nowrap;
+              font-variant-numeric:tabular-nums; }
+    .stat .w small{ font-size:10px; font-weight:500; color:#7b93a6; margin-left:2px; }
+
     .mrow{ display:flex; gap:7px; }
     .mbtn{ flex:1; height:34px; border-radius:10px; display:grid; place-items:center;
            cursor:pointer; color:#cfe0ee; --mdc-icon-size:18px;
@@ -2052,7 +2189,10 @@ class OnyxRoomCard extends OnyxBase {
     // was der Raum sonst noch hergibt.
     if (GROUPS[domain] && GROUPS[domain].frei) return [];
     if (!cfg.area) return [];
-    return entitiesInArea(this._hass, cfg.area, domain).map((entity) => ({ entity }));
+    // Meist heisst die Gruppe wie ihre Domäne. Wasser nicht: dort steht
+    // `such`, und gesucht wird nach `valve.`.
+    const such = (GROUPS[domain] && GROUPS[domain].such) || domain;
+    return entitiesInArea(this._hass, cfg.area, such).map((entity) => ({ entity }));
   }
 
   _model() {
@@ -2091,6 +2231,8 @@ class OnyxRoomCard extends OnyxBase {
           : d === 'devices' ? on
           : own === 'cover' ? !on
           : own === 'media_player' ? ['playing', 'buffering'].includes(st.state)
+          // Beim Wasser ist das Offenstehen die Nachricht — geschlossen ist
+          // der Normalzustand, den niemand oben lesen will.
           : on;
         return {
           id,
@@ -2106,8 +2248,13 @@ class OnyxRoomCard extends OnyxBase {
           icon: entry.icon
             || (d === 'devices'
                  ? ((st && st.attributes.icon) || DEV_ICONS[own] || GROUPS[d].icon)
+                 // Ein Schalter, der ein Ventil schaltet, ist ein Ventil —
+                 // in der Wasserliste steht er dafür, nicht als Steckdose.
                  : (own === 'switch' && d === 'light'
                      ? 'mdi:power-socket-eu' : GROUPS[d].icon)),
+          // Der Verbrauch von heute: er steht rechts in der Zeile, wo bei
+          // der Lampe die Prozente stehen.
+          liter: d === 'water' ? readNum(hass, entry.water) : null,
           // Nur echte Lampen: die Zeile nimmt die Farbe an, in der sie leuchtet
           glow: own === 'light' ? lightGlow(st) : null,
           // Nur Storen tragen eine Wunschposition — und nur, wenn eine
@@ -2121,7 +2268,7 @@ class OnyxRoomCard extends OnyxBase {
           // Aufklappen gibt es nur in den Gruppen mit eigener Domäne. In
           // der Sammelgruppe steht alles Mögliche nebeneinander; dort wäre
           // ein Winkel bei jeder zweiten Zeile ein anderes Versprechen.
-          mehr: d === 'devices' ? null : this._mehr(own, st),
+          mehr: d === 'devices' ? null : this._mehr(own, st, entry, d),
           offen: this._offen === id,
           dead: isDead(st),
           pct: pctOf(st),
@@ -2184,9 +2331,51 @@ class OnyxRoomCard extends OnyxBase {
    * bekommt es keinen Winkel — ein Knopf, hinter dem nichts steht, ist
    * schlimmer als keiner.
    */
-  _mehr(own, st) {
+  _mehr(own, st, entry, d) {
     if (!st || isDead(st)) return null;
     const a = st.attributes || {};
+    const hass = this._hass;
+
+    // Beim Wasser hängt der Inhalt nicht am Gerät, sondern an dem, was du
+    // ihm mitgegeben hast: ein Ventil ohne Pläne und ohne Zähler kann die
+    // Zeile schon selbst — auf und zu —, und bekommt deshalb keinen Winkel.
+    if (d === 'water') {
+      const e = entry || {};
+      const plaene = (normList(e.schedules || e.zeitplaene || e.plaene) || [])
+        .slice(0, 4)
+        .map((p) => {
+          const pst = hass.states[p.entity];
+          return {
+            id: p.entity,
+            name: p.name || nameOf(hass, p.entity),
+            on: isOn(pst),
+            dead: isDead(pst),
+            // `next_event` nennen die Zeitplan-Helfer von Home Assistant.
+            // Automationen und Schalter nennen nichts — dann bleibt die
+            // Spalte eben leer, statt eine Zeit zu erfinden.
+            next: pst && !isDead(pst) ? nextText(pst.attributes.next_event) : null
+          };
+        });
+      const kacheln = [
+        { key: 'today', wert: readNum(hass, e.water) },
+        { key: 'total', wert: readNum(hass, e.water_total || e.water_gesamt) },
+        { key: 'nowFlow', wert: readNum(hass, e.flow || e.durchfluss) }
+      ].filter((k) => k.wert);
+      // Die Minuten stehen nur dort, wo auch ein Skript sie annimmt. Ein
+      // Knopf, der nichts aufruft, ist schlimmer als kein Knopf.
+      const skript = typeof e.run_script === 'string' ? e.run_script : null;
+      const minuten = skript
+        ? [].concat(e.run_minutes || e.laufzeiten || [])
+            .map((n) => Math.round(Number(n)))
+            .filter((n) => n > 0)
+            .slice(0, 5)
+        : [];
+      if (!plaene.length && !kacheln.length && !minuten.length) return null;
+      return {
+        art: 'water', offen: isOn(st), own,
+        plaene, kacheln, minuten, skript
+      };
+    }
 
     if (own === 'light') {
       const modes = a.supported_color_modes || [];
@@ -2496,6 +2685,8 @@ class OnyxRoomCard extends OnyxBase {
       } else if (g.domain === 'cover') {
         // Zu ist die Nachricht, nicht offen — offen ist der Normalzustand
         bits.push(t(n === 1 ? 'coverShut' : 'coversShut', { n }));
+      } else if (g.domain === 'water') {
+        bits.push(t(n === 1 ? 'valveOpen' : 'valvesOpen', { n }));
       } else if (g.domain === 'devices') {
         bits.push(t(n === 1 ? 'devRun' : 'devsRun', { n }));
       }
@@ -2514,6 +2705,12 @@ class OnyxRoomCard extends OnyxBase {
     if (domain === 'media_player') {
       if (it.melden) return it.title || t('playing');
       return it.on ? t('mediaPaused') : t('off');
+    }
+    // Beim Wasser stehen die Liter von heute rechts, wo bei der Lampe die
+    // Prozente stehen. Ohne Zähler bleibt die schlichte Auskunft.
+    if (domain === 'water') {
+      if (it.liter) return `${it.liter.text} ${it.liter.einheit}`.trim();
+      return it.on ? t('open') : t('closed');
     }
     // Ein Schalter in der Lampenliste kennt keine Helligkeit. Die Prüfung
     // steht hinter den Domänen, die ohnehin eigenen Text mitbringen.
@@ -2602,6 +2799,35 @@ class OnyxRoomCard extends OnyxBase {
       return;
     }
 
+    if (e.art === 'water') {
+      const knopf = root.getElementById('rvalve');
+      if (knopf) this._press(knopf, { onTap: () => this._toggleOne(id, 'water') });
+
+      // Die Minuten laufen über ein Skript in Home Assistant, nicht über
+      // eine Uhr im Browser: ein gesperrtes Handy darf kein Ventil
+      // vergessen, das noch offen ist.
+      root.querySelectorAll('[data-min]').forEach((el) => {
+        this._press(el, {
+          onTap: () => this.call('script', 'turn_on', {
+            entity_id: e.skript,
+            variables: { minutes: Number(el.dataset.min), valve: id, entity: id }
+          })
+        });
+      });
+
+      root.querySelectorAll('[data-plan]').forEach((el) => {
+        const plan = e.plaene.find((p) => p.id === el.dataset.plan);
+        if (!plan || plan.dead) return;
+        this._press(el, {
+          // Zeitplan-Helfer, Automation oder Schalter — `homeassistant.toggle`
+          // kennt sie alle, wie bei Automatik und Windwächter.
+          onTap: () => this.call('homeassistant', 'toggle', { entity_id: plan.id }),
+          onHold: () => fireMoreInfo(this, plan.id)
+        });
+      });
+      return;
+    }
+
     if (e.art === 'cover') {
       const tilt = root.getElementById('rtilt');
       if (!tilt) return;
@@ -2667,6 +2893,11 @@ class OnyxRoomCard extends OnyxBase {
     if (og.domain === 'media_player') {
       return reihe(btn('alloff', 'mdi:music-note-off', 'turnAllOff'));
     }
+    // Beim Wasser steht nur der eine Knopf. "Alle auf" wäre die Geste, die
+    // man nie will und im falschen Moment teuer bezahlt.
+    if (og.domain === 'water') {
+      return reihe(btn('alloff', 'mdi:water-off', 'closeAllValves'));
+    }
     return '';
   }
 
@@ -2701,6 +2932,42 @@ class OnyxRoomCard extends OnyxBase {
             ${e.fx.map((f) => `
               <div class="fxi ${f === e.effect ? 'on' : ''}"
                    data-fx="${esc(f)}">${esc(f)}</div>`).join('')}
+          </div>` : ''}
+      </div>`;
+    }
+
+    if (e.art === 'water') {
+      return `
+      <div class="sub2">
+        <div class="tbar" id="rvalve">
+          ${e.offen ? '<div class="tfill" style="width:100%"></div>' : ''}
+          <div class="tcap"><ha-icon icon="${e.offen ? 'mdi:water-off' : 'mdi:water'}"></ha-icon>
+            <span>${esc(t(e.offen ? 'closeValve' : 'openValve'))}</span></div>
+        </div>
+        ${e.minuten.length ? `
+          <div class="plab">${esc(t('runTime'))}</div>
+          <div class="fx">
+            ${e.minuten.map((n) => `
+              <div class="fxi" data-min="${n}">${esc(t('minutes', { n }))}</div>`).join('')}
+          </div>` : ''}
+        ${e.plaene.length ? `
+          <div class="plab">${esc(t('schedules'))}</div>
+          ${e.plaene.map((p) => `
+            <div class="plan ${p.on ? 'on' : ''} ${p.dead ? 'dead' : ''}"
+                 data-plan="${esc(p.id)}">
+              <div class="pi"><ha-icon icon="mdi:clock-outline"></ha-icon></div>
+              <div class="pn">${esc(p.name)}</div>
+              ${p.next ? `<div class="pt">${esc(p.next)}</div>` : ''}
+              <div class="ps"><i></i></div>
+            </div>`).join('')}` : ''}
+        ${e.kacheln.length ? `
+          <div class="plab">${esc(t('consumption'))}</div>
+          <div class="stats">
+            ${e.kacheln.map((k) => `
+              <div class="stat"><div class="k">${esc(t(k.key))}</div>
+                <div class="w">${esc(k.wert.text)}${
+                  k.wert.einheit ? `<small>${esc(k.wert.einheit)}</small>` : ''}</div>
+              </div>`).join('')}
           </div>` : ''}
       </div>`;
     }
@@ -2760,7 +3027,12 @@ class OnyxRoomCard extends OnyxBase {
       // frei — sonst stünden die Prozentzahlen in der Liste versetzt.
       const platzFuerStern = og.items.some((i) => i.fav != null);
       const rows = og.items.map((it) => {
-        const pct = it.dim && it.pct > 0 ? it.pct : 0;
+        // Ziehen kann man an der Wasserzeile nicht — die Fläche zeigt
+        // trotzdem, dass etwas läuft. Meldet das Ventil eine Stellung,
+        // steht sie da; sonst ist offen ganz offen.
+        const pct = it.dim && it.pct > 0 ? it.pct
+          : og.domain === 'water' && it.on ? (it.pct > 0 ? it.pct : 100)
+          : 0;
         return `
         <div class="lrow ${it.dead ? 'dead' : ''} ${!it.on && !it.dead ? 'off' : ''}"
              data-ent="${esc(it.id)}" data-dom="${og.domain}"${
@@ -2787,7 +3059,8 @@ class OnyxRoomCard extends OnyxBase {
       <div class="grp">
         <span>${esc(t('inRoom', { g: t('group.' + og.domain) }))}</span>
         <b>${esc(t(og.domain === 'cover' ? 'nOfMShut'
-                     : og.domain === 'devices' ? 'nOfMRun' : 'nOfMOn',
+                     : og.domain === 'devices' ? 'nOfMRun'
+                     : og.domain === 'water' ? 'nOfMOpen' : 'nOfMOn',
                      { n: og.meldeCount, m: og.items.length }))}</b>
       </div>
       <div class="rows">${rows}</div>
@@ -2988,6 +3261,12 @@ class OnyxRoomCard extends OnyxBase {
       return;
     }
     if (own === 'climate') { fireMoreInfo(this, id); return; }
+    // Die Ventil-Domäne kennt kein `toggle` — sie hat zwei eigene Dienste.
+    if (own === 'valve') {
+      const st = this._hass.states[id];
+      this.call('valve', isOn(st) ? 'close_valve' : 'open_valve', { entity_id: id });
+      return;
+    }
     if (own === 'media_player') { this.call('media_player', 'media_play_pause', { entity_id: id }); return; }
     if (own === 'cover') {
       const st = this._hass.states[id];
@@ -3038,6 +3317,8 @@ class OnyxRoomCard extends OnyxBase {
       this.call('media_player', 'media_play_pause', { entity_id: ids });
     } else if (grp.domain === 'cover') {
       this.call('cover', grp.onCount ? 'close_cover' : 'open_cover', { entity_id: ids });
+    } else if (grp.domain === 'water') {
+      this._wasser(ids, !grp.onCount);
     } else {
       fireMoreInfo(this, ids[0]);
     }
@@ -3054,6 +3335,24 @@ class OnyxRoomCard extends OnyxBase {
     if (grp.domain === 'light') this.call('homeassistant', 'turn_off', { entity_id: ids });
     else if (grp.domain === 'media_player') this.call('media_player', 'turn_off', { entity_id: ids });
     else if (grp.domain === 'cover') this.call('cover', 'close_cover', { entity_id: ids });
+    else if (grp.domain === 'water') this._wasser(ids, false);
+  }
+
+  /**
+   * Auf und zu für eine gemischte Liste. Die Ventil-Domäne kennt kein
+   * `turn_on`, sondern zwei eigene Dienste — also wird die Liste geteilt,
+   * statt `homeassistant.turn_on` zu vertrauen, das bei `valve.` ins Leere
+   * liefe.
+   */
+  _wasser(ids, auf) {
+    const ventile = ids.filter((x) => x.slice(0, 6) === 'valve.');
+    const rest = ids.filter((x) => x.slice(0, 6) !== 'valve.');
+    if (ventile.length) {
+      this.call('valve', auf ? 'open_valve' : 'close_valve', { entity_id: ventile });
+    }
+    if (rest.length) {
+      this.call('homeassistant', auf ? 'turn_on' : 'turn_off', { entity_id: rest });
+    }
   }
 
   getCardSize() {
@@ -9217,6 +9516,7 @@ const ED_HELP_KEY = {
   fill: 'ed.h.fill', unit: 'ed.h.unit', y_axis: 'ed.h.y_axis',
   rail_labels: 'ed.h.rail_labels', tint: 'ed.h.tint', state: 'ed.h.state',
   below: 'ed.h.below', exclude: 'ed.h.exclude', devices: 'ed.h.devices',
+  water: 'ed.h.water',
   shared_scale: 'ed.h.shared_scale',
   woche: 'ed.h.perEntity', monat: 'ed.h.perEntity', jahr: 'ed.h.perEntity',
   history: 'ed.h.history', history_min_span: 'ed.h.history_min_span',
@@ -9806,6 +10106,7 @@ const ROOM_LISTS = [
   { field: 'covers', domain: 'cover' },
   { field: 'media', domain: 'media_player' },
   { field: 'climate', domain: 'climate' },
+  { field: 'water', domain: 'water' },
   { field: 'devices', domain: 'devices' }
 ];
 
@@ -9868,6 +10169,7 @@ class OnyxRoomEditor extends OnyxEditor {
       ),
       fieldEntity('media', 'media_player', true),
       fieldEntity('climate', 'climate', true),
+      fieldEntity('water', ['valve', 'switch'], true),
       // Ohne Domäne: in diese Liste darf jede Entität
       fieldEntity('devices', null, true)
     ];
